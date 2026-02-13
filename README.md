@@ -46,6 +46,14 @@ jobs:
       - run: make lint
 ```
 
+> **Caveat:** Pass `.github/workflows/*.yml` explicitly to actionlint instead
+> of relying on auto-discovery. Auto-discovery breaks inside CI containers
+> where the workspace path doesn't match what actionlint expects.
+>
+> ```makefile
+> actionlint .github/workflows/*.yml
+> ```
+
 ### Publishing
 
 The image is published automatically when a version tag is pushed. A single
