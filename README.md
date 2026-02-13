@@ -26,6 +26,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | actionlint | GitHub Actions workflow linting |
 | hadolint | Dockerfile linting |
 | markdownlint-cli2 | Markdown linting |
+| biome | JavaScript/TypeScript linting |
 | luacheck | Lua script linting |
 | make | Build automation |
 
@@ -95,6 +96,7 @@ respective communities:
 - [actionlint](https://github.com/rhysd/actionlint) by rhysd (MIT)
 - [hadolint](https://github.com/hadolint/hadolint) by Hadolint contributors (GPLv3)
 - [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) by David Anson (MIT)
+- [Biome](https://github.com/biomejs/biome) by Biome contributors (MIT/Apache-2.0)
 - [luacheck](https://github.com/lunarmodules/luacheck) by Lunar Modules (MIT)
 
 ## License
