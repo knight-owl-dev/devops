@@ -59,7 +59,7 @@ lint-sh-fmt-fix:
 # Lint GitHub Actions workflows
 lint-actions:
 	@echo "Linting GitHub Actions..."
-	@actionlint
+	@actionlint .github/workflows/*.yml
 	@echo "OK"
 
 # Lint Markdown files
