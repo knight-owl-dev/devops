@@ -1,0 +1,77 @@
+# ci-tools — shared linting image for Knight Owl CI pipelines
+FROM node:22-bookworm-slim
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# ---------- apt: shellcheck, make, curl, luarocks, gcc (build-time) ----------
+# hadolint ignore=DL3008
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    shellcheck \
+    make \
+    curl \
+    ca-certificates \
+    luarocks \
+    gcc \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# ---------- platform ----------
+ARG TARGETARCH
+
+# ---------- shfmt ----------
+ARG SHFMT_VERSION
+ARG SHFMT_SHA256_AMD64
+ARG SHFMT_SHA256_ARM64
+RUN SHFMT_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
+      && echo "${SHFMT_SHA256_AMD64}" || echo "${SHFMT_SHA256_ARM64}") \
+  && curl -fsSL "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_${TARGETARCH}" \
+      -o /usr/local/bin/shfmt \
+  && echo "${SHFMT_SHA256}  /usr/local/bin/shfmt" | sha256sum -c - \
+  && chmod +x /usr/local/bin/shfmt
+
+# ---------- actionlint ----------
+ARG ACTIONLINT_VERSION
+ARG ACTIONLINT_SHA256_AMD64
+ARG ACTIONLINT_SHA256_ARM64
+RUN ACTIONLINT_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
+      && echo "${ACTIONLINT_SHA256_AMD64}" || echo "${ACTIONLINT_SHA256_ARM64}") \
+  && curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${TARGETARCH}.tar.gz" \
+      -o /tmp/actionlint.tar.gz \
+  && echo "${ACTIONLINT_SHA256}  /tmp/actionlint.tar.gz" | sha256sum -c - \
+  && tar -xzf /tmp/actionlint.tar.gz -C /usr/local/bin actionlint \
+  && rm /tmp/actionlint.tar.gz
+
+# ---------- hadolint ----------
+ARG HADOLINT_VERSION
+ARG HADOLINT_SHA256_AMD64
+ARG HADOLINT_SHA256_ARM64
+RUN HADOLINT_ARCH=$([ "${TARGETARCH}" = "amd64" ] \
+      && echo "x86_64" || echo "${TARGETARCH}") \
+  && HADOLINT_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
+      && echo "${HADOLINT_SHA256_AMD64}" || echo "${HADOLINT_SHA256_ARM64}") \
+  && curl -fsSL "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-linux-${HADOLINT_ARCH}" \
+      -o /usr/local/bin/hadolint \
+  && echo "${HADOLINT_SHA256}  /usr/local/bin/hadolint" | sha256sum -c - \
+  && chmod +x /usr/local/bin/hadolint
+
+# ---------- markdownlint-cli2 ----------
+ARG MARKDOWNLINT_CLI2_VERSION
+RUN npm install -g "markdownlint-cli2@${MARKDOWNLINT_CLI2_VERSION}" \
+  && npm cache clean --force
+
+# ---------- luacheck ----------
+ARG LUACHECK_VERSION
+RUN luarocks install luacheck "${LUACHECK_VERSION}" \
+  && rm -rf /root/.cache/luarocks \
+  && apt-get purge -y --auto-remove gcc \
+  && rm -rf /var/lib/apt/lists/*
+
+# ---------- metadata ----------
+ARG IMAGE_VERSION=local
+LABEL maintainer="Knight Owl <support@knight-owl.dev>"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.authors="Knight Owl LLC"
+LABEL org.opencontainers.image.source="https://github.com/knight-owl-dev/devops"
+LABEL org.opencontainers.image.version="${IMAGE_VERSION}"
+LABEL org.opencontainers.image.description="Shared linting image for Knight Owl CI pipelines"
