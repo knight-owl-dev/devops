@@ -60,6 +60,11 @@ ARG MARKDOWNLINT_CLI2_VERSION
 RUN npm install -g "markdownlint-cli2@${MARKDOWNLINT_CLI2_VERSION}" \
   && npm cache clean --force
 
+# ---------- biome ----------
+ARG BIOME_VERSION
+RUN npm install -g "@biomejs/biome@${BIOME_VERSION}" \
+  && npm cache clean --force
+
 # ---------- luacheck ----------
 ARG LUACHECK_VERSION
 RUN luarocks install luacheck "${LUACHECK_VERSION}" \
