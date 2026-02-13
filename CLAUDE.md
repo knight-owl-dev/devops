@@ -18,6 +18,7 @@ Read and follow `docs/supply-chain-security.md`. This is non-negotiable. Never i
 - **compose.yaml uses `image:` not `tags:`** to name the built image, avoiding Docker Compose's `<project>-<service>` double-naming.
 - **Hyphenated tool names** (e.g., `markdownlint-cli2`) map to underscored function names (`resolve_markdownlint_cli2`) via `${tool//-/_}` in the resolver dispatch.
 - **shfmt enforces `2> /dev/null`** (with a space before `>`), not `2>/dev/null`.
+- **Do not reference issues in commit messages.** Issue linking (`Refs #NN`, `Fixes #NN`) belongs in the PR description only. Commits should describe what changed, not which issue they relate to.
 
 ## Key docs
 

@@ -1,0 +1,6 @@
+config:
+  first-line-heading: false
+  ul-indent:
+    indent: 4
+  no-inline-html: false
+  blanks-around-fences: false
