@@ -80,6 +80,3 @@ LABEL org.opencontainers.image.authors="Knight Owl LLC"
 LABEL org.opencontainers.image.source="https://github.com/knight-owl-dev/devops"
 LABEL org.opencontainers.image.version="${IMAGE_VERSION}"
 LABEL org.opencontainers.image.description="Shared linting image for Knight Owl CI pipelines"
-
-# ---------- drop privileges (all tools are in system paths, runtime is read-only) ---
-USER node
