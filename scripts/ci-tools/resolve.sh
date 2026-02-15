@@ -19,6 +19,10 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${0}")/../.." && pwd)"
 LOCKFILE="${REPO_ROOT}/images/ci-tools/versions.lock"
+LOCKFILE_TMP=""
+
+cleanup() { [[ -n "${LOCKFILE_TMP}" ]] && rm -f "${LOCKFILE_TMP}"; }
+trap cleanup EXIT
 
 # ── helpers ──────────────────────────────────────────────────────────
 
@@ -163,7 +167,8 @@ done
 
 # ── write lockfile ───────────────────────────────────────────────────
 
-cat > "${LOCKFILE}" << EOF
+LOCKFILE_TMP="$(mktemp)"
+cat > "${LOCKFILE_TMP}" << EOF
 SHFMT_VERSION=${SHFMT_VERSION}
 SHFMT_SHA256_AMD64=${SHFMT_SHA256_AMD64}
 SHFMT_SHA256_ARM64=${SHFMT_SHA256_ARM64}
@@ -179,5 +184,6 @@ STYLELINT_VERSION=${STYLELINT_VERSION}
 LUACHECK_VERSION=${LUACHECK_VERSION}
 VALIDATE_ACTION_PINS_VERSION=${VALIDATE_ACTION_PINS_VERSION}
 EOF
+mv "${LOCKFILE_TMP}" "${LOCKFILE}"
 
 echo "OK: lockfile written to ${LOCKFILE}"
