@@ -28,9 +28,9 @@ if [[ ! -f "${DEB_FILE}" ]]; then
   exit 1
 fi
 
-# Install runtime dependencies and the package
+# Install the package (curl and jq are declared as deb dependencies)
 apt-get update -qq > /dev/null
-apt-get install -y -qq curl jq man-db > /dev/null
+apt-get install -y -qq man-db > /dev/null
 apt-get install -y -qq "${DEB_FILE}" > /dev/null
 
 # Verify
