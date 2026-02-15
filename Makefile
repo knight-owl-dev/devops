@@ -37,48 +37,32 @@ lint-fix: lint-sh-fmt-fix lint-md-fix
 
 # Lint Dockerfiles
 lint-docker:
-	@echo "Linting Dockerfiles..."
-	@hadolint images/*/Dockerfile
-	@echo "OK"
+	@echo "Linting Dockerfiles..." && hadolint images/*/Dockerfile && echo "OK"
 
 # Lint shell scripts
 lint-sh:
-	@echo "Linting shell scripts..."
-	@shellcheck scripts/*/*.sh images/*/bin/*
-	@echo "OK"
+	@echo "Linting shell scripts..." && shellcheck scripts/*/*.sh images/*/bin/* && echo "OK"
 
 # Check shell script formatting
 lint-sh-fmt:
-	@echo "Checking shell script formatting..."
-	@shfmt -d -i 2 -ci -bn -sr scripts/
-	@echo "OK"
+	@echo "Checking shell script formatting..." && shfmt -d -i 2 -ci -bn -sr scripts/ && echo "OK"
 
 # Fix shell script formatting
 lint-sh-fmt-fix:
-	@echo "Fixing shell script formatting..."
-	@shfmt -w -i 2 -ci -bn -sr scripts/
-	@echo "OK"
+	@echo "Fixing shell script formatting..." && shfmt -w -i 2 -ci -bn -sr scripts/ && echo "OK"
 
 # Lint GitHub Actions workflows
 lint-actions:
-	@echo "Linting GitHub Actions..."
-	@actionlint .github/workflows/*.yml
-	@echo "OK"
-	@echo "Validating GitHub Actions pins..."
-	@$(VALIDATE_ACTION_PINS) .github/workflows/*.yml
-	@echo "OK"
+	@echo "Linting GitHub Actions..." && actionlint .github/workflows/*.yml && echo "OK"
+	@echo "Validating GitHub Actions pins..." && $(VALIDATE_ACTION_PINS) .github/workflows/*.yml && echo "OK"
 
 # Lint Markdown files
 lint-md:
-	@echo "Linting Markdown..."
-	@markdownlint-cli2 '**/*.md'
-	@echo "OK"
+	@echo "Linting Markdown..." && markdownlint-cli2 '**/*.md' && echo "OK"
 
 # Fix Markdown files
 lint-md-fix:
-	@echo "Fixing Markdown..."
-	@markdownlint-cli2 --fix '**/*.md'
-	@echo "OK"
+	@echo "Fixing Markdown..." && markdownlint-cli2 --fix '**/*.md' && echo "OK"
 
 # Remove local image
 clean:
