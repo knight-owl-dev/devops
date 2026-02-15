@@ -17,6 +17,9 @@ jobs:
       - name: Lint
         run: make lint
 
+  # Builds run on ubuntu-latest (x86_64) for both architectures. The tools
+  # are bash scripts, so nfpm produces valid debs regardless of host arch.
+  # Architecture-specific testing happens in test-deb using native runners.
   build-deb:
     name: Build .deb (${{ matrix.arch }})
     runs-on: ubuntu-latest
