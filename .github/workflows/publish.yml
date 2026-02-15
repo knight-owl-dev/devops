@@ -9,6 +9,9 @@ jobs:
   publish:
     name: Publish ${{ matrix.image }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: publish-${{ matrix.image }}
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
