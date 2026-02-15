@@ -97,6 +97,13 @@ resolve_biome() {
   BIOME_VERSION="${version}"
 }
 
+resolve_stylelint() {
+  local version="${1:-}"
+  [[ -z "${version}" ]] && version="$(latest_npm_version stylelint)"
+  # No SHA256 — npm verifies package integrity during install.
+  STYLELINT_VERSION="${version}"
+}
+
 resolve_luacheck() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_luarocks_version luacheck)"
@@ -111,12 +118,12 @@ TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
 if [[ $# -eq 0 ]]; then
-  TOOLS_TO_RESOLVE=(shfmt actionlint hadolint markdownlint-cli2 biome luacheck)
+  TOOLS_TO_RESOLVE=(shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck)
 else
   for arg in "${@}"; do
     tool="${arg%%:*}"
     case "${tool}" in
-      shfmt | actionlint | hadolint | markdownlint-cli2 | biome | luacheck) ;;
+      shfmt | actionlint | hadolint | markdownlint-cli2 | biome | stylelint | luacheck) ;;
       *) die "unknown tool: ${tool}" ;;
     esac
     TOOLS_TO_RESOLVE+=("${tool}")
@@ -133,6 +140,7 @@ ACTIONLINT_VERSION="" ACTIONLINT_SHA256_AMD64="" ACTIONLINT_SHA256_ARM64=""
 HADOLINT_VERSION="" HADOLINT_SHA256_AMD64="" HADOLINT_SHA256_ARM64=""
 MARKDOWNLINT_CLI2_VERSION=""
 BIOME_VERSION=""
+STYLELINT_VERSION=""
 LUACHECK_VERSION=""
 
 if [[ -f "${LOCKFILE}" ]]; then
@@ -161,6 +169,7 @@ HADOLINT_SHA256_AMD64=${HADOLINT_SHA256_AMD64}
 HADOLINT_SHA256_ARM64=${HADOLINT_SHA256_ARM64}
 MARKDOWNLINT_CLI2_VERSION=${MARKDOWNLINT_CLI2_VERSION}
 BIOME_VERSION=${BIOME_VERSION}
+STYLELINT_VERSION=${STYLELINT_VERSION}
 LUACHECK_VERSION=${LUACHECK_VERSION}
 EOF
 
