@@ -40,8 +40,10 @@ locally.
 - **Established package registries** — npm and luarocks for tools that are
   distributed through them. These registries handle integrity verification.
 - **GitHub-maintained Actions** — `actions/checkout`, `docker/build-push-action`,
-  `docker/login-action`, `docker/setup-buildx-action`. These are maintained by
-  GitHub or Docker with broad community oversight.
+  `docker/login-action`, `docker/setup-buildx-action`, `actions/upload-artifact`,
+  `actions/download-artifact`, `actions/setup-go`,
+  `actions/create-github-app-token`. These are maintained by GitHub or Docker
+  with broad community oversight.
 - **Dependabot** — automated dependency updates for the base image, GitHub
   Actions, and npm packages.
 

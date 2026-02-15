@@ -1,0 +1,44 @@
+name: "Build .deb Package"
+description: |
+  Builds Debian packages for ci-tools local scripts using nfpm.
+
+  Prerequisites:
+    - Staged artifacts must exist (run scripts/package-release.sh first)
+    - nfpm.yaml must exist at repo root
+
+  Produces artifacts at:
+    artifacts/release/ci-tools_<version>_<arch>.deb
+
+  Callers are responsible for uploading artifacts if needed.
+
+  See scripts/package-deb.sh for implementation details.
+
+inputs:
+  version:
+    description: "Package version (e.g. 1.0.0)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Validate version
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: ./scripts/validate-version.sh "${VERSION}" > /dev/null
+
+    - name: Setup Go
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      with:
+        go-version: stable
+        cache: false
+
+    - name: Install nfpm
+      shell: bash
+      run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+
+    - name: Build deb packages
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: bash scripts/package-deb.sh "${VERSION}"

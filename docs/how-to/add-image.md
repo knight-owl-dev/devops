@@ -61,9 +61,9 @@ Shared helpers live in `scripts/lib/resolve.sh`. See
 `scripts/ci-tools/resolve.sh` as a reference implementation.
 
 For repo-local scripts, use `resolve_local()` from `scripts/lib/resolve.sh`.
-Local scripts have no upstream to query — the version is bumped manually in
-`versions.lock`. The resolver preserves the current value during a normal
-`make resolve` and accepts an explicit pin like any other tool:
+Local scripts have no upstream to query — their lockfile value is `local`
+(the default). The resolver preserves this during a normal `make resolve`
+and accepts an explicit pin like any other tool:
 
 ```bash
 resolve_my_script() {
@@ -130,3 +130,24 @@ MY_TOOL := $(shell command -v my-tool 2>/dev/null || echo images/<name>/bin/my-t
 
 This keeps bare-metal development working while ensuring CI runs the same
 version that shipped in the image.
+
+### 9. Set up distributable packaging (local tools only)
+
+If the local tool should be installable outside Docker (via Homebrew or apt),
+add it to the packaging pipeline:
+
+1. Add a man page in `docs/man/man1/<tool>.1` (mdoc(7) format).
+2. Add the binary to `scripts/package-release.sh` staging.
+3. Add entries to `nfpm.yaml` for deb packaging.
+4. Add verification checks to `scripts/verify-deb-install.sh` (binary path,
+   symlink, version output, man page).
+
+The `.github/actions/build-deb` composite action handles Go/nfpm toolchain
+setup for both CI and publish workflows. CI runs `build-deb` and `test-deb`
+jobs on every PR to catch packaging issues before release. Use
+`make test-package` to run the same verification locally via Docker.
+
+At release time the publish workflow packages local tools into platform
+archives (`.tar.gz`) and Debian packages (`.deb`), uploads them as release
+assets, and triggers the downstream `apt` and `homebrew-tap` repos. See
+[Publish an Image](publish-image.md) for the full pipeline.

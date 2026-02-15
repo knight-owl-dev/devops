@@ -16,3 +16,77 @@ jobs:
 
       - name: Lint
         run: make lint
+
+  # Builds run on ubuntu-latest (x86_64) for both architectures. The tools
+  # are bash scripts, so nfpm produces valid debs regardless of host arch.
+  # Architecture-specific testing happens in test-deb using native runners.
+  build-deb:
+    name: Build .deb (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      # Version is a placeholder — CI exercises the packaging pipeline,
+      # not a real release. The publish workflow uses the git tag.
+      - name: Stage release artifacts
+        run: bash scripts/package-release.sh 0.0.0
+
+      - name: Build .deb package
+        uses: ./.github/actions/build-deb
+        with:
+          version: 0.0.0
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: deb-${{ matrix.arch }}
+          path: artifacts/release/ci-tools_*_${{ matrix.arch }}.deb
+          if-no-files-found: error
+
+  test-deb:
+    name: Test .deb (${{ matrix.distro }}-${{ matrix.arch }})
+    needs: build-deb
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.image }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+            distro: debian
+            image: debian:bookworm
+          - runner: ubuntu-latest
+            arch: amd64
+            distro: ubuntu
+            image: ubuntu:24.04
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            distro: debian
+            image: debian:bookworm
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            distro: ubuntu
+            image: ubuntu:24.04
+
+    steps:
+      - name: Checkout (for verify script)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: scripts
+          sparse-checkout-cone-mode: false
+
+      - name: Download .deb artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: deb-${{ matrix.arch }}
+          path: deb
+
+      - name: Verify installation
+        run: bash ./scripts/verify-deb-install.sh ./deb/ci-tools_*_${{ matrix.arch }}.deb

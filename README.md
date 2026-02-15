@@ -60,13 +60,17 @@ jobs:
 
 ### Publishing
 
-The image is published automatically when a version tag is pushed. A single
-`publish` workflow builds all images in the matrix in parallel.
+The image is published automatically when a version tag is pushed. The
+`publish` workflow builds and pushes the image, packages org-developed local
+tools into platform archives and `.deb` packages, creates a GitHub Release
+with checksums, and notifies downstream `apt` and `homebrew-tap` repos.
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
+
+See [Publish an Image](docs/how-to/publish-image.md) for the full pipeline.
 
 ## Local Development
 
@@ -77,6 +81,7 @@ make resolve TOOLS="shfmt:v3.11.0"  # Pin specific tool versions
 make build     # Build image locally via Docker Compose
 make verify    # Verify all tools are present in the image
 make lint      # Lint this repo's files
+make man       # Preview man pages
 make help      # Show all available commands
 ```
 

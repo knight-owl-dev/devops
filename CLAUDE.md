@@ -24,4 +24,5 @@ Read and follow `docs/supply-chain-security.md`. This is non-negotiable. Never i
 
 - `docs/how-to/add-image.md` — conventions for adding new images and tools
 - `docs/how-to/sync-image.md` — how the resolve/build/verify pipeline works
+- `docs/how-to/publish-image.md` — publish workflow, packaging, and release artifacts
 - `Makefile` — all available targets

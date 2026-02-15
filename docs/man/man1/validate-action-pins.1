@@ -1,0 +1,73 @@
+.Dd February 15, 2026
+.Dt VALIDATE-ACTION-PINS 1
+.Os
+.Sh NAME
+.Nm validate-action-pins
+.Nd verify GitHub Actions SHA pins match their claimed tags
+.Sh SYNOPSIS
+.Nm
+.Op Fl -help
+.Op Fl -version
+.Ar file ...
+.Sh DESCRIPTION
+.Nm
+scans GitHub Actions workflow files for
+.Ic uses:\&
+lines pinned to a commit SHA with a tag comment, for example:
+.Pp
+.Dl uses: actions/checkout@de0fac2e... # v6
+.Pp
+For each match it queries the GitHub REST API to verify that the pinned
+SHA resolves to the stated tag.
+If the API is unreachable or a required dependency is missing, the check
+is skipped and the tool exits successfully.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl -help
+Show a usage summary and exit.
+.It Fl -version
+Print the program name and version, then exit.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width indent
+.It Ev GITHUB_TOKEN
+Optional GitHub personal access token or fine-grained token.
+When set, API requests use the token for authentication, raising the
+rate limit from 60 to 5\|000 requests per hour.
+.El
+.Sh EXIT STATUS
+.Bl -tag -width indent
+.It 0
+All pins match their claimed tags, no pins were found in the input
+files, or validation was skipped because a dependency is missing or
+the GitHub API is unreachable.
+.It 1
+One or more pins do not match their claimed tag, or no files were
+provided.
+.El
+.Sh EXAMPLES
+Validate all workflows in a repository:
+.Pp
+.Dl validate-action-pins .github/workflows/*.yml
+.Pp
+Validate a single file:
+.Pp
+.Dl validate-action-pins .github/workflows/ci.yml
+.Sh DEPENDENCIES
+.Nm
+requires
+.Xr curl 1
+and
+.Xr jq 1
+at runtime.
+If either is missing the tool prints a warning and exits 0.
+.Sh SEE ALSO
+.Xr actionlint 1
+.Sh AUTHORS
+.An "Knight Owl LLC"
+.Pa https://github.com/knight-owl-dev/devops
+.Sh LICENSE
+This tool is licensed under the MIT License.
+See
+.Pa LICENSE
+for details.
