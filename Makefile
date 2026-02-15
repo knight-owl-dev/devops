@@ -6,7 +6,7 @@ IMAGE_TAG ?= $(IMAGE):local
 # validation toolchain; fall back to the repo copy on bare metal.
 VALIDATE_ACTION_PINS := $(shell command -v validate-action-pins 2>/dev/null || echo images/ci-tools/bin/validate-action-pins)
 
-.PHONY: sync resolve build verify lint lint-fix lint-docker lint-sh lint-sh-fmt lint-sh-fmt-fix lint-actions lint-md lint-md-fix clean help
+.PHONY: sync resolve build verify lint lint-fix lint-lockfile lint-docker lint-sh lint-sh-fmt lint-sh-fmt-fix lint-actions lint-md lint-md-fix clean help
 
 # Resolve latest versions, build, and verify image
 sync: resolve build verify
@@ -30,10 +30,14 @@ verify:
 		$(IMAGE_TAG) bash /scripts/$(IMAGE)/verify.sh
 
 # Run all linters
-lint: lint-docker lint-sh lint-sh-fmt lint-actions lint-md
+lint: lint-lockfile lint-docker lint-sh lint-sh-fmt lint-actions lint-md
 
 # Fix all auto-fixable lint issues
 lint-fix: lint-sh-fmt-fix lint-md-fix
+
+# Validate lockfile keys match Dockerfile ARGs
+lint-lockfile:
+	@echo "Validating lockfile..." && scripts/lib/validate-lockfile.sh $(IMAGE) && echo "OK"
 
 # Lint Dockerfiles
 lint-docker:
@@ -82,6 +86,7 @@ help:
 	@echo "  make clean             Remove local image"
 	@echo "  make lint              Run all linters"
 	@echo "  make lint-actions      Lint GitHub Actions workflows"
+	@echo "  make lint-lockfile     Validate lockfile against Dockerfile"
 	@echo "  make lint-docker       Lint Dockerfiles"
 	@echo "  make lint-fix          Fix all auto-fixable lint issues"
 	@echo "  make lint-md           Lint Markdown files"
