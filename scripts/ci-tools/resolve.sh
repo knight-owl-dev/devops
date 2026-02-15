@@ -123,17 +123,18 @@ resolve_validate_action_pins() {
 # ── argument parsing ─────────────────────────────────────────────────
 
 # Determine which tools to resolve and whether a version is pinned.
+ALL_TOOLS=(shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck validate-action-pins)
 TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
 if [[ $# -eq 0 ]]; then
-  TOOLS_TO_RESOLVE=(shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck validate-action-pins)
+  TOOLS_TO_RESOLVE=("${ALL_TOOLS[@]}")
 else
   for arg in "${@}"; do
     tool="${arg%%:*}"
     case "${tool}" in
       shfmt | actionlint | hadolint | markdownlint-cli2 | biome | stylelint | luacheck | validate-action-pins) ;;
-      *) die "unknown tool: ${tool}" ;;
+      *) die "unknown tool: ${tool}. Valid tools: ${ALL_TOOLS[*]}" ;;
     esac
     TOOLS_TO_RESOLVE+=("${tool}")
     if [[ "${arg}" == *:* ]]; then
@@ -161,8 +162,10 @@ fi
 # ── resolve requested tools ──────────────────────────────────────────
 
 for tool in "${TOOLS_TO_RESOLVE[@]}"; do
-  echo "  ..   ${tool}"
   "resolve_${tool//-/_}" "${PINNED_VERSIONS[${tool}]:-}"
+  version_var="${tool^^}"
+  version_var="${version_var//-/_}_VERSION"
+  echo "  OK   ${tool}  ${!version_var}"
 done
 
 # ── write lockfile ───────────────────────────────────────────────────
