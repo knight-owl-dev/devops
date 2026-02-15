@@ -61,6 +61,36 @@ workspace is owned by root and every consumer would need to escalate to root
 regardless. A non-root `USER` directive was tried and reverted (#11, #13)
 because it added friction without meaningful isolation in a CI-only context.
 
+## Base Image Pinning
+
+Base images are pinned by digest to prevent uncontrolled changes from upstream
+patch releases. When pinning a multi-platform image, always use the **manifest
+list** (index) digest, not a platform-specific manifest digest.
+
+A platform-specific digest locks the image to a single architecture. Multi-
+platform builds will silently pull the wrong platform for non-matching
+architectures, producing broken or mismatched images.
+
+To get the correct digest, always use `docker buildx imagetools inspect`:
+
+```bash
+# Correct — returns the manifest list digest (multi-arch)
+docker buildx imagetools inspect node:25-bookworm-slim | grep Digest
+
+# Wrong — returns the platform-specific digest for the host architecture
+docker pull node:25-bookworm-slim
+docker inspect --format='{{.RepoDigests}}' node:25-bookworm-slim
+```
+
+The manifest list digest has media type `application/vnd.oci.image.index.v1+json`.
+A platform-specific digest has `application/vnd.oci.image.manifest.v1+json`. If
+the IDE or Docker warns about a platform mismatch on a pinned base image, verify
+the digest type with:
+
+```bash
+docker buildx imagetools inspect <image>@<digest> --raw | head -3
+```
+
 ## Adding New Tools or Images
 
 When adding a tool to an existing image or creating a new image:
