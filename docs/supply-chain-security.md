@@ -54,6 +54,13 @@ locally.
 - **Implicit trust** — no action or dependency gets a pass because it's
   "probably fine." If it runs in CI, it needs a reason to be there.
 
+## Runtime User
+
+Images run as root. They are designed for CI runners (GitHub Actions) where the
+workspace is owned by root and every consumer would need to escalate to root
+regardless. A non-root `USER` directive was tried and reverted (#11, #13)
+because it added friction without meaningful isolation in a CI-only context.
+
 ## Adding New Tools or Images
 
 When adding a tool to an existing image or creating a new image:

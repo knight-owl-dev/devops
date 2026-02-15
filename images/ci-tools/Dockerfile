@@ -85,6 +85,11 @@ ARG VALIDATE_ACTION_PINS_VERSION
 ENV VALIDATE_ACTION_PINS_VERSION=${VALIDATE_ACTION_PINS_VERSION}
 COPY --chmod=755 bin/validate-action-pins /usr/local/bin/validate-action-pins
 
+# ---------- runtime ----------
+# Images run as root because they target CI runners (GitHub Actions) where the
+# workspace is owned by root. Consumers would need to escalate to root anyway,
+# so a non-root USER directive only adds friction without meaningful isolation.
+
 # ---------- metadata ----------
 ARG IMAGE_VERSION=local
 LABEL maintainer="Knight Owl <support@knight-owl.dev>"
