@@ -111,6 +111,11 @@ resolve_luacheck() {
   LUACHECK_VERSION="${version}"
 }
 
+resolve_validate_action_pins() {
+  VALIDATE_ACTION_PINS_VERSION="$(resolve_local \
+    "${VALIDATE_ACTION_PINS_VERSION}" "${1:-}")"
+}
+
 # ── argument parsing ─────────────────────────────────────────────────
 
 # Determine which tools to resolve and whether a version is pinned.
@@ -118,12 +123,12 @@ TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
 if [[ $# -eq 0 ]]; then
-  TOOLS_TO_RESOLVE=(shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck)
+  TOOLS_TO_RESOLVE=(shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck validate-action-pins)
 else
   for arg in "${@}"; do
     tool="${arg%%:*}"
     case "${tool}" in
-      shfmt | actionlint | hadolint | markdownlint-cli2 | biome | stylelint | luacheck) ;;
+      shfmt | actionlint | hadolint | markdownlint-cli2 | biome | stylelint | luacheck | validate-action-pins) ;;
       *) die "unknown tool: ${tool}" ;;
     esac
     TOOLS_TO_RESOLVE+=("${tool}")
@@ -142,6 +147,7 @@ MARKDOWNLINT_CLI2_VERSION=""
 BIOME_VERSION=""
 STYLELINT_VERSION=""
 LUACHECK_VERSION=""
+VALIDATE_ACTION_PINS_VERSION=""
 
 if [[ -f "${LOCKFILE}" ]]; then
   # shellcheck source=/dev/null
@@ -171,6 +177,7 @@ MARKDOWNLINT_CLI2_VERSION=${MARKDOWNLINT_CLI2_VERSION}
 BIOME_VERSION=${BIOME_VERSION}
 STYLELINT_VERSION=${STYLELINT_VERSION}
 LUACHECK_VERSION=${LUACHECK_VERSION}
+VALIDATE_ACTION_PINS_VERSION=${VALIDATE_ACTION_PINS_VERSION}
 EOF
 
 echo "OK: lockfile written to ${LOCKFILE}"

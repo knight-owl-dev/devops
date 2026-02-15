@@ -37,6 +37,11 @@ mkdir -p images/<name> scripts/<name>
     `TARGETARCH` to the expected value (e.g., `amd64` → `x86_64`).
 - For package-manager installs (npm, luarocks, etc.):
   - A version ARG is sufficient — the package manager verifies integrity.
+- For repo-local scripts (shipped from the repo, not downloaded):
+  - Use `COPY --chmod=755` instead of a download-and-verify `RUN`.
+  - Use `ARG` + `ENV` to inject the version at build time and persist it to
+    runtime so the script can read it for `--version`.
+  - Place the script in `images/<name>/bin/`.
 
 ### 3. Create the resolve script
 
@@ -50,6 +55,21 @@ applicable) for each tool, then writes `images/<name>/versions.lock`.
 
 Shared helpers live in `scripts/lib/resolve.sh`. See
 `scripts/ci-tools/resolve.sh` as a reference implementation.
+
+For repo-local scripts, use `resolve_local()` from `scripts/lib/resolve.sh`.
+Local scripts have no upstream to query — the version is bumped manually in
+`versions.lock`. The resolver preserves the current value during a normal
+`make resolve` and accepts an explicit pin like any other tool:
+
+```bash
+resolve_my_script() {
+  MY_SCRIPT_VERSION="$(resolve_local "${MY_SCRIPT_VERSION}" "${1:-}")"
+}
+```
+
+```bash
+make resolve TOOLS="my-script:2.0.0"   # bump version
+```
 
 ### 4. Create the verify script
 
@@ -91,3 +111,18 @@ make sync IMAGE=<name>
 
 All image operations (`sync`, `resolve`, `build`, `verify`, `clean`) work
 automatically via the `IMAGE` variable — no Makefile changes needed.
+
+### 8. Add Makefile lint targets (if applicable)
+
+If the new tool should run as part of `make lint`, add it to the Makefile. For
+repo-local scripts that are also installed in the container image, prefer the
+container-installed version and fall back to the repo copy on bare metal:
+
+```makefile
+# Prefer the container-installed version for consistency with the rest of the
+# validation toolchain; fall back to the repo copy on bare metal.
+MY_TOOL := $(shell command -v my-tool 2>/dev/null || echo images/<name>/bin/my-tool)
+```
+
+This keeps bare-metal development working while ensuring CI runs the same
+version that shipped in the image.

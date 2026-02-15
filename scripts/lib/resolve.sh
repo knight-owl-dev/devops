@@ -93,3 +93,24 @@ latest_luarocks_version() {
   [[ -n "${version}" ]] || die "failed to fetch latest luarocks version for ${rock}"
   echo "${version}"
 }
+
+# Resolver for repo-local scripts.
+#
+# Local scripts have no upstream to query; the version is bumped manually
+# in versions.lock. Returns the pinned override if provided, otherwise
+# echoes the current value unchanged.
+#
+# Arguments:
+#   $1 - Current version from the lockfile
+#   $2 - (Optional) pinned override from the CLI
+#
+# Outputs:
+#   The resolved version string
+resolve_local() {
+  local current="${1}" pinned="${2:-}"
+  if [[ -n "${pinned}" ]]; then
+    echo "${pinned}"
+  else
+    echo "${current}"
+  fi
+}

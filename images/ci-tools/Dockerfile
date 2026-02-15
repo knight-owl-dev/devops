@@ -10,6 +10,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     shellcheck \
     chktex \
+    jq \
     make \
     curl \
     ca-certificates \
@@ -78,6 +79,11 @@ RUN luarocks install luacheck "${LUACHECK_VERSION}" \
   && rm -rf /root/.cache/luarocks \
   && apt-get purge -y --auto-remove gcc \
   && rm -rf /var/lib/apt/lists/*
+
+# ---------- validate-action-pins ----------
+ARG VALIDATE_ACTION_PINS_VERSION
+ENV VALIDATE_ACTION_PINS_VERSION=${VALIDATE_ACTION_PINS_VERSION}
+COPY --chmod=755 bin/validate-action-pins /usr/local/bin/validate-action-pins
 
 # ---------- metadata ----------
 ARG IMAGE_VERSION=local

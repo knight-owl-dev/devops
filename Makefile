@@ -2,6 +2,9 @@
 
 IMAGE ?= ci-tools
 IMAGE_TAG ?= $(IMAGE):local
+# Prefer the container-installed version for consistency with the rest of the
+# validation toolchain; fall back to the repo copy on bare metal.
+VALIDATE_ACTION_PINS := $(shell command -v validate-action-pins 2>/dev/null || echo images/ci-tools/bin/validate-action-pins)
 
 .PHONY: sync resolve build verify lint lint-fix lint-docker lint-sh lint-sh-fmt lint-sh-fmt-fix lint-actions lint-md lint-md-fix clean help
 
@@ -41,7 +44,7 @@ lint-docker:
 # Lint shell scripts
 lint-sh:
 	@echo "Linting shell scripts..."
-	@shellcheck scripts/*/*.sh
+	@shellcheck scripts/*/*.sh images/*/bin/*
 	@echo "OK"
 
 # Check shell script formatting
@@ -60,6 +63,9 @@ lint-sh-fmt-fix:
 lint-actions:
 	@echo "Linting GitHub Actions..."
 	@actionlint .github/workflows/*.yml
+	@echo "OK"
+	@echo "Validating GitHub Actions pins..."
+	@$(VALIDATE_ACTION_PINS) .github/workflows/*.yml
 	@echo "OK"
 
 # Lint Markdown files
