@@ -53,7 +53,7 @@ fetch_gh_asset() {
 validate_sha256() {
   local hash="${1}" tool="${2}"
   if [[ ! "${hash}" =~ ^[a-f0-9]{64}$ ]]; then
-    die "invalid SHA256 for ${tool}: ${hash}"
+    die "invalid SHA256 for ${tool}: ${hash:-(empty)}"
   fi
 }
 
