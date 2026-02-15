@@ -43,6 +43,10 @@ mkdir -p images/<name> scripts/<name>
     runtime so the script can read it for `--version`.
   - Place the script in `images/<name>/bin/`.
 
+Images run as root. They target CI runners (GitHub Actions) where the workspace
+is owned by root and consumers would need to escalate anyway. Do not add a
+`USER` directive — it adds friction without meaningful isolation in CI.
+
 ### 3. Create the resolve script
 
 `scripts/<name>/resolve.sh` fetches latest versions (and checksums where
