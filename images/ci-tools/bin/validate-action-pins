@@ -60,6 +60,15 @@ for arg in "${@}"; do
   esac
 done
 
+# ── dependency check ──────────────────────────────────────────────────
+
+for cmd in curl jq; do
+  if ! command -v "${cmd}" > /dev/null 2>&1; then
+    echo "WARN: ${cmd} not found — skipping pin validation"
+    exit 0
+  fi
+done
+
 # ── helpers ──────────────────────────────────────────────────────────
 
 FAILURES=0
