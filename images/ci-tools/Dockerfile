@@ -3,11 +3,13 @@ FROM node:25-bookworm-slim
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# ---------- apt: shellcheck, make, curl, luarocks, gcc (build-time) ----------
+# ---------- apt ----------
+# DL3008: apt packages are intentionally unpinned
 # hadolint ignore=DL3008
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     shellcheck \
+    chktex \
     make \
     curl \
     ca-certificates \
@@ -63,6 +65,11 @@ RUN npm install -g "markdownlint-cli2@${MARKDOWNLINT_CLI2_VERSION}" \
 # ---------- biome ----------
 ARG BIOME_VERSION
 RUN npm install -g "@biomejs/biome@${BIOME_VERSION}" \
+  && npm cache clean --force
+
+# ---------- stylelint ----------
+ARG STYLELINT_VERSION
+RUN npm install -g "stylelint@${STYLELINT_VERSION}" \
   && npm cache clean --force
 
 # ---------- luacheck ----------
