@@ -56,12 +56,17 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: images/${{ matrix.image }}/
-          push: true
           platforms: linux/amd64,linux/arm64
           build-args: ${{ steps.args.outputs.build_args }}
           tags: |
             ghcr.io/knight-owl-dev/${{ matrix.image }}:latest
             ghcr.io/knight-owl-dev/${{ matrix.image }}:${{ github.ref_name }}
+          outputs: >-
+            type=image,
+            push=true,
+            annotation-index.org.opencontainers.image.description=Shared linting image for Knight Owl CI pipelines,
+            annotation-index.org.opencontainers.image.source=https://github.com/knight-owl-dev/devops,
+            annotation-index.org.opencontainers.image.licenses=MIT
           cache-from: type=registry,ref=ghcr.io/knight-owl-dev/${{ matrix.image }}:latest
           cache-to: type=inline
 
