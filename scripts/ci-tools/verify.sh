@@ -33,6 +33,7 @@ check "markdownlint-cli2" "${MARKDOWNLINT_CLI2_VERSION}" markdownlint-cli2 --ver
 check "biome" "${BIOME_VERSION}" biome --version
 check "luacheck" "${LUACHECK_VERSION}" luacheck --version
 check "chktex" "" chktex --version
+check "mandoc" "" command -v mandoc
 check "stylelint" "${STYLELINT_VERSION}" stylelint --version
 check "validate-action-pins" "${VALIDATE_ACTION_PINS_VERSION}" \
   validate-action-pins --version
