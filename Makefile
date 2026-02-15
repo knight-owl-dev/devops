@@ -88,7 +88,7 @@ lint-man:
 
 # Preview man pages
 man:
-	@man -l docs/man/man1/*.1
+	@mandoc -a docs/man/man1/*.1
 
 # Build and test deb package locally
 test-package:
