@@ -98,7 +98,8 @@ latest_luarocks_version() {
 #
 # Local scripts have no upstream to query; the version is bumped manually
 # in versions.lock. Returns the pinned override if provided, otherwise
-# echoes the current value unchanged.
+# echoes the current value unchanged. Defaults to "local" when neither
+# a pinned override nor a current value exists.
 #
 # Arguments:
 #   $1 - Current version from the lockfile
@@ -111,6 +112,6 @@ resolve_local() {
   if [[ -n "${pinned}" ]]; then
     echo "${pinned}"
   else
-    echo "${current}"
+    echo "${current:-local}"
   fi
 }

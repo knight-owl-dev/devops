@@ -51,10 +51,15 @@ HADOLINT_SHA256_AMD64=6bf226944684...
 HADOLINT_SHA256_ARM64=331f1d3511b8...
 MARKDOWNLINT_CLI2_VERSION=0.20.0
 LUACHECK_VERSION=1.2.0-1
+VALIDATE_ACTION_PINS_VERSION=local
 ```
 
 Tools installed via package managers (npm, luarocks) track versions only —
 the package manager verifies integrity during install.
+
+Org-developed scripts use `local` as their version. At publish time the
+workflow substitutes the real release version (from the git tag) so the
+Docker image and release archives ship with the correct version string.
 
 Commit the updated lockfile after resolving.
 

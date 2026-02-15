@@ -1,0 +1,20 @@
+name: ci-tools
+arch: "${ARCH}"
+version: "${VERSION}"
+maintainer: "Knight Owl Dev"
+description: "Org-developed linting tools from the ci-tools image"
+homepage: "https://github.com/knight-owl-dev/devops"
+license: "MIT"
+
+contents:
+  - src: artifacts/staging/validate-action-pins
+    dst: /opt/ci-tools/bin/validate-action-pins
+    file_info:
+      mode: 0755
+  - dst: /usr/local/bin/validate-action-pins
+    type: symlink
+    src: /opt/ci-tools/bin/validate-action-pins
+  - src: docs/man/man1/validate-action-pins.1
+    dst: /usr/local/share/man/man1/validate-action-pins.1
+  - src: LICENSE
+    dst: /usr/share/doc/ci-tools/copyright

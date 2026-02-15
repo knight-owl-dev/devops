@@ -25,11 +25,14 @@ jobs:
 
       - name: Load build args
         id: args
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
+          VERSION="${TAG#v}"
           {
             echo "build_args<<LOCKFILE_EOF"
-            cat "images/${{ matrix.image }}/versions.lock"
-            echo "IMAGE_VERSION=${{ github.ref_name }}"
+            sed "s/=local$/=${VERSION}/" "images/${{ matrix.image }}/versions.lock"
+            echo "IMAGE_VERSION=${TAG}"
             echo "LOCKFILE_EOF"
           } >> "${GITHUB_OUTPUT}"
 
@@ -73,9 +76,47 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/knight-owl-dev/${{ matrix.image }}:latest
           cache-to: type=inline
 
+  package:
+    name: Package local tools
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Extract version from tag
+        id: tag-version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build release archives
+        env:
+          VERSION: ${{ steps.tag-version.outputs.version }}
+        run: bash scripts/package-release.sh "${VERSION}"
+
+      - name: Build deb packages
+        uses: ./.github/actions/build-deb
+        with:
+          version: ${{ steps.tag-version.outputs.version }}
+
+      - name: Generate checksums
+        run: bash scripts/generate-checksums.sh
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: packages
+          path: |
+            artifacts/release/*.tar.gz
+            artifacts/release/*.deb
+            artifacts/release/checksums.txt
+            artifacts/release/release-body.md
+          if-no-files-found: error
+
   release:
     name: Create Release
-    needs: publish
+    needs: [publish, package]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -83,7 +124,49 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      - name: Download package artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: packages
+          path: artifacts/release
+
       - name: Create GitHub release
-        run: gh release create "${{ github.ref_name }}" --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "${TAG}" \
+            --generate-notes \
+            --notes-file artifacts/release/release-body.md \
+            artifacts/release/*.tar.gz \
+            artifacts/release/*.deb \
+            artifacts/release/checksums.txt
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: knight-owl-dev
+          repositories: |
+            apt
+            homebrew-tap
+
+      - name: Trigger apt repository update
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh api repos/knight-owl-dev/apt/dispatches \
+            -f event_type=release-published \
+            -f 'client_payload[versions]=ci-tools:'"${TAG#v}"
+
+      - name: Trigger Homebrew tap update
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh api repos/knight-owl-dev/homebrew-tap/dispatches \
+            -f event_type=release-published \
+            -f 'client_payload[formulas]=ci-tools:'"${TAG#v}"
