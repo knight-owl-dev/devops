@@ -6,6 +6,10 @@ description: "Org-developed linting tools from the ci-tools image"
 homepage: "https://github.com/knight-owl-dev/devops"
 license: "MIT"
 
+depends:
+  - curl
+  - jq
+
 contents:
   - src: artifacts/staging/validate-action-pins
     dst: /opt/ci-tools/bin/validate-action-pins
