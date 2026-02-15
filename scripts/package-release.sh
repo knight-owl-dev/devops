@@ -77,7 +77,8 @@ fi
 echo "Staged files:"
 ls -1 "${STAGING}"
 
-# Create per-platform archives (identical content, separate SHA256s)
+# Create per-platform archives for homebrew-tap per-platform manifests.
+# Content is identical (bash scripts are platform-agnostic).
 for platform in "${PLATFORMS[@]}"; do
   archive="ci-tools_${VERSION}_${platform}.tar.gz"
   tar -czf "${RELEASE}/${archive}" -C "${STAGING}" .
