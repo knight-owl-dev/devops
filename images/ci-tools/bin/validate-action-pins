@@ -12,9 +12,18 @@ set -euo pipefail
 #   validate-action-pins --help
 #   validate-action-pins --version
 #
+# Dependencies:
+#   curl, jq — if either is missing the script warns and exits 0
+#
 # Environment:
 #   GITHUB_TOKEN - (Optional) GitHub token for higher API rate limits
 #                  (60 req/hr unauthenticated → 5000 req/hr with token)
+#
+# Exit codes:
+#   0 - All pins match, no pins found, or validation skipped (missing
+#       dependencies or unreachable GitHub API)
+#   1 - One or more pins do not match their claimed tag, or no files
+#       provided
 
 readonly PROGRAM="validate-action-pins"
 readonly VERSION="${VALIDATE_ACTION_PINS_VERSION:-unknown}"
