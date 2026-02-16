@@ -117,8 +117,13 @@ they reach consumers:
 
 The publish workflow scans the single-platform `:verify` image for
 CRITICAL and HIGH severity vulnerabilities before any registry interaction.
-Unfixed CVEs are ignored so the build is not blocked by issues that have
-no available patch.
+
+**Policy: `ignore-unfixed: true`** — CVEs with no available upstream patch are
+excluded from the scan results. This is a deliberate trade-off: blocking releases
+on vulnerabilities that cannot be remediated provides no actionable benefit and
+would stall the pipeline indefinitely. Only CVEs with a published fix fail the
+build. This policy should be revisited if the project adopts a vulnerability
+disclosure workflow or SLA-based patching cadence.
 
 Run the same scan locally:
 
