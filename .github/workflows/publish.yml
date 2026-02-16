@@ -72,6 +72,7 @@ jobs:
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true # skip upstream CVEs with no available patch
+          trivyignores: images/${{ matrix.image }}/.trivyignore
           format: 'table'
 
       - name: Log in to GHCR
