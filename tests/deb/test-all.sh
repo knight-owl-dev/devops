@@ -53,11 +53,11 @@ echo "Host architecture: ${HOST_ARCH} (${HOST_DEB_ARCH})"
 # Build all packages
 echo ""
 echo "Staging release artifacts..."
-bash scripts/package-release.sh "${VERSION}"
+./scripts/package-release.sh "${VERSION}"
 
 echo ""
 echo "Building deb packages..."
-bash scripts/package-deb.sh "${VERSION}"
+./scripts/package-deb.sh "${VERSION}"
 
 # Test packages
 FAILED=0

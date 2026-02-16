@@ -93,7 +93,7 @@ jobs:
       - name: Build release archives
         env:
           VERSION: ${{ steps.tag-version.outputs.version }}
-        run: bash scripts/package-release.sh "${VERSION}"
+        run: ./scripts/package-release.sh "${VERSION}"
 
       - name: Build deb packages
         uses: ./.github/actions/build-deb
@@ -101,7 +101,7 @@ jobs:
           version: ${{ steps.tag-version.outputs.version }}
 
       - name: Generate checksums
-        run: bash scripts/generate-checksums.sh
+        run: ./scripts/generate-checksums.sh
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
