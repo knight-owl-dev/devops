@@ -51,6 +51,15 @@ jobs:
       - name: Verify tools
         run: make verify IMAGE=${{ matrix.image }} IMAGE_TAG=${{ matrix.image }}:verify
 
+      - name: Scan for vulnerabilities
+        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
+        with:
+          image-ref: ${{ matrix.image }}:verify
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          format: 'table'
+
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
