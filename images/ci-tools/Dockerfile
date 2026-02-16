@@ -17,6 +17,8 @@ RUN apt-get update \
     ca-certificates \
     luarocks \
     gcc \
+    bats \
+    git \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -80,6 +82,19 @@ RUN luarocks install luacheck "${LUACHECK_VERSION}" \
   && rm -rf /root/.cache/luarocks \
   && apt-get purge -y --auto-remove gcc \
   && rm -rf /var/lib/apt/lists/*
+
+# ---------- bats helpers ----------
+ARG BATS_SUPPORT_VERSION
+ARG BATS_ASSERT_VERSION
+ARG BATS_FILE_VERSION
+RUN git clone --depth 1 --branch "${BATS_SUPPORT_VERSION}" \
+      https://github.com/bats-core/bats-support /usr/lib/bats/bats-support \
+  && git clone --depth 1 --branch "${BATS_ASSERT_VERSION}" \
+      https://github.com/bats-core/bats-assert /usr/lib/bats/bats-assert \
+  && git clone --depth 1 --branch "${BATS_FILE_VERSION}" \
+      https://github.com/bats-core/bats-file /usr/lib/bats/bats-file \
+  && rm -rf /usr/lib/bats/*/.git
+ENV BATS_LIB_PATH=/usr/lib/bats
 
 # ---------- validate-action-pins ----------
 ARG VALIDATE_ACTION_PINS_VERSION

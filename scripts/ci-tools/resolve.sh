@@ -115,6 +115,24 @@ resolve_luacheck() {
   LUACHECK_VERSION="${version}"
 }
 
+resolve_bats_support() {
+  local tag="${1:-}"
+  [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-support)"
+  BATS_SUPPORT_VERSION="${tag}"
+}
+
+resolve_bats_assert() {
+  local tag="${1:-}"
+  [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-assert)"
+  BATS_ASSERT_VERSION="${tag}"
+}
+
+resolve_bats_file() {
+  local tag="${1:-}"
+  [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-file)"
+  BATS_FILE_VERSION="${tag}"
+}
+
 resolve_validate_action_pins() {
   VALIDATE_ACTION_PINS_VERSION="$(resolve_local \
     "${VALIDATE_ACTION_PINS_VERSION}" "${1:-}")"
@@ -123,7 +141,7 @@ resolve_validate_action_pins() {
 # ── argument parsing ─────────────────────────────────────────────────
 
 # Determine which tools to resolve and whether a version is pinned.
-ALL_TOOLS=(shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck validate-action-pins)
+ALL_TOOLS=(shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck bats-support bats-assert bats-file validate-action-pins)
 TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
@@ -133,7 +151,7 @@ else
   for arg in "${@}"; do
     tool="${arg%%:*}"
     case "${tool}" in
-      shfmt | actionlint | hadolint | markdownlint-cli2 | biome | stylelint | luacheck | validate-action-pins) ;;
+      shfmt | actionlint | hadolint | markdownlint-cli2 | biome | stylelint | luacheck | bats-support | bats-assert | bats-file | validate-action-pins) ;;
       *) die "unknown tool: ${tool}. Valid tools: ${ALL_TOOLS[*]}" ;;
     esac
     TOOLS_TO_RESOLVE+=("${tool}")
@@ -152,6 +170,7 @@ MARKDOWNLINT_CLI2_VERSION=""
 BIOME_VERSION=""
 STYLELINT_VERSION=""
 LUACHECK_VERSION=""
+BATS_SUPPORT_VERSION="" BATS_ASSERT_VERSION="" BATS_FILE_VERSION=""
 VALIDATE_ACTION_PINS_VERSION=""
 
 if [[ -f "${LOCKFILE}" ]]; then
@@ -185,6 +204,9 @@ MARKDOWNLINT_CLI2_VERSION=${MARKDOWNLINT_CLI2_VERSION}
 BIOME_VERSION=${BIOME_VERSION}
 STYLELINT_VERSION=${STYLELINT_VERSION}
 LUACHECK_VERSION=${LUACHECK_VERSION}
+BATS_SUPPORT_VERSION=${BATS_SUPPORT_VERSION}
+BATS_ASSERT_VERSION=${BATS_ASSERT_VERSION}
+BATS_FILE_VERSION=${BATS_FILE_VERSION}
 VALIDATE_ACTION_PINS_VERSION=${VALIDATE_ACTION_PINS_VERSION}
 EOF
 mv "${LOCKFILE_TMP}" "${LOCKFILE}"
