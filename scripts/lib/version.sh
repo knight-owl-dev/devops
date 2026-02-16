@@ -20,3 +20,34 @@ normalize_version() {
   local version="${1#v}"
   echo "${version%-*}"
 }
+
+# Validate that a version string is strict semver (MAJOR.MINOR.PATCH only).
+#
+# Rejects pre-release suffixes (e.g. 1.0.0-rc1) and malformed versions.
+# Accepts an optional leading "v" prefix which is stripped before validation.
+#
+# Arguments:
+#   $1 - Version string to validate (e.g. "v1.2.3" or "1.2.3")
+#
+# Outputs:
+#   The bare version string (without "v" prefix) on success
+#
+# Returns:
+#   0 - Valid strict semver
+#   1 - Invalid or missing argument
+validate_strict_version() {
+  if [[ $# -ne 1 ]] || [[ -z "$1" ]]; then
+    echo "ERROR: Version argument required" >&2
+    return 1
+  fi
+
+  local version="${1#v}"
+
+  if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "ERROR: Invalid strict version: $1" >&2
+    echo "Expected: MAJOR.MINOR.PATCH (e.g., v1.0.0) with no pre-release suffix" >&2
+    return 1
+  fi
+
+  echo "${version}"
+}

@@ -24,6 +24,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      - name: Validate release tag
+        # Strict vN.N.N only — avoids conditional :latest tagging for pre-releases.
+        # Revisit when we actually need RC releases.
+        run: ./scripts/validate-version-strict.sh "${{ github.ref_name }}"
+
       - name: Load build args
         id: args
         env:
