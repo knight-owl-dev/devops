@@ -35,6 +35,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [luacheck](https://github.com/lunarmodules/luacheck) | Lua script linting |
 | [chktex](https://www.nongnu.org/chktex/) | LaTeX document linting |
 | [bats](https://github.com/bats-core/bats-core) | Shell script test framework with bats-support, bats-assert, bats-file helper libraries |
+| [rsync](https://rsync.samba.org) | File synchronization for build assembly |
 | [git](https://git-scm.com) | Version control (build-time cloning and runtime use) |
 | validate-action-pins | GitHub Actions SHA pin verification |
 | [make](https://www.gnu.org/software/make/) | Build automation |

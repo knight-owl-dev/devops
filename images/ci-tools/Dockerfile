@@ -17,7 +17,7 @@ RUN apt-get update \
     ca-certificates \
     luarocks \
     gcc \
-    bats \
+    rsync \
     git \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
@@ -82,6 +82,13 @@ RUN luarocks install luacheck "${LUACHECK_VERSION}" \
   && rm -rf /root/.cache/luarocks \
   && apt-get purge -y --auto-remove gcc \
   && rm -rf /var/lib/apt/lists/*
+
+# ---------- bats-core ----------
+ARG BATS_VERSION
+RUN git clone --depth 1 --branch "${BATS_VERSION}" \
+      https://github.com/bats-core/bats-core /tmp/bats-core \
+  && /tmp/bats-core/install.sh /usr/local \
+  && rm -rf /tmp/bats-core
 
 # ---------- bats helpers ----------
 ARG BATS_SUPPORT_VERSION
