@@ -25,19 +25,19 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 
 | Tool | Purpose |
 | --- | --- |
-| shellcheck | Shell script linting |
-| shfmt | Shell script formatting |
-| actionlint | GitHub Actions workflow linting |
-| hadolint | Dockerfile linting |
-| markdownlint-cli2 | Markdown linting |
-| biome | JavaScript/TypeScript linting |
-| stylelint | CSS linting |
-| luacheck | Lua script linting |
-| chktex | LaTeX document linting |
-| bats | Shell script test framework with bats-support, bats-assert, bats-file helper libraries |
-| git | Version control (build-time cloning and runtime use) |
+| [shellcheck](https://github.com/koalaman/shellcheck) | Shell script linting |
+| [shfmt](https://github.com/mvdan/sh) | Shell script formatting |
+| [actionlint](https://github.com/rhysd/actionlint) | GitHub Actions workflow linting |
+| [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting |
+| [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | Markdown linting |
+| [biome](https://github.com/biomejs/biome) | JavaScript/TypeScript linting |
+| [stylelint](https://github.com/stylelint/stylelint) | CSS linting |
+| [luacheck](https://github.com/lunarmodules/luacheck) | Lua script linting |
+| [chktex](https://www.nongnu.org/chktex/) | LaTeX document linting |
+| [bats](https://github.com/bats-core/bats-core) | Shell script test framework with bats-support, bats-assert, bats-file helper libraries |
+| [git](https://git-scm.com) | Version control (build-time cloning and runtime use) |
 | validate-action-pins | GitHub Actions SHA pin verification |
-| make | Build automation |
+| [make](https://www.gnu.org/software/make/) | Build automation |
 
 Pinned versions and checksums are tracked in
 [`images/ci-tools/versions.lock`](images/ci-tools/versions.lock).
