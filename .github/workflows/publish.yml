@@ -19,10 +19,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ci-tools]
+        image: [ci-tools] # extend when adding images
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Validate release tag
+        # Strict vN.N.N only — avoids conditional :latest tagging for pre-releases.
+        # Revisit when we actually need RC releases.
+        run: ./scripts/validate-version-strict.sh "${{ github.ref_name }}"
 
       - name: Load build args
         id: args
@@ -91,11 +96,15 @@ jobs:
             ghcr.io/knight-owl-dev/${{ matrix.image }}:${{ github.ref_name }}
           push: true
           sbom: true
+          provenance: true
           annotations: |
             index:org.opencontainers.image.description=${{ steps.args.outputs.image-description }}
             index:org.opencontainers.image.source=https://github.com/knight-owl-dev/devops
             index:org.opencontainers.image.licenses=MIT
           cache-from: type=registry,ref=ghcr.io/knight-owl-dev/${{ matrix.image }}:latest
+          # Inline cache: the Dockerfile is single-stage so every layer is cached.
+          # Release cadence is low enough that a dedicated registry cache ref would
+          # add management overhead with no meaningful build-time savings.
           cache-to: type=inline
 
       - name: Sign image
@@ -162,6 +171,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
+        # --notes-file prepends the SHA256 checksums (from generate-checksums.sh)
+        # to the auto-generated changelog (from --generate-notes + .github/release.yml).
         run: |
           gh release create "${TAG}" \
             --generate-notes \
