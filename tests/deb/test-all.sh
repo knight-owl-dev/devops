@@ -45,7 +45,7 @@ esac
 
 VERSION="0.0.0"
 ARCHS=(amd64 arm64)
-TEST_IMAGES="debian:bookworm-slim ubuntu:24.04"
+TEST_IMAGES=(debian:bookworm-slim ubuntu:24.04)
 
 echo "Building and testing ci-tools v${VERSION}"
 echo "Host architecture: ${HOST_ARCH} (${HOST_DEB_ARCH})"
@@ -78,7 +78,7 @@ for arch in "${ARCHS[@]}"; do
     continue
   fi
 
-  for image in ${TEST_IMAGES}; do
+  for image in "${TEST_IMAGES[@]}"; do
     echo ""
     echo "Testing ${deb_file} on ${image}..."
 
