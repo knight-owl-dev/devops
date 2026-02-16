@@ -1,0 +1,27 @@
+# shfmt v3.12.0 — Go stdlib CVEs (no upstream fix available)
+#
+# shfmt is a shell script formatter. It does not use network, database,
+# archive, or TLS APIs at runtime, so these Go stdlib CVEs carry no
+# practical risk. Remove entries when a new shfmt release ships with a
+# patched Go toolchain.
+
+# crypto/tls: unexpected session resumption (Go 1.24.4, fixed in 1.24.13)
+CVE-2025-68121
+
+# database/sql: Postgres Scan race condition (Go 1.24.4, fixed in 1.24.6)
+CVE-2025-47907
+
+# archive/tar: unbounded allocation parsing GNU sparse map (Go 1.24.4, fixed in 1.24.8)
+CVE-2025-58183
+
+# net/url: memory exhaustion in query parameter parsing (Go 1.24.4, fixed in 1.24.12)
+CVE-2025-61726
+
+# archive/zip: excessive CPU building archive index (Go 1.24.4, fixed in 1.24.12)
+CVE-2025-61728
+
+# crypto/x509: DoS via crafted certificate (Go 1.24.4, fixed in 1.24.11)
+CVE-2025-61729
+
+# crypto/tls: TLS 1.3 handshake issue (Go 1.24.4, fixed in 1.24.12)
+CVE-2025-61730
