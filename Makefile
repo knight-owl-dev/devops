@@ -8,7 +8,7 @@ VALIDATE_ACTION_PINS := $(shell \
 	command -v validate-action-pins 2>/dev/null \
 	|| echo images/ci-tools/bin/validate-action-pins)
 
-.PHONY: sync resolve build verify clean \
+.PHONY: sync resolve build verify scan clean \
 	lint lint-fix lint-lockfile lint-docker lint-sh lint-sh-fmt lint-sh-fmt-fix \
 	lint-actions lint-md lint-md-fix lint-man man test-package help
 
@@ -32,6 +32,17 @@ verify:
 		-v $(CURDIR)/scripts:/scripts \
 		-v $(CURDIR)/images/$(IMAGE)/versions.lock:/versions.lock:ro \
 		$(IMAGE_TAG) /scripts/$(IMAGE)/verify.sh
+
+# Scan image for vulnerabilities
+scan: build
+	@echo "Scanning $(IMAGE_TAG) for vulnerabilities..."
+	@docker run --rm \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		aquasec/trivy:0.69.1 image \
+		--severity CRITICAL,HIGH \
+		--ignore-unfixed \
+		--exit-code 1 \
+		$(IMAGE_TAG)
 
 # Run all linters
 lint: lint-lockfile lint-docker lint-sh lint-sh-fmt lint-actions lint-md lint-man
@@ -109,6 +120,7 @@ help:
 	@echo "  make resolve TOOLS=... Pin specific tools (e.g. shfmt:v3.11.0)*"
 	@echo "  make build             Build image locally"
 	@echo "  make verify            Verify all tools in the built image"
+	@echo "  make scan              Scan image for vulnerabilities"
 	@echo "  make clean             Remove local image"
 	@echo "  make lint              Run all linters"
 	@echo "  make lint-actions      Lint GitHub Actions workflows"

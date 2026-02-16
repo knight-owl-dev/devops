@@ -14,6 +14,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
+      id-token: write # cosign keyless signing (Fulcio OIDC)
       packages: write
     strategy:
       fail-fast: false
@@ -34,6 +35,11 @@ jobs:
             sed "s/=local$/=${VERSION}/" "images/${{ matrix.image }}/versions.lock"
             echo "IMAGE_VERSION=${TAG}"
             echo "LOCKFILE_EOF"
+            # Extract description from the Dockerfile label so annotations stay in sync
+            echo "image-description=$(
+              sed -n 's/.*image\.description="\(.*\)"/\1/p' \
+                "images/${{ matrix.image }}/Dockerfile"
+            )"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
@@ -51,6 +57,15 @@ jobs:
       - name: Verify tools
         run: make verify IMAGE=${{ matrix.image }} IMAGE_TAG=${{ matrix.image }}:verify
 
+      - name: Scan for vulnerabilities
+        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
+        with:
+          image-ref: ${{ matrix.image }}:verify
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true # skip upstream CVEs with no available patch
+          format: 'table'
+
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
@@ -58,7 +73,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
       - name: Build and push
+        id: push
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: images/${{ matrix.image }}/
@@ -67,14 +86,20 @@ jobs:
           tags: |
             ghcr.io/knight-owl-dev/${{ matrix.image }}:latest
             ghcr.io/knight-owl-dev/${{ matrix.image }}:${{ github.ref_name }}
-          outputs: >-
-            type=image,
-            push=true,
-            annotation-index.org.opencontainers.image.description=Shared linting image for Knight Owl CI pipelines,
-            annotation-index.org.opencontainers.image.source=https://github.com/knight-owl-dev/devops,
-            annotation-index.org.opencontainers.image.licenses=MIT
+          push: true
+          sbom: true
+          annotations: |
+            index:org.opencontainers.image.description=${{ steps.args.outputs.image-description }}
+            index:org.opencontainers.image.source=https://github.com/knight-owl-dev/devops
+            index:org.opencontainers.image.licenses=MIT
           cache-from: type=registry,ref=ghcr.io/knight-owl-dev/${{ matrix.image }}:latest
           cache-to: type=inline
+
+      - name: Sign image
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        # Signs the manifest index — one signature covers both platforms and tags
+        run: cosign sign --yes "ghcr.io/knight-owl-dev/${{ matrix.image }}@${DIGEST}"
 
   package:
     name: Package local tools
