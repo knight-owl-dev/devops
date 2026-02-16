@@ -171,6 +171,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
+        # --notes-file prepends the SHA256 checksums (from generate-checksums.sh)
+        # to the auto-generated changelog (from --generate-notes + .github/release.yml).
         run: |
           gh release create "${TAG}" \
             --generate-notes \
