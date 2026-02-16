@@ -102,6 +102,9 @@ jobs:
             index:org.opencontainers.image.source=https://github.com/knight-owl-dev/devops
             index:org.opencontainers.image.licenses=MIT
           cache-from: type=registry,ref=ghcr.io/knight-owl-dev/${{ matrix.image }}:latest
+          # Inline cache: the Dockerfile is single-stage so every layer is cached.
+          # Release cadence is low enough that a dedicated registry cache ref would
+          # add management overhead with no meaningful build-time savings.
           cache-to: type=inline
 
       - name: Sign image
