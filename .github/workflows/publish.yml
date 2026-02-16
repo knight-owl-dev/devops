@@ -35,6 +35,11 @@ jobs:
             sed "s/=local$/=${VERSION}/" "images/${{ matrix.image }}/versions.lock"
             echo "IMAGE_VERSION=${TAG}"
             echo "LOCKFILE_EOF"
+            # Extract description from the Dockerfile label so annotations stay in sync
+            echo "image-description=$(
+              sed -n 's/.*image\.description="\(.*\)"/\1/p' \
+                "images/${{ matrix.image }}/Dockerfile"
+            )"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
@@ -81,7 +86,7 @@ jobs:
           push: true
           sbom: true
           annotations: |
-            index:org.opencontainers.image.description=Shared linting image for Knight Owl CI pipelines
+            index:org.opencontainers.image.description=${{ steps.args.outputs.image-description }}
             index:org.opencontainers.image.source=https://github.com/knight-owl-dev/devops
             index:org.opencontainers.image.licenses=MIT
           cache-from: type=registry,ref=ghcr.io/knight-owl-dev/${{ matrix.image }}:latest
