@@ -96,6 +96,7 @@ jobs:
             ghcr.io/knight-owl-dev/${{ matrix.image }}:${{ github.ref_name }}
           push: true
           sbom: true
+          provenance: true
           annotations: |
             index:org.opencontainers.image.description=${{ steps.args.outputs.image-description }}
             index:org.opencontainers.image.source=https://github.com/knight-owl-dev/devops
