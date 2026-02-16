@@ -38,7 +38,7 @@ scan: build
 	@echo "Scanning $(IMAGE_TAG) for vulnerabilities..."
 	@docker run --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
-		aquasec/trivy:latest image \
+		aquasec/trivy:0.69.1 image \
 		--severity CRITICAL,HIGH \
 		--ignore-unfixed \
 		--exit-code 1 \
