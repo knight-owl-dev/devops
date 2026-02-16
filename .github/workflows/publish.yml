@@ -14,7 +14,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
-      id-token: write
+      id-token: write # cosign keyless signing (Fulcio OIDC)
       packages: write
     strategy:
       fail-fast: false
@@ -58,7 +58,7 @@ jobs:
           image-ref: ${{ matrix.image }}:verify
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
-          ignore-unfixed: true
+          ignore-unfixed: true # skip upstream CVEs with no available patch
           format: 'table'
 
       - name: Log in to GHCR
@@ -93,6 +93,7 @@ jobs:
       - name: Sign image
         env:
           DIGEST: ${{ steps.push.outputs.digest }}
+        # Signs the manifest index — one signature covers both platforms and tags
         run: cosign sign --yes "ghcr.io/knight-owl-dev/${{ matrix.image }}@${DIGEST}"
 
   package:
