@@ -31,7 +31,7 @@ verify:
 	@docker run --rm \
 		-v $(CURDIR)/scripts:/scripts \
 		-v $(CURDIR)/images/$(IMAGE)/versions.lock:/versions.lock:ro \
-		$(IMAGE_TAG) bash /scripts/$(IMAGE)/verify.sh
+		$(IMAGE_TAG) /scripts/$(IMAGE)/verify.sh
 
 # Run all linters
 lint: lint-lockfile lint-docker lint-sh lint-sh-fmt lint-actions lint-md lint-man
@@ -92,7 +92,7 @@ man:
 
 # Build and test deb package locally
 test-package:
-	@bash tests/deb/test-all.sh
+	@./tests/deb/test-all.sh
 
 # Remove local image
 clean:
