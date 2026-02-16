@@ -18,6 +18,7 @@ source "${REPO_ROOT}/scripts/lib/verify.sh"
 # Load expected versions from the lockfile if mounted.
 SHFMT_VERSION="" ACTIONLINT_VERSION="" HADOLINT_VERSION=""
 MARKDOWNLINT_CLI2_VERSION="" BIOME_VERSION="" STYLELINT_VERSION="" LUACHECK_VERSION=""
+BATS_VERSION=""
 VALIDATE_ACTION_PINS_VERSION=""
 if [[ -f /versions.lock ]]; then
   # shellcheck source=/dev/null
@@ -37,12 +38,13 @@ check "mandoc" "" command -v mandoc
 check "stylelint" "${STYLELINT_VERSION}" stylelint --version
 check "validate-action-pins" "${VALIDATE_ACTION_PINS_VERSION}" \
   validate-action-pins --version
-check "bats" "" bats --version
+check "bats" "${BATS_VERSION}" bats --version
 # Bats helpers are shallow-cloned by tag at build time with .git removed after.
 # No version command exists at runtime, so we can only confirm presence.
 check "bats-support" "" ls /usr/lib/bats/bats-support/load.bash
 check "bats-assert" "" ls /usr/lib/bats/bats-assert/load.bash
 check "bats-file" "" ls /usr/lib/bats/bats-file/load.bash
+check "rsync" "" rsync --version
 check "git" "" git --version
 check "make" "" make --version
 verify_exit

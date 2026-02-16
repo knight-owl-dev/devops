@@ -25,19 +25,20 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 
 | Tool | Purpose |
 | --- | --- |
+| [actionlint](https://github.com/rhysd/actionlint) | GitHub Actions workflow linting |
+| [bats](https://github.com/bats-core/bats-core) | Shell script test framework with bats-support, bats-assert, bats-file helper libraries |
+| [biome](https://github.com/biomejs/biome) | JavaScript/TypeScript linting |
+| [chktex](https://www.nongnu.org/chktex/) | LaTeX document linting |
+| [git](https://git-scm.com) | Version control (build-time cloning and runtime use) |
+| [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting |
+| [luacheck](https://github.com/lunarmodules/luacheck) | Lua script linting |
+| [make](https://www.gnu.org/software/make/) | Build automation |
+| [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | Markdown linting |
+| [rsync](https://rsync.samba.org) | File synchronization for build assembly |
 | [shellcheck](https://github.com/koalaman/shellcheck) | Shell script linting |
 | [shfmt](https://github.com/mvdan/sh) | Shell script formatting |
-| [actionlint](https://github.com/rhysd/actionlint) | GitHub Actions workflow linting |
-| [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting |
-| [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | Markdown linting |
-| [biome](https://github.com/biomejs/biome) | JavaScript/TypeScript linting |
 | [stylelint](https://github.com/stylelint/stylelint) | CSS linting |
-| [luacheck](https://github.com/lunarmodules/luacheck) | Lua script linting |
-| [chktex](https://www.nongnu.org/chktex/) | LaTeX document linting |
-| [bats](https://github.com/bats-core/bats-core) | Shell script test framework with bats-support, bats-assert, bats-file helper libraries |
-| [git](https://git-scm.com) | Version control (build-time cloning and runtime use) |
 | validate-action-pins | GitHub Actions SHA pin verification |
-| [make](https://www.gnu.org/software/make/) | Build automation |
 
 Pinned versions and checksums are tracked in
 [`images/ci-tools/versions.lock`](images/ci-tools/versions.lock).
