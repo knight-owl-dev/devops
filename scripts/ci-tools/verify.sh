@@ -37,5 +37,12 @@ check "mandoc" "" command -v mandoc
 check "stylelint" "${STYLELINT_VERSION}" stylelint --version
 check "validate-action-pins" "${VALIDATE_ACTION_PINS_VERSION}" \
   validate-action-pins --version
+check "bats" "" bats --version
+# Bats helpers are shallow-cloned by tag at build time with .git removed after.
+# No version command exists at runtime, so we can only confirm presence.
+check "bats-support" "" ls /usr/lib/bats/bats-support/load.bash
+check "bats-assert" "" ls /usr/lib/bats/bats-assert/load.bash
+check "bats-file" "" ls /usr/lib/bats/bats-file/load.bash
+check "git" "" git --version
 check "make" "" make --version
 verify_exit
