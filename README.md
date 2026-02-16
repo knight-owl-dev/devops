@@ -34,6 +34,8 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | stylelint | CSS linting |
 | luacheck | Lua script linting |
 | chktex | LaTeX document linting |
+| bats | Shell script test framework with bats-support, bats-assert, bats-file helper libraries |
+| git | Version control (build-time cloning and runtime use) |
 | validate-action-pins | GitHub Actions SHA pin verification |
 | make | Build automation |
 
@@ -112,6 +114,7 @@ respective communities:
 - [luacheck](https://github.com/lunarmodules/luacheck) by Lunar Modules (MIT)
 - [stylelint](https://github.com/stylelint/stylelint) by stylelint contributors (MIT)
 - [ChkTeX](https://www.nongnu.org/chktex/) by ChkTeX contributors (GPLv2+)
+- [bats-core](https://github.com/bats-core/bats-core) by bats-core contributors (MIT)
 
 ## License
 
