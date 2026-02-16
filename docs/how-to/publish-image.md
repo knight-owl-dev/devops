@@ -18,7 +18,11 @@ This triggers the `publish` workflow, which runs three jobs in sequence:
 1. Loads `images/<image>/versions.lock` as build args, substituting any
    `=local` values with the release version from the tag
 2. Builds a single-platform image and runs `scripts/<image>/verify.sh`
-3. Builds multi-platform with `docker/build-push-action` and pushes to GHCR
+3. Scans the image for CRITICAL/HIGH CVEs with Trivy (fails the build on
+   findings)
+4. Builds multi-platform with `docker/build-push-action`, pushes to GHCR
+   with an SBOM attestation
+5. Signs the image digest with cosign (keyless via Sigstore Fulcio)
 
 ### 2. Package local tools
 
@@ -103,6 +107,35 @@ Run the full sync locally to confirm the image builds and all tools work:
 ```bash
 make sync
 ```
+
+## Supply-Chain Security
+
+Each published image is protected by three mechanisms:
+
+- **CVE scanning** — Trivy scans the verified image for CRITICAL and HIGH
+  severity vulnerabilities before pushing. Unfixed CVEs are ignored.
+- **SBOM attestation** — a Software Bill of Materials is generated during
+  the multi-platform build and attached to the image in GHCR.
+- **Image signing** — cosign signs the pushed digest using keyless Sigstore
+  signing (Fulcio OIDC). No long-lived keys are required.
+
+See [Supply-Chain Security](../supply-chain-security.md#image-scanning-and-signing)
+for verification commands and full details.
+
+### Vulnerability Scan Failure Runbook
+
+If the Trivy scan fails during publish:
+
+1. **Reproduce locally** — run `make scan` to confirm the finding.
+2. **Identify the source layer** — Trivy output shows which package
+   introduced the CVE. Check whether it comes from the base image or a
+   tool installed in the Dockerfile.
+3. **Apply the fix**:
+   - **Base image CVE** — bump the base image digest in the Dockerfile
+     (use `docker buildx imagetools inspect` for the manifest list digest).
+   - **Tool CVE** — run `make resolve TOOLS=<tool>` to pull the latest
+     version, then rebuild and re-scan.
+4. **Re-tag and push** — after the fix, create a new tag and push.
 
 ## Workflow Location
 

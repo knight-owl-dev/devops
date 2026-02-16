@@ -44,6 +44,9 @@ locally.
   `actions/download-artifact`, `actions/setup-go`,
   `actions/create-github-app-token`. These are maintained by GitHub or Docker
   with broad community oversight.
+- **Security-tooling Actions** — `aquasecurity/trivy-action` (CVE scanning)
+  and `sigstore/cosign-installer` (image signing). Both are maintained by
+  their respective CNCF projects and pinned by SHA.
 - **Dependabot** — automated dependency updates for the base image, GitHub
   Actions, and npm packages.
 
@@ -104,3 +107,44 @@ When adding a tool to an existing image or creating a new image:
 4. Do **not** add a third-party GitHub Action wrapper as a shortcut.
 
 See [Add an Image](how-to/add-image.md) for the full process.
+
+## Image Scanning and Signing
+
+Published images go through three additional supply-chain checks before
+they reach consumers:
+
+### CVE Scanning (Trivy)
+
+The publish workflow scans the single-platform `:verify` image for
+CRITICAL and HIGH severity vulnerabilities before any registry interaction.
+Unfixed CVEs are ignored so the build is not blocked by issues that have
+no available patch.
+
+Run the same scan locally:
+
+```bash
+make scan
+```
+
+### SBOM Generation
+
+The multi-platform push step generates a Software Bill of Materials (SBOM)
+attestation and attaches it to the image in GHCR. This is enabled by the
+`sbom: true` flag on `docker/build-push-action` and uses BuildKit's
+built-in SBOM generator.
+
+### Image Signing (cosign)
+
+After pushing, the workflow signs the image digest using keyless cosign
+signing via Sigstore's Fulcio CA. The GitHub Actions OIDC token proves
+the image was built by this workflow. No long-lived signing keys are
+needed.
+
+Verify a published image signature:
+
+```bash
+docker run --rm gcr.io/projectsigstore/cosign verify \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/knight-owl-dev/devops/' \
+  ghcr.io/knight-owl-dev/ci-tools:latest
+```
