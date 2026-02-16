@@ -1,5 +1,9 @@
 # devops
 
+[![Docker](https://img.shields.io/badge/install-docker-blue)](https://github.com/knight-owl-dev/devops/pkgs/container/ci-tools)
+[![Homebrew](https://img.shields.io/badge/install-homebrew-brightgreen)](https://brew.sh)
+[![Apt](https://img.shields.io/badge/install-apt-blue)](https://apt.knight-owl.dev)
+
 Shared CI/CD infrastructure for Knight Owl repositories.
 
 ## Why This Repo Exists
