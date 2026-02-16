@@ -58,6 +58,9 @@ jobs:
         run: make verify IMAGE=${{ matrix.image }} IMAGE_TAG=${{ matrix.image }}:verify
 
       - name: Scan for vulnerabilities
+        # Scans the single-platform :verify image (amd64 on GitHub-hosted runners).
+        # arm64 is not scanned separately — CVEs are tracked by source package, so
+        # the amd64 scan covers the same package set for both architectures.
         uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # 0.34.0
         with:
           image-ref: ${{ matrix.image }}:verify
