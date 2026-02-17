@@ -33,6 +33,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting |
 | [luacheck](https://github.com/lunarmodules/luacheck) | Lua script linting |
 | [make](https://www.gnu.org/software/make/) | Build automation |
+| [parallel](https://www.gnu.org/software/parallel/) | Parallel execution backend for bats --jobs |
 | [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | Markdown linting |
 | [rsync](https://rsync.samba.org) | File synchronization for build assembly |
 | [shellcheck](https://github.com/koalaman/shellcheck) | Shell script linting |
@@ -116,6 +117,7 @@ respective communities:
 - [stylelint](https://github.com/stylelint/stylelint) by stylelint contributors (MIT)
 - [ChkTeX](https://www.nongnu.org/chktex/) by ChkTeX contributors (GPLv2+)
 - [bats-core](https://github.com/bats-core/bats-core) by bats-core contributors (MIT)
+- [GNU Parallel](https://www.gnu.org/software/parallel/) by Ole Tange (GPLv3+)
 
 ## License
 
