@@ -46,6 +46,7 @@ check "bats-assert" "" ls /usr/lib/bats/bats-assert/load.bash
 check "bats-file" "" ls /usr/lib/bats/bats-file/load.bash
 check "rsync" "" rsync --version
 check "git" "" git --version
+check "gpg" "" gpg --version
 check "make" "" make --version
 check "parallel" "" parallel --version
 verify_exit
