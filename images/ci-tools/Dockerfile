@@ -11,6 +11,7 @@ RUN apt-get update \
     shellcheck \
     chktex \
     mandoc \
+    parallel \
     jq \
     make \
     curl \
@@ -21,6 +22,9 @@ RUN apt-get update \
     git \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
+
+# Silence GNU parallel's citation notice in CI logs
+RUN mkdir -p /root/.parallel && touch /root/.parallel/will-cite
 
 # ---------- platform ----------
 ARG TARGETARCH
