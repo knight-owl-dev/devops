@@ -30,6 +30,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [biome](https://github.com/biomejs/biome) | JavaScript/TypeScript linting |
 | [chktex](https://www.nongnu.org/chktex/) | LaTeX document linting |
 | [git](https://git-scm.com) | Version control (build-time cloning and runtime use) |
+| [gpg](https://gnupg.org) | GPG signature verification |
 | [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting |
 | [luacheck](https://github.com/lunarmodules/luacheck) | Lua script linting |
 | [make](https://www.gnu.org/software/make/) | Build automation |

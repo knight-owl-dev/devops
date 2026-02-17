@@ -20,8 +20,13 @@ RUN apt-get update \
     gcc \
     rsync \
     git \
+    gnupg \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
+
+# ---------- gpg ----------
+ENV GNUPGHOME=/tmp/gnupg
+RUN mkdir -m 700 "${GNUPGHOME}"
 
 # Silence GNU parallel's citation notice in CI logs
 RUN mkdir -p /root/.parallel && touch /root/.parallel/will-cite
