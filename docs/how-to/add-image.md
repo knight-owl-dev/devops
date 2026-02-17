@@ -116,7 +116,19 @@ make sync IMAGE=<name>
 All image operations (`sync`, `resolve`, `build`, `verify`, `clean`) work
 automatically via the `IMAGE` variable — no Makefile changes needed.
 
-### 8. Add Makefile lint targets (if applicable)
+### 8. Add the image to workflow matrices
+
+Both `publish.yml` and `cve-monitor.yml` use a matrix strategy to iterate over
+images. Add `<name>` to the `matrix.image` array in **both** workflows so they
+stay in sync:
+
+```yaml
+# .github/workflows/publish.yml and .github/workflows/cve-monitor.yml
+matrix:
+  image: [ci-tools, <name>]
+```
+
+### 9. Add Makefile lint targets (if applicable)
 
 If the new tool should run as part of `make lint`, add it to the Makefile. For
 repo-local scripts that are also installed in the container image, prefer the
@@ -131,7 +143,7 @@ MY_TOOL := $(shell command -v my-tool 2>/dev/null || echo images/<name>/bin/my-t
 This keeps bare-metal development working while ensuring CI runs the same
 version that shipped in the image.
 
-### 9. Set up distributable packaging (local tools only)
+### 10. Set up distributable packaging (local tools only)
 
 If the local tool should be installable outside Docker (via Homebrew or apt),
 add it to the packaging pipeline:

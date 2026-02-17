@@ -131,6 +131,23 @@ Run the same scan locally:
 make scan
 ```
 
+### Scheduled CVE Monitoring
+
+Between releases, new CVEs can be disclosed against packages already in the
+published images. The `cve-monitor.yml` workflow closes this gap by scanning
+each published image on a schedule (Monday and Thursday at 08:00 UTC) and can
+also be triggered manually from the Actions tab.
+
+The scan uses the same Trivy policy as the publish workflow: CRITICAL and HIGH
+severity, `ignore-unfixed: true`, with the per-image `.trivyignore`. A clean
+scan produces a silent green run. If fixable vulnerabilities are found, the
+workflow opens a GitHub issue labeled `cve-monitor` and `security` with the
+full scan results.
+
+To avoid duplicate noise, the workflow checks for an existing open issue for
+that image before creating a new one. Once the vulnerability is remediated and
+a new release is cut, close the issue manually.
+
 ### SBOM Generation
 
 The multi-platform push step generates a Software Bill of Materials (SBOM)
