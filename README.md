@@ -27,6 +27,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | --- | --- |
 | [actionlint](https://github.com/rhysd/actionlint) | GitHub Actions workflow linting |
 | [bats](https://github.com/bats-core/bats-core) | Shell script test framework with bats-support, bats-assert, bats-file helper libraries |
+| [busted](https://github.com/lunarmodules/busted) | Lua testing framework |
 | [biome](https://github.com/biomejs/biome) | JavaScript/TypeScript linting |
 | [chktex](https://www.nongnu.org/chktex/) | LaTeX document linting |
 | [git](https://git-scm.com) | Version control (build-time cloning and runtime use) |
@@ -114,6 +115,7 @@ respective communities:
 - [hadolint](https://github.com/hadolint/hadolint) by Hadolint contributors (GPLv3)
 - [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) by David Anson (MIT)
 - [Biome](https://github.com/biomejs/biome) by Biome contributors (MIT/Apache-2.0)
+- [busted](https://github.com/lunarmodules/busted) by Lunar Modules (MIT)
 - [luacheck](https://github.com/lunarmodules/luacheck) by Lunar Modules (MIT)
 - [stylelint](https://github.com/stylelint/stylelint) by stylelint contributors (MIT)
 - [ChkTeX](https://www.nongnu.org/chktex/) by ChkTeX contributors (GPLv2+)
