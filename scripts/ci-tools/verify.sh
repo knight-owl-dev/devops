@@ -17,7 +17,7 @@ source "${REPO_ROOT}/scripts/lib/verify.sh"
 
 # Load expected versions from the lockfile if mounted.
 SHFMT_VERSION="" ACTIONLINT_VERSION="" HADOLINT_VERSION=""
-MARKDOWNLINT_CLI2_VERSION="" BIOME_VERSION="" STYLELINT_VERSION="" LUACHECK_VERSION=""
+MARKDOWNLINT_CLI2_VERSION="" BIOME_VERSION="" STYLELINT_VERSION="" LUACHECK_VERSION="" BUSTED_VERSION=""
 BATS_VERSION=""
 VALIDATE_ACTION_PINS_VERSION=""
 if [[ -f /versions.lock ]]; then
@@ -33,6 +33,7 @@ check "hadolint" "${HADOLINT_VERSION}" hadolint --version
 check "markdownlint-cli2" "${MARKDOWNLINT_CLI2_VERSION}" markdownlint-cli2 --version
 check "biome" "${BIOME_VERSION}" biome --version
 check "luacheck" "${LUACHECK_VERSION}" luacheck --version
+check "busted" "${BUSTED_VERSION}" busted --version
 check "chktex" "" chktex --version
 check "mandoc" "" command -v mandoc
 check "stylelint" "${STYLELINT_VERSION}" stylelint --version
