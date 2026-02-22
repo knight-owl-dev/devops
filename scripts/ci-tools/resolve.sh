@@ -87,6 +87,13 @@ resolve_hadolint() {
   HADOLINT_SHA256_ARM64="${sha256_arm64}"
 }
 
+resolve_npm() {
+  local version="${1:-}"
+  [[ -z "${version}" ]] && version="$(latest_npm_version npm)"
+  # No SHA256 — npm verifies package integrity during install.
+  NPM_VERSION="${version}"
+}
+
 resolve_markdownlint_cli2() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version markdownlint-cli2)"
@@ -154,7 +161,7 @@ resolve_validate_action_pins() {
 # ── argument parsing ─────────────────────────────────────────────────
 
 # Determine which tools to resolve and whether a version is pinned.
-ALL_TOOLS=(shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
+ALL_TOOLS=(npm shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
 TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
@@ -164,7 +171,7 @@ else
   for arg in "${@}"; do
     tool="${arg%%:*}"
     case "${tool}" in
-      shfmt | actionlint | hadolint | markdownlint-cli2 | biome | stylelint | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
+      npm | shfmt | actionlint | hadolint | markdownlint-cli2 | biome | stylelint | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
       *) die "unknown tool: ${tool}. Valid tools: ${ALL_TOOLS[*]}" ;;
     esac
     TOOLS_TO_RESOLVE+=("${tool}")
@@ -176,6 +183,7 @@ fi
 
 # ── load existing lockfile values (for partial resolves) ─────────────
 
+NPM_VERSION=""
 SHFMT_VERSION="" SHFMT_SHA256_AMD64="" SHFMT_SHA256_ARM64=""
 ACTIONLINT_VERSION="" ACTIONLINT_SHA256_AMD64="" ACTIONLINT_SHA256_ARM64=""
 HADOLINT_VERSION="" HADOLINT_SHA256_AMD64="" HADOLINT_SHA256_ARM64=""
@@ -206,6 +214,7 @@ done
 
 LOCKFILE_TMP="$(mktemp)"
 cat > "${LOCKFILE_TMP}" << EOF
+NPM_VERSION=${NPM_VERSION}
 SHFMT_VERSION=${SHFMT_VERSION}
 SHFMT_SHA256_AMD64=${SHFMT_SHA256_AMD64}
 SHFMT_SHA256_ARM64=${SHFMT_SHA256_ARM64}

@@ -70,6 +70,13 @@ RUN HADOLINT_ARCH=$([ "${TARGETARCH}" = "amd64" ] \
   && echo "${HADOLINT_SHA256}  /usr/local/bin/hadolint" | sha256sum -c - \
   && chmod +x /usr/local/bin/hadolint
 
+# ---------- npm ----------
+# Upgrade npm beyond the base image version to pick up transitive dependency
+# fixes (minimatch, tar). Remove this block when the base image ships npm ≥ 11.10.1.
+ARG NPM_VERSION
+RUN npm install -g "npm@${NPM_VERSION}" \
+  && npm cache clean --force
+
 # ---------- markdownlint-cli2 ----------
 ARG MARKDOWNLINT_CLI2_VERSION
 RUN npm install -g "markdownlint-cli2@${MARKDOWNLINT_CLI2_VERSION}" \

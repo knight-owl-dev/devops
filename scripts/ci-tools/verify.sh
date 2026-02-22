@@ -16,6 +16,7 @@ REPO_ROOT="$(cd "$(dirname "${0}")/../.." && pwd)"
 source "${REPO_ROOT}/scripts/lib/verify.sh"
 
 # Load expected versions from the lockfile if mounted.
+NPM_VERSION=""
 SHFMT_VERSION="" ACTIONLINT_VERSION="" HADOLINT_VERSION=""
 MARKDOWNLINT_CLI2_VERSION="" BIOME_VERSION="" STYLELINT_VERSION="" LUACHECK_VERSION="" BUSTED_VERSION=""
 BATS_VERSION=""
@@ -26,6 +27,7 @@ if [[ -f /versions.lock ]]; then
 fi
 
 echo "Verifying ci-tools ..."
+check "npm" "${NPM_VERSION}" npm --version
 check "shellcheck" "" shellcheck --version
 check "shfmt" "${SHFMT_VERSION}" shfmt --version
 check "actionlint" "${ACTIONLINT_VERSION}" actionlint --version
