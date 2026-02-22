@@ -88,6 +88,13 @@ RUN npm install -g "stylelint@${STYLELINT_VERSION}" \
 # ---------- luacheck ----------
 ARG LUACHECK_VERSION
 RUN luarocks install luacheck "${LUACHECK_VERSION}" \
+  && rm -rf /root/.cache/luarocks
+
+# ---------- busted ----------
+ARG BUSTED_VERSION
+# gcc is purged here because busted is the last luarocks tool that needs
+# compilation. If another luarocks tool is added after this, move the purge.
+RUN luarocks install busted "${BUSTED_VERSION}" \
   && rm -rf /root/.cache/luarocks \
   && apt-get purge -y --auto-remove gcc \
   && rm -rf /var/lib/apt/lists/*

@@ -15,7 +15,7 @@ set -euo pipefail
 # Requirements:
 #   - gh CLI authenticated with access to public repos
 #   - npm (for markdownlint-cli2 version lookup)
-#   - luarocks (for luacheck version lookup)
+#   - luarocks (for luacheck and busted version lookup)
 
 REPO_ROOT="$(cd "$(dirname "${0}")/../.." && pwd)"
 LOCKFILE="${REPO_ROOT}/images/ci-tools/versions.lock"
@@ -115,6 +115,13 @@ resolve_luacheck() {
   LUACHECK_VERSION="${version}"
 }
 
+resolve_busted() {
+  local version="${1:-}"
+  [[ -z "${version}" ]] && version="$(latest_luarocks_version busted)"
+  # No SHA256 — luarocks verifies package integrity during install.
+  BUSTED_VERSION="${version}"
+}
+
 resolve_bats() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-core)"
@@ -147,7 +154,7 @@ resolve_validate_action_pins() {
 # ── argument parsing ─────────────────────────────────────────────────
 
 # Determine which tools to resolve and whether a version is pinned.
-ALL_TOOLS=(shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck bats bats-support bats-assert bats-file validate-action-pins)
+ALL_TOOLS=(shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
 TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
@@ -157,7 +164,7 @@ else
   for arg in "${@}"; do
     tool="${arg%%:*}"
     case "${tool}" in
-      shfmt | actionlint | hadolint | markdownlint-cli2 | biome | stylelint | luacheck | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
+      shfmt | actionlint | hadolint | markdownlint-cli2 | biome | stylelint | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
       *) die "unknown tool: ${tool}. Valid tools: ${ALL_TOOLS[*]}" ;;
     esac
     TOOLS_TO_RESOLVE+=("${tool}")
@@ -176,6 +183,7 @@ MARKDOWNLINT_CLI2_VERSION=""
 BIOME_VERSION=""
 STYLELINT_VERSION=""
 LUACHECK_VERSION=""
+BUSTED_VERSION=""
 BATS_VERSION=""
 BATS_SUPPORT_VERSION="" BATS_ASSERT_VERSION="" BATS_FILE_VERSION=""
 VALIDATE_ACTION_PINS_VERSION=""
@@ -211,6 +219,7 @@ MARKDOWNLINT_CLI2_VERSION=${MARKDOWNLINT_CLI2_VERSION}
 BIOME_VERSION=${BIOME_VERSION}
 STYLELINT_VERSION=${STYLELINT_VERSION}
 LUACHECK_VERSION=${LUACHECK_VERSION}
+BUSTED_VERSION=${BUSTED_VERSION}
 BATS_VERSION=${BATS_VERSION}
 BATS_SUPPORT_VERSION=${BATS_SUPPORT_VERSION}
 BATS_ASSERT_VERSION=${BATS_ASSERT_VERSION}
