@@ -47,6 +47,13 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 Pinned versions and checksums are tracked in
 [`images/ci-tools/versions.lock`](images/ci-tools/versions.lock).
 
+### Locale
+
+The image defaults to `LC_ALL=C` for deterministic sorting and output. The
+`en_US.UTF-8` locale is installed so tests can `export LC_ALL=en_US.UTF-8` to
+verify locale-independent behavior without the setting silently falling back
+to C.
+
 ### Usage
 
 Reference the image in a GitHub Actions workflow:
