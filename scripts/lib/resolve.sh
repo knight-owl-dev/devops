@@ -43,6 +43,47 @@ fetch_gh_asset() {
     || die "failed to download ${asset} from ${repo}@${tag}"
 }
 
+# Fetch SHA256 digests for GitHub release assets in a single API call.
+#
+# GitHub natively exposes digests on release assets (since June 2025).
+# Outputs one "name=hex" line per asset, using gh's built-in --jq
+# (no external jq dependency). Use pick_gh_digest to extract entries.
+#
+# Arguments:
+#   $1 - GitHub repository in "owner/repo" format
+#   $2 - Release tag (e.g. "v3.13.0")
+#
+# Outputs:
+#   Lines of "asset_name=sha256hex" for each asset with a digest
+fetch_gh_digests() {
+  local repo="${1}" tag="${2}"
+  gh release view "${tag}" --repo "${repo}" --json assets \
+    --jq '.assets[]
+      | select(.digest != null and (.digest | startswith("sha256:")))
+      | .name + "=" + (.digest | ltrimstr("sha256:"))' \
+    || die "failed to fetch digests for ${repo}@${tag}"
+}
+
+# Extract a single asset's SHA256 from fetch_gh_digests output.
+#
+# Arguments:
+#   $1 - Digests output (from fetch_gh_digests)
+#   $2 - Asset filename (e.g. "shfmt_v3.13.0_linux_amd64")
+#
+# Outputs:
+#   The lowercase hex SHA256 hash
+pick_gh_digest() {
+  local digests="${1}" asset="${2}"
+  local hash
+  hash="$(echo "${digests}" \
+    | awk -F= -v name="${asset}" '$1 == name { print $2; exit }')"
+  [[ -n "${hash}" ]] \
+    || die "no digest found for asset ${asset}"
+  [[ "${hash}" =~ ^[a-f0-9]{64}$ ]] \
+    || die "invalid digest for ${asset}: ${hash}"
+  echo "${hash}"
+}
+
 # Validate that a string is a 64-character lowercase hex SHA256 hash.
 #
 # Exits with an error if the hash does not match the expected format.

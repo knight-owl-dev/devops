@@ -9,6 +9,7 @@
     "cosign",
     "devops",
     "hadolint",
+    "ltrimstr",
     "luacheck",
     "luarocks",
     "markdownlint",
@@ -18,6 +19,7 @@
     "shellcheck",
     "shfmt",
     "sigstore",
+    "startswith",
     "stylelint",
     "trivy"
   ]

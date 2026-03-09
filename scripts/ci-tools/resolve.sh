@@ -3,8 +3,9 @@ set -euo pipefail
 
 # resolve.sh — Resolve latest versions and SHA256 checksums for ci-tools binaries
 #
-# Fetches the latest GitHub release tag and checksum asset for each tool,
-# validates every checksum, and writes images/ci-tools/versions.lock.
+# Fetches the latest GitHub release tag and checksums for each tool
+# (via checksum assets or GitHub's native release digests) and writes
+# images/ci-tools/versions.lock.
 # Partial resolves preserve existing lockfile values for unresolved tools.
 #
 # Usage:
@@ -35,14 +36,12 @@ resolve_shfmt() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag mvdan/sh)"
 
-  local checksums
-  checksums="$(fetch_gh_asset mvdan/sh "${tag}" sha256sums.txt)"
+  local digests
+  digests="$(fetch_gh_digests mvdan/sh "${tag}")"
 
   local sha256_amd64 sha256_arm64
-  sha256_amd64="$(echo "${checksums}" | grep 'linux_amd64' | awk '{print $1}')"
-  sha256_arm64="$(echo "${checksums}" | grep 'linux_arm64' | awk '{print $1}')"
-  validate_sha256 "${sha256_amd64}" "shfmt (amd64)"
-  validate_sha256 "${sha256_arm64}" "shfmt (arm64)"
+  sha256_amd64="$(pick_gh_digest "${digests}" "shfmt_${tag}_linux_amd64")"
+  sha256_arm64="$(pick_gh_digest "${digests}" "shfmt_${tag}_linux_arm64")"
 
   SHFMT_VERSION="${tag}"
   SHFMT_SHA256_AMD64="${sha256_amd64}"
