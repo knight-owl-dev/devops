@@ -39,7 +39,7 @@ scan: build
 	@docker run --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v $(CURDIR)/images/$(IMAGE)/.trivyignore:/.trivyignore:ro \
-		aquasec/trivy:0.69.1 image \
+		aquasec/trivy:0.69.3 image \
 		--severity CRITICAL,HIGH \
 		--ignore-unfixed \
 		--exit-code 1 \
