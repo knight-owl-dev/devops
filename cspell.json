@@ -9,6 +9,7 @@
     "cosign",
     "devops",
     "hadolint",
+    "ltrimstr",
     "luacheck",
     "luarocks",
     "markdownlint",

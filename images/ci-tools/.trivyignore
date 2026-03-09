@@ -3,8 +3,9 @@
 # Fixes exist in minimatch >=10.2.3 and tar >=7.5.10, but these are
 # bundled inside npm itself. We cannot bump them independently; they
 # will be resolved when a new npm release updates its transitive deps.
-# All three are DoS-class issues that require crafted input, carrying
-# no practical risk in a CI context with trusted inputs.
+# All three are DoS-class issues requiring crafted glob patterns or
+# archive input. Our CI workflows do not pass untrusted user input to
+# npm's glob or tar APIs, so these are not practically exploitable here.
 
 # minimatch: ReDoS via unbounded recursive backtracking (fixed in 10.2.3)
 CVE-2026-27903

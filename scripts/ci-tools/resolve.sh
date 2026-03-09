@@ -35,14 +35,12 @@ resolve_shfmt() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag mvdan/sh)"
 
-  local assets_json
-  assets_json="$(fetch_gh_release_assets mvdan/sh "${tag}")"
+  local digests
+  digests="$(fetch_gh_digests mvdan/sh "${tag}")"
 
   local sha256_amd64 sha256_arm64
-  sha256_amd64="$(digest_gh_asset "${assets_json}" "shfmt_${tag}_linux_amd64")"
-  sha256_arm64="$(digest_gh_asset "${assets_json}" "shfmt_${tag}_linux_arm64")"
-  validate_sha256 "${sha256_amd64}" "shfmt (amd64)"
-  validate_sha256 "${sha256_arm64}" "shfmt (arm64)"
+  sha256_amd64="$(pick_gh_digest "${digests}" "shfmt_${tag}_linux_amd64")"
+  sha256_arm64="$(pick_gh_digest "${digests}" "shfmt_${tag}_linux_arm64")"
 
   SHFMT_VERSION="${tag}"
   SHFMT_SHA256_AMD64="${sha256_amd64}"
