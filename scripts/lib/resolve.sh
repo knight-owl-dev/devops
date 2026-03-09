@@ -47,7 +47,7 @@ fetch_gh_asset() {
 #
 # GitHub natively exposes digests on release assets (since June 2025).
 # Outputs one "name=hex" line per asset, using gh's built-in --jq
-# (no external jq dependency). Callers grep for the assets they need.
+# (no external jq dependency). Use pick_gh_digest to extract entries.
 #
 # Arguments:
 #   $1 - GitHub repository in "owner/repo" format
@@ -58,7 +58,8 @@ fetch_gh_asset() {
 fetch_gh_digests() {
   local repo="${1}" tag="${2}"
   gh release view "${tag}" --repo "${repo}" --json assets \
-    --jq '.assets[] | select(.digest != null)
+    --jq '.assets[]
+      | select(.digest != null and (.digest | startswith("sha256:")))
       | .name + "=" + (.digest | ltrimstr("sha256:"))' \
     || die "failed to fetch digests for ${repo}@${tag}"
 }
@@ -74,8 +75,7 @@ fetch_gh_digests() {
 pick_gh_digest() {
   local digests="${1}" asset="${2}"
   local line hash
-  line="$(echo "${digests}" | awk -F= -v name="${asset}" '$1 == name')" \
-    || true
+  line="$(echo "${digests}" | awk -F= -v name="${asset}" '$1 == name')"
   [[ -n "${line}" ]] \
     || die "no digest found for asset ${asset}"
   hash="${line#*=}"

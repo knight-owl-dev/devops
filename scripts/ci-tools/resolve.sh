@@ -3,8 +3,9 @@ set -euo pipefail
 
 # resolve.sh — Resolve latest versions and SHA256 checksums for ci-tools binaries
 #
-# Fetches the latest GitHub release tag and checksum asset for each tool,
-# validates every checksum, and writes images/ci-tools/versions.lock.
+# Fetches the latest GitHub release tag and checksums for each tool
+# (via checksum assets or GitHub's native release digests) and writes
+# images/ci-tools/versions.lock.
 # Partial resolves preserve existing lockfile values for unresolved tools.
 #
 # Usage:
