@@ -13,6 +13,7 @@ RUN apt-get update \
     mandoc \
     parallel \
     jq \
+    locales \
     make \
     curl \
     ca-certificates \
@@ -23,6 +24,12 @@ RUN apt-get update \
     gnupg \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
+
+# ---------- locale ----------
+# Generate en_US.UTF-8 so tests can verify locale-independent behavior.
+# The locale is available but not active — LC_ALL=C is pinned below.
+RUN sed -i 's/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen \
+  && locale-gen
 
 # ---------- gpg ----------
 ENV GNUPGHOME=/tmp/gnupg
@@ -135,6 +142,8 @@ COPY --chmod=755 bin/validate-action-pins /usr/local/bin/validate-action-pins
 # Images run as root because they target CI runners (GitHub Actions) where the
 # workspace is owned by root. Consumers would need to escalate to root anyway,
 # so a non-root USER directive only adds friction without meaningful isolation.
+
+ENV LC_ALL=C
 
 # ---------- metadata ----------
 ARG IMAGE_VERSION=local
