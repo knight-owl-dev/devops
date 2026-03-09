@@ -74,7 +74,9 @@ fetch_gh_digests() {
 pick_gh_digest() {
   local digests="${1}" asset="${2}"
   local line hash
-  line="$(echo "${digests}" | grep "^${asset}=")" \
+  line="$(echo "${digests}" | awk -F= -v name="${asset}" '$1 == name')" \
+    || true
+  [[ -n "${line}" ]] \
     || die "no digest found for asset ${asset}"
   hash="${line#*=}"
   [[ "${hash}" =~ ^[a-f0-9]{64}$ ]] \
