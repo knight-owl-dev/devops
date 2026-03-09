@@ -1,9 +1,10 @@
-# npm 11.11.0 — transitive dependency CVEs (no upstream fix available)
+# npm 11.11.0 — transitive dependency CVEs (fixed upstream, awaiting npm release)
 #
-# These are bundled inside npm itself. We do not control the transitive
-# versions; they will be fixed when a new npm release updates its deps.
-# All three are DoS-class issues in minimatch/tar that require crafted
-# input, carrying no practical risk in a CI context with trusted inputs.
+# Fixes exist in minimatch >=10.2.3 and tar >=7.5.10, but these are
+# bundled inside npm itself. We cannot bump them independently; they
+# will be resolved when a new npm release updates its transitive deps.
+# All three are DoS-class issues that require crafted input, carrying
+# no practical risk in a CI context with trusted inputs.
 
 # minimatch: ReDoS via unbounded recursive backtracking (fixed in 10.2.3)
 CVE-2026-27903

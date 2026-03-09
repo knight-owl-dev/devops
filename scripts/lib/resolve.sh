@@ -43,28 +43,41 @@ fetch_gh_asset() {
     || die "failed to download ${asset} from ${repo}@${tag}"
 }
 
-# Look up the SHA256 digest for a GitHub release asset via the API.
-#
-# GitHub natively exposes digests on release assets (since June 2025).
-# This avoids downloading the full binary just to compute a hash.
+# Fetch the release assets JSON for a GitHub release.
 #
 # Arguments:
 #   $1 - GitHub repository in "owner/repo" format
 #   $2 - Release tag (e.g. "v3.13.0")
-#   $3 - Asset filename (e.g. "shfmt_v3.13.0_linux_amd64")
+#
+# Outputs:
+#   Raw JSON containing the assets array
+fetch_gh_release_assets() {
+  local repo="${1}" tag="${2}"
+  gh release view "${tag}" --repo "${repo}" --json assets \
+    || die "failed to fetch assets for ${repo}@${tag}"
+}
+
+# Extract the SHA256 digest for an asset from release assets JSON.
+#
+# GitHub natively exposes digests on release assets (since June 2025).
+# This avoids downloading the full binary just to compute a hash.
+# Accepts pre-fetched JSON so callers can extract multiple digests
+# from a single API call.
+#
+# Arguments:
+#   $1 - Release assets JSON (output of fetch_gh_release_assets)
+#   $2 - Asset filename (e.g. "shfmt_v3.13.0_linux_amd64")
 #
 # Outputs:
 #   The lowercase hex SHA256 hash (without the "sha256:" prefix)
 digest_gh_asset() {
-  local repo="${1}" tag="${2}" asset="${3}"
-  local assets_json digest
-  assets_json="$(gh release view "${tag}" --repo "${repo}" --json assets)" \
-    || die "failed to fetch assets for ${repo}@${tag}"
+  local assets_json="${1}" asset="${2}"
+  local digest
   digest="$(echo "${assets_json}" \
     | jq -r --arg asset "${asset}" \
       '.assets[] | select(.name == $asset) | .digest // empty')"
   [[ -n "${digest}" ]] \
-    || die "no digest found for ${asset} in ${repo}@${tag}"
+    || die "no digest found for asset ${asset}"
   [[ "${digest}" == sha256:* ]] \
     || die "unexpected digest format for ${asset}: ${digest}"
   echo "${digest#sha256:}"
