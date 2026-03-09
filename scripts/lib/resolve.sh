@@ -74,13 +74,13 @@ fetch_gh_digests() {
 #   The lowercase hex SHA256 hash
 pick_gh_digest() {
   local digests="${1}" asset="${2}"
-  local line hash
-  line="$(echo "${digests}" | awk -F= -v name="${asset}" '$1 == name')"
-  [[ -n "${line}" ]] \
+  local hash
+  hash="$(echo "${digests}" \
+    | awk -F= -v name="${asset}" '$1 == name { print $2; exit }')"
+  [[ -n "${hash}" ]] \
     || die "no digest found for asset ${asset}"
-  hash="${line#*=}"
   [[ "${hash}" =~ ^[a-f0-9]{64}$ ]] \
-    || die "invalid digest for ${asset}: ${hash:-(empty)}"
+    || die "invalid digest for ${asset}: ${hash}"
   echo "${hash}"
 }
 
