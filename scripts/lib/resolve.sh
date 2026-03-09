@@ -43,6 +43,30 @@ fetch_gh_asset() {
     || die "failed to download ${asset} from ${repo}@${tag}"
 }
 
+# Look up the SHA256 digest for a GitHub release asset via the API.
+#
+# GitHub natively exposes digests on release assets (since June 2025).
+# This avoids downloading the full binary just to compute a hash.
+#
+# Arguments:
+#   $1 - GitHub repository in "owner/repo" format
+#   $2 - Release tag (e.g. "v3.13.0")
+#   $3 - Asset filename (e.g. "shfmt_v3.13.0_linux_amd64")
+#
+# Outputs:
+#   The lowercase hex SHA256 hash (without the "sha256:" prefix)
+digest_gh_asset() {
+  local repo="${1}" tag="${2}" asset="${3}"
+  local digest
+  digest="$(gh release view "${tag}" --repo "${repo}" --json assets \
+    --jq ".assets[] | select(.name == \"${asset}\") | .digest")" \
+    || die "failed to fetch digest for ${asset} from ${repo}@${tag}"
+  [[ -n "${digest}" ]] \
+    || die "no digest found for ${asset} in ${repo}@${tag}"
+  # Strip the "sha256:" prefix
+  echo "${digest#sha256:}"
+}
+
 # Validate that a string is a 64-character lowercase hex SHA256 hash.
 #
 # Exits with an error if the hash does not match the expected format.
