@@ -57,13 +57,16 @@ fetch_gh_asset() {
 #   The lowercase hex SHA256 hash (without the "sha256:" prefix)
 digest_gh_asset() {
   local repo="${1}" tag="${2}" asset="${3}"
-  local digest
-  digest="$(gh release view "${tag}" --repo "${repo}" --json assets \
-    --jq ".assets[] | select(.name == \"${asset}\") | .digest")" \
-    || die "failed to fetch digest for ${asset} from ${repo}@${tag}"
+  local assets_json digest
+  assets_json="$(gh release view "${tag}" --repo "${repo}" --json assets)" \
+    || die "failed to fetch assets for ${repo}@${tag}"
+  digest="$(echo "${assets_json}" \
+    | jq -r --arg asset "${asset}" \
+      '.assets[] | select(.name == $asset) | .digest // empty')"
   [[ -n "${digest}" ]] \
     || die "no digest found for ${asset} in ${repo}@${tag}"
-  # Strip the "sha256:" prefix
+  [[ "${digest}" == sha256:* ]] \
+    || die "unexpected digest format for ${asset}: ${digest}"
   echo "${digest#sha256:}"
 }
 
