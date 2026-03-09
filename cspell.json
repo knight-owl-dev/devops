@@ -19,6 +19,7 @@
     "shellcheck",
     "shfmt",
     "sigstore",
+    "startswith",
     "stylelint",
     "trivy"
   ]
