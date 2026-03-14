@@ -53,6 +53,7 @@ check "git" "" git --version
 check "gpg" "" gpg --version
 check "make" "" make --version
 check "parallel" "" parallel --version
+check "xmlstarlet" "" xmlstarlet --version
 check "locale-en-us" "" bash -c "locale -a | grep -q en_US.utf8"
 check "lc-all-default" "C" printenv LC_ALL
 verify_exit

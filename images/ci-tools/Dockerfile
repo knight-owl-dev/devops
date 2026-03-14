@@ -22,6 +22,7 @@ RUN apt-get update \
     rsync \
     git \
     gnupg \
+    xmlstarlet \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 

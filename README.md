@@ -43,6 +43,8 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [shfmt](https://github.com/mvdan/sh) | Shell script formatting |
 | [stylelint](https://github.com/stylelint/stylelint) | CSS linting |
 | validate-action-pins | GitHub Actions SHA pin verification |
+| [xmlstarlet](https://xmlstar.sourceforge.net) | XML querying and editing |
+| [yq](https://github.com/mikefarah/yq) | YAML/JSON/XML processing |
 
 Pinned versions and checksums are tracked in
 [`images/ci-tools/versions.lock`](images/ci-tools/versions.lock).
@@ -129,6 +131,8 @@ respective communities:
 - [ChkTeX](https://www.nongnu.org/chktex/) by ChkTeX contributors (GPLv2+)
 - [bats-core](https://github.com/bats-core/bats-core) by bats-core contributors (MIT)
 - [GNU Parallel](https://www.gnu.org/software/parallel/) by Ole Tange (GPLv3+)
+- [XMLStarlet](https://xmlstar.sourceforge.net) by Mikhail Grushinskiy (MIT)
+- [yq](https://github.com/mikefarah/yq) by Mike Farah (MIT)
 
 ## License
 
