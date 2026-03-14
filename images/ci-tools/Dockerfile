@@ -77,6 +77,17 @@ RUN HADOLINT_ARCH=$([ "${TARGETARCH}" = "amd64" ] \
   && echo "${HADOLINT_SHA256}  /usr/local/bin/hadolint" | sha256sum -c - \
   && chmod +x /usr/local/bin/hadolint
 
+# ---------- yq ----------
+ARG YQ_VERSION
+ARG YQ_SHA256_AMD64
+ARG YQ_SHA256_ARM64
+RUN YQ_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
+      && echo "${YQ_SHA256_AMD64}" || echo "${YQ_SHA256_ARM64}") \
+  && curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${TARGETARCH}" \
+      -o /usr/local/bin/yq \
+  && echo "${YQ_SHA256}  /usr/local/bin/yq" | sha256sum -c - \
+  && chmod +x /usr/local/bin/yq
+
 # ---------- npm ----------
 # Upgrade npm beyond the base image version to pick up transitive dependency
 # fixes (minimatch, tar). Remove this block when the base image ships npm ≥ 11.10.1.
