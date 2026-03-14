@@ -22,6 +22,7 @@
     "sigstore",
     "startswith",
     "stylelint",
-    "trivy"
+    "trivy",
+    "xmlstarlet"
   ]
 }
