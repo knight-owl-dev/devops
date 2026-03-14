@@ -17,7 +17,7 @@ source "${REPO_ROOT}/scripts/lib/verify.sh"
 
 # Load expected versions from the lockfile if mounted.
 NPM_VERSION=""
-SHFMT_VERSION="" ACTIONLINT_VERSION="" HADOLINT_VERSION=""
+SHFMT_VERSION="" ACTIONLINT_VERSION="" HADOLINT_VERSION="" YQ_VERSION=""
 MARKDOWNLINT_CLI2_VERSION="" BIOME_VERSION="" STYLELINT_VERSION="" LUACHECK_VERSION="" BUSTED_VERSION=""
 BATS_VERSION=""
 VALIDATE_ACTION_PINS_VERSION=""
@@ -32,6 +32,7 @@ check "shellcheck" "" shellcheck --version
 check "shfmt" "${SHFMT_VERSION}" shfmt --version
 check "actionlint" "${ACTIONLINT_VERSION}" actionlint --version
 check "hadolint" "${HADOLINT_VERSION}" hadolint --version
+check "yq" "${YQ_VERSION}" yq --version
 check "markdownlint-cli2" "${MARKDOWNLINT_CLI2_VERSION}" markdownlint-cli2 --version
 check "biome" "${BIOME_VERSION}" biome --version
 check "luacheck" "${LUACHECK_VERSION}" luacheck --version

@@ -86,6 +86,22 @@ resolve_hadolint() {
   HADOLINT_SHA256_ARM64="${sha256_arm64}"
 }
 
+resolve_yq() {
+  local tag="${1:-}"
+  [[ -z "${tag}" ]] && tag="$(latest_gh_tag mikefarah/yq)"
+
+  local digests
+  digests="$(fetch_gh_digests mikefarah/yq "${tag}")"
+
+  local sha256_amd64 sha256_arm64
+  sha256_amd64="$(pick_gh_digest "${digests}" "yq_linux_amd64")"
+  sha256_arm64="$(pick_gh_digest "${digests}" "yq_linux_arm64")"
+
+  YQ_VERSION="${tag}"
+  YQ_SHA256_AMD64="${sha256_amd64}"
+  YQ_SHA256_ARM64="${sha256_arm64}"
+}
+
 resolve_npm() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version npm)"
@@ -160,7 +176,7 @@ resolve_validate_action_pins() {
 # ── argument parsing ─────────────────────────────────────────────────
 
 # Determine which tools to resolve and whether a version is pinned.
-ALL_TOOLS=(npm shfmt actionlint hadolint markdownlint-cli2 biome stylelint luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
+ALL_TOOLS=(npm shfmt actionlint hadolint yq markdownlint-cli2 biome stylelint luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
 TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
@@ -170,7 +186,7 @@ else
   for arg in "${@}"; do
     tool="${arg%%:*}"
     case "${tool}" in
-      npm | shfmt | actionlint | hadolint | markdownlint-cli2 | biome | stylelint | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
+      npm | shfmt | actionlint | hadolint | yq | markdownlint-cli2 | biome | stylelint | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
       *) die "unknown tool: ${tool}. Valid tools: ${ALL_TOOLS[*]}" ;;
     esac
     TOOLS_TO_RESOLVE+=("${tool}")
@@ -186,6 +202,7 @@ NPM_VERSION=""
 SHFMT_VERSION="" SHFMT_SHA256_AMD64="" SHFMT_SHA256_ARM64=""
 ACTIONLINT_VERSION="" ACTIONLINT_SHA256_AMD64="" ACTIONLINT_SHA256_ARM64=""
 HADOLINT_VERSION="" HADOLINT_SHA256_AMD64="" HADOLINT_SHA256_ARM64=""
+YQ_VERSION="" YQ_SHA256_AMD64="" YQ_SHA256_ARM64=""
 MARKDOWNLINT_CLI2_VERSION=""
 BIOME_VERSION=""
 STYLELINT_VERSION=""
@@ -223,6 +240,9 @@ ACTIONLINT_SHA256_ARM64=${ACTIONLINT_SHA256_ARM64}
 HADOLINT_VERSION=${HADOLINT_VERSION}
 HADOLINT_SHA256_AMD64=${HADOLINT_SHA256_AMD64}
 HADOLINT_SHA256_ARM64=${HADOLINT_SHA256_ARM64}
+YQ_VERSION=${YQ_VERSION}
+YQ_SHA256_AMD64=${YQ_SHA256_AMD64}
+YQ_SHA256_ARM64=${YQ_SHA256_ARM64}
 MARKDOWNLINT_CLI2_VERSION=${MARKDOWNLINT_CLI2_VERSION}
 BIOME_VERSION=${BIOME_VERSION}
 STYLELINT_VERSION=${STYLELINT_VERSION}

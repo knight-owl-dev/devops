@@ -13,6 +13,7 @@
     "luacheck",
     "luarocks",
     "markdownlint",
+    "mikefarah",
     "minimatch",
     "nfpm",
     "rsync",
