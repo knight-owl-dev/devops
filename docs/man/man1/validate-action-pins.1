@@ -19,6 +19,15 @@ lines pinned to a commit SHA with a tag comment, for example:
 .Pp
 For each match it queries the GitHub REST API to verify that the pinned
 SHA resolves to the stated tag.
+Each unique action/tag pair is resolved once; subsequent occurrences
+within the same file are deduplicated.
+.Pp
+Output lines are prefixed with the workflow filename:
+.Pp
+.Dl OK \ \ \ ci.yml: actions/checkout@de0fac2e4500... matches v6
+.Dl FAIL \ publish.yml: actions/checkout@de0fac2e4500... does NOT match v6 (expected abc123456789...)
+.Dl WARN \ ci.yml: actions/checkout@de0fac2e4500... \(em could not resolve tag v6
+.Pp
 If the API is unreachable or a required dependency is missing, the check
 is skipped and the tool exits successfully.
 .Sh OPTIONS

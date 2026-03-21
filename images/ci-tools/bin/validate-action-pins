@@ -82,6 +82,8 @@ done
 
 FAILURES=0
 
+declare -A RESOLVE_CACHE  # "owner/repo#tag" → SHA on success, "!" on failure
+
 auth_header=()
 if [[ -n "${GITHUB_TOKEN:-}" ]]; then
   auth_header=(-H "Authorization: token ${GITHUB_TOKEN}")
@@ -169,6 +171,9 @@ for file in "${@}"; do
     continue
   fi
 
+  basename="${file##*/}"
+  declare -A seen_in_file=()
+
   # Match lines like: uses: owner/repo@<40-hex-sha> # <tag>
   while IFS= read -r line; do
     # Extract owner/repo, SHA, and tag from the uses line.
@@ -178,16 +183,33 @@ for file in "${@}"; do
       claimed_tag="${BASH_REMATCH[3]}"
       FOUND_PINS=1
 
-      resolved_sha=""
-      if resolved_sha="$(resolve_tag "${action}" "${claimed_tag}")"; then
-        if [[ "${pinned_sha}" == "${resolved_sha}" ]]; then
-          echo "OK   ${action}@${pinned_sha:0:12}... matches ${claimed_tag}"
+      cache_key="${action}#${claimed_tag}"
+
+      # Skip duplicates within the same file.
+      if [[ -n "${seen_in_file[${cache_key}]+x}" ]]; then
+        continue
+      fi
+      seen_in_file["${cache_key}"]=1
+
+      # Resolve via API only once across all files.
+      if [[ -z "${RESOLVE_CACHE[${cache_key}]+x}" ]]; then
+        resolved_sha=""
+        if resolved_sha="$(resolve_tag "${action}" "${claimed_tag}")"; then
+          RESOLVE_CACHE["${cache_key}"]="${resolved_sha}"
         else
-          echo "FAIL ${action}@${pinned_sha:0:12}... does NOT match ${claimed_tag} (expected ${resolved_sha:0:12}...)"
-          FAILURES=$((FAILURES + 1))
+          RESOLVE_CACHE["${cache_key}"]="!"
         fi
+      fi
+
+      cached="${RESOLVE_CACHE[${cache_key}]}"
+
+      if [[ "${cached}" == "!" ]]; then
+        echo "WARN ${basename}: ${action}@${pinned_sha:0:12}... — could not resolve tag ${claimed_tag}"
+      elif [[ "${pinned_sha}" == "${cached}" ]]; then
+        echo "OK   ${basename}: ${action}@${pinned_sha:0:12}... matches ${claimed_tag}"
       else
-        echo "WARN ${action}@${pinned_sha:0:12}... — could not resolve tag ${claimed_tag}"
+        echo "FAIL ${basename}: ${action}@${pinned_sha:0:12}... does NOT match ${claimed_tag} (expected ${cached:0:12}...)"
+        FAILURES=$((FAILURES + 1))
       fi
     fi
   done < "${file}"
