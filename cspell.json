@@ -21,6 +21,7 @@
     "shfmt",
     "sigstore",
     "startswith",
+    "stdlib",
     "stylelint",
     "trivy",
     "xmlstarlet"
