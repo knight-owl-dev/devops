@@ -3,20 +3,15 @@
 # Tracking issue: #NN
 # CVE-YYYY-NNNNN
 
-# actionlint v1.7.11 (Go 1.25.7) / yq v4.52.4 (Go 1.26.0)
-# Go stdlib CVEs — waiting on upstream releases built with Go >= 1.26.1.
+# actionlint v1.7.11 (Go 1.25.7)
+# Go stdlib CVE — waiting on upstream release built with Go >= 1.25.8 or 1.26.1.
 #
-# These are lint/formatting tools that run offline against local files.
-# Neither tool uses net/url for parsing untrusted URLs or crypto/x509 for
-# certificate verification at runtime, so the practical risk is negligible.
-# Remove these entries once actionlint and yq ship builds on Go >= 1.26.1.
+# actionlint is a lint tool that runs offline against local files.
+# It does not use net/url for parsing untrusted URLs at runtime,
+# so the practical risk is negligible.
+# Remove this entry once actionlint ships a build on Go >= 1.25.8 or 1.26.1.
 
 # net/url: Incorrect parsing of IPv6 host literals (fixed in Go 1.25.8 / 1.26.1)
-# Affects: actionlint (Go 1.25.7), yq (Go 1.26.0)
+# Affects: actionlint (Go 1.25.7)
 # Tracking issue: #96
 CVE-2026-25679
-
-# crypto/x509: Incorrect enforcement of email constraints (fixed in Go 1.26.1)
-# Affects: yq (Go 1.26.0)
-# Tracking issue: #96
-CVE-2026-27137
