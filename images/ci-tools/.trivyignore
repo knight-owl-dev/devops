@@ -1,6 +1,10 @@
+# dependency: CVE advisory details
+# Affects: foo (X 1.25.7), bar (Y 1.26.0)
+# Tracking issue: #NN
+# CVE-YYYY-NNNNN
+
 # actionlint v1.7.11 (Go 1.25.7) / yq v4.52.4 (Go 1.26.0)
 # Go stdlib CVEs — waiting on upstream releases built with Go >= 1.26.1.
-# Tracking issue: #number
 #
 # These are lint/formatting tools that run offline against local files.
 # Neither tool uses net/url for parsing untrusted URLs or crypto/x509 for
