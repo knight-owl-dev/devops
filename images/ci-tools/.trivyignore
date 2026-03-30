@@ -15,3 +15,11 @@
 # Affects: actionlint (Go 1.25.7)
 # Tracking issue: #96
 CVE-2026-25679
+
+# picomatch: ReDoS via crafted extglob patterns (fixed in 4.0.4 / 3.0.2 / 2.3.2)
+# Affects: npm 11.12.1 bundled tinyglobby → picomatch 4.0.3
+# npm bundles its own dependencies; global install cannot override them.
+# picomatch is only used for glob matching during npm install — no untrusted input in CI.
+# Remove this entry when the base image ships npm with picomatch >= 4.0.4.
+# Tracking issue: #110
+CVE-2026-33671
