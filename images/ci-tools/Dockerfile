@@ -1,5 +1,5 @@
 # ci-tools — shared linting image for Knight Owl CI pipelines
-FROM node:25-bookworm-slim@sha256:44bcbf493408a824104e74976ae5539f596c46cbe75ed0423a137552a555e2de
+FROM node:25-bookworm-slim@sha256:71be4054ee7a5fc8d0b2a66060705988b09a782025d70ba9318b29ff1a931fc0
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
