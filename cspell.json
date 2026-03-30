@@ -8,6 +8,7 @@
     "chktex",
     "cosign",
     "devops",
+    "extglob",
     "hadolint",
     "ltrimstr",
     "luacheck",
@@ -16,6 +17,7 @@
     "mikefarah",
     "minimatch",
     "nfpm",
+    "picomatch",
     "rsync",
     "shellcheck",
     "shfmt",
@@ -23,6 +25,7 @@
     "startswith",
     "stdlib",
     "stylelint",
+    "tinyglobby",
     "trivy",
     "xmlstarlet"
   ]
