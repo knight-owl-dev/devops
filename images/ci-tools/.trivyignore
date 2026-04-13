@@ -3,18 +3,26 @@
 # Tracking issue: #NN
 # CVE-YYYY-NNNNN
 
-# actionlint v1.7.11 (Go 1.25.7)
-# Go stdlib CVE — waiting on upstream release built with Go >= 1.25.8 or 1.26.1.
+# actionlint v1.7.12 (Go 1.25.7 for CVE-2026-25679; Go 1.26.1 for CVE-2026-32282)
+# Go stdlib CVEs — waiting on upstream releases built with a patched Go toolchain.
 #
 # actionlint is a lint tool that runs offline against local files.
-# It does not use net/url for parsing untrusted URLs at runtime,
-# so the practical risk is negligible.
-# Remove this entry once actionlint ships a build on Go >= 1.25.8 or 1.26.1.
+# It does not parse untrusted URLs with net/url, and it does not use
+# os.Root.Chmod on untrusted filesystem input, so the practical risk
+# for both CVEs is negligible.
 
 # net/url: Incorrect parsing of IPv6 host literals (fixed in Go 1.25.8 / 1.26.1)
 # Affects: actionlint (Go 1.25.7)
+# Remove this entry once actionlint ships a build on Go >= 1.25.8 or 1.26.1.
 # Tracking issue: #96
 CVE-2026-25679
+
+# internal/syscall/unix: Root.Chmod can follow symlinks out of the root
+# (fixed in Go 1.25.9 / 1.26.2)
+# Affects: actionlint (Go 1.25.7), shfmt v3.13.1 (Go 1.26.1), yq v4.52.5 (Go 1.26.1)
+# Remove this entry once all three ship builds on Go >= 1.25.9 or 1.26.2.
+# Tracking issue: #96
+CVE-2026-32282
 
 # picomatch: ReDoS via crafted extglob patterns (fixed in 4.0.4 / 3.0.2 / 2.3.2)
 # Affects: npm 11.12.1 bundled tinyglobby → picomatch 4.0.3

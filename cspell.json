@@ -25,6 +25,7 @@
     "startswith",
     "stdlib",
     "stylelint",
+    "syscall",
     "tinyglobby",
     "trivy",
     "xmlstarlet"
