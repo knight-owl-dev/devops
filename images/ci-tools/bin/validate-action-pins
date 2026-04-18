@@ -58,9 +58,12 @@ Subcommands:
 Options:
   --format=plain|tsv   Output format for `list` and `updates` (default: plain)
   --only=all|tag|branch
-                       Restrict `check`/`updates` output to a single
-                       classified kind. Default: all. Ignored by `list`
-                       (offline by design, cannot authoritatively classify).
+                       Restrict output to a single classified kind. Default:
+                       all. `check` uses the authoritative kind from
+                       resolve_ref; `updates` uses the routing kind. `list`
+                       is offline when --only=all (default) and taps the
+                       GitHub API for authoritative classification when
+                       --only=tag or --only=branch.
   --help               Show this help message and exit
   --version            Print the version and exit
 
@@ -671,17 +674,20 @@ cmd_updates() {
   done
 }
 
-# List pinned actions found in the given workflow files. No API calls.
+# List pinned actions found in the given workflow files.
 #
-# `list` is offline-by-design: it cannot authoritatively classify
-# refs as tag vs branch without hitting the API, so the --only
-# filter has no effect here (main accepts and ignores it for list).
-# Use `check --only=...` or `updates --only=...` when authoritative
-# classification is needed.
+# Offline by default: with --only=all (the default) no API calls
+# are made and every parseable pin is emitted. When --only is
+# set to tag or branch, list consults the GitHub API to
+# authoritatively classify each pin's effective ref (the comment
+# for SHA pins, the ref itself for floating pins) and filters the
+# output accordingly. Unresolvable refs and pins with no ref hint
+# are classified as "unknown" and appear only with --only=all.
 #
 # Arguments:
 #   $1   - format: "plain" or "tsv"
-#   $2.. - workflow file paths
+#   $2   - --only filter: "all", "tag", or "branch"
+#   $3.. - workflow file paths
 #
 # Plain output (one line per occurrence):
 #   <basename>: <action>@<ref>  (# <comment>)
@@ -691,9 +697,17 @@ cmd_updates() {
 #
 # Returns 0 always; per-file read errors are reported as WARN on stderr.
 cmd_list() {
-  local format="${1}"
-  shift
+  local format="${1}" only="${2}"
+  shift 2
+  local api_mode=false
+  if [[ "${only}" != "all" ]]; then
+    check_api_preflight "list --only=${only}" || return 0
+    api_mode=true
+  fi
+
+  local -A resolve_cache=()
   local file line parsed action ref kind comment
+  local effective_ref cache_key cached resolved_kind
 
   for file in "${@}"; do
     if [[ ! -f "${file}" ]]; then
@@ -701,23 +715,48 @@ cmd_list() {
       continue
     fi
     while IFS= read -r line; do
-      if parsed="$(parse_uses_line "${line}")"; then
-        IFS=$'\t' read -r action ref kind comment <<< "${parsed}"
-        case "${format}" in
-          tsv)
-            printf '%s\t%s\t%s\t%s\t%s\n' \
-              "${file}" "${action}" "${ref}" "${kind}" "${comment}"
-            ;;
-          *)
-            if [[ -n "${comment}" ]]; then
-              printf '%s: %s@%s  (# %s)\n' \
-                "${file##*/}" "${action}" "${ref}" "${comment}"
-            else
-              printf '%s: %s@%s\n' "${file##*/}" "${action}" "${ref}"
-            fi
-            ;;
-        esac
+      if ! parsed="$(parse_uses_line "${line}")"; then
+        continue
       fi
+      IFS=$'\t' read -r action ref kind comment <<< "${parsed}"
+
+      if ${api_mode}; then
+        effective_ref="$(_effective_ref "${kind}" "${ref}" "${comment}")"
+        if [[ -z "${effective_ref}" ]]; then
+          resolved_kind="unknown"
+        else
+          cache_key="${action}#${effective_ref}"
+          if [[ -z "${resolve_cache[${cache_key}]+x}" ]]; then
+            if cached="$(resolve_ref "${action}" "${effective_ref}")"; then
+              resolve_cache["${cache_key}"]="${cached}"
+            else
+              resolve_cache["${cache_key}"]="NONE"
+            fi
+          fi
+          cached="${resolve_cache[${cache_key}]}"
+          if [[ "${cached}" == "NONE" ]]; then
+            resolved_kind="unknown"
+          else
+            resolved_kind="${cached#*$'\t'}"
+          fi
+        fi
+        _include_pin "${only}" "${resolved_kind}" || continue
+      fi
+
+      case "${format}" in
+        tsv)
+          printf '%s\t%s\t%s\t%s\t%s\n' \
+            "${file}" "${action}" "${ref}" "${kind}" "${comment}"
+          ;;
+        *)
+          if [[ -n "${comment}" ]]; then
+            printf '%s: %s@%s  (# %s)\n' \
+              "${file##*/}" "${action}" "${ref}" "${comment}"
+          else
+            printf '%s: %s@%s\n' "${file##*/}" "${action}" "${ref}"
+          fi
+          ;;
+      esac
     done < "${file}"
   done
 }
@@ -829,7 +868,7 @@ main() {
 
   case "${subcmd}" in
     check) cmd_check "${only}" "${files[@]}" ;;
-    list) cmd_list "${format}" "${files[@]}" ;;
+    list) cmd_list "${format}" "${only}" "${files[@]}" ;;
     updates) cmd_updates "${format}" "${only}" "${files[@]}" ;;
   esac
 }

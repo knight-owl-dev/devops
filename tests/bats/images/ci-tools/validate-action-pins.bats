@@ -371,13 +371,43 @@ setup() {
   refute_output --partial "(branch)"
 }
 
-@test "--only=branch does not affect list (offline by design)" {
-  run "${SCRIPT}" list --only=branch "${FIXTURES_DIR}/workflows/mixed.yml"
+@test "list --only=tag filters to tag pins via authoritative API" {
+  run "${SCRIPT}" list --only=tag \
+    "${FIXTURES_DIR}/workflows/tag-ok.yml" \
+    "${FIXTURES_DIR}/workflows/branch-ok.yml"
   assert_success
-  # Every non-docker/non-local pin appears regardless of filter.
-  assert_output --partial "actions/checkout@v6.0.2"
-  assert_output --partial "org/repo@main"
-  assert_output --partial "foo/bar@"
+  assert_output --partial "tag-ok.yml: foo/bar@"
+  refute_output --partial "branch-ok.yml"
+}
+
+@test "list --only=branch filters to branch pins via authoritative API" {
+  run "${SCRIPT}" list --only=branch \
+    "${FIXTURES_DIR}/workflows/tag-ok.yml" \
+    "${FIXTURES_DIR}/workflows/branch-ok.yml"
+  assert_success
+  assert_output --partial "branch-ok.yml: foo/br-ok@"
+  refute_output --partial "tag-ok.yml"
+}
+
+@test "list --only=all stays offline (no API, no preflight)" {
+  # Clear SKIP and point API base at a missing dir — preflight would
+  # fail. With --only=all (the default), list must not probe at all.
+  mkdir -p "${BATS_TEST_TMPDIR}/empty"
+  VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY='' \
+    GITHUB_API_BASE="file://${BATS_TEST_TMPDIR}/empty" \
+    run "${SCRIPT}" list --only=all "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_success
+  refute_output --partial "cannot reach GitHub API"
+  assert_output --partial "tag-ok.yml: foo/bar@"
+}
+
+@test "list --only=branch warns and exits 0 when the API is unreachable" {
+  mkdir -p "${BATS_TEST_TMPDIR}/empty"
+  VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY='' \
+    GITHUB_API_BASE="file://${BATS_TEST_TMPDIR}/empty" \
+    run "${SCRIPT}" list --only=branch "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_success
+  assert_output --partial "WARN: cannot reach GitHub API"
 }
 
 @test "--only accepts space-separated form" {

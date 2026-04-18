@@ -16,6 +16,7 @@
 .Nm
 .Cm list
 .Op Fl -format Ar plain Ns | Ns Ar tsv
+.Op Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch
 .Ar file ...
 .Nm
 .Cm updates
@@ -67,11 +68,21 @@ This is the default when no subcommand is given; bare
 .Ic validate-action-pins Ar file ...
 is equivalent to
 .Ic validate-action-pins check Ar file ... .
-.It Cm list Oo Fl -format Ar plain Ns | Ns Ar tsv Oc Ar file ...
+.It Cm list Oo Fl -format Ar plain Ns | Ns Ar tsv Oc Oo Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch Oc Ar file ...
 Print every
 .Ic uses:\&
 pin found in the input files.
-Performs no API calls, so it runs offline and without authentication.
+Offline by default
+.Pq Fl -only Ar all :
+no API calls, no authentication.
+When
+.Fl -only
+is set to
+.Em tag
+or
+.Em branch ,
+each unique pin is classified authoritatively via the GitHub API
+and only matching pins are emitted.
 .Pp
 Plain output has the form
 .Dl <basename>: <action>@<ref>  (# <comment>)
@@ -147,11 +158,7 @@ and
 Default is
 .Em plain .
 .It Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch
-Restrict
-.Cm check
-and
-.Cm updates
-output to a single classified kind.
+Restrict output to a single classified kind.
 For
 .Cm check ,
 the classification is the authoritative kind returned by the API
@@ -161,11 +168,17 @@ For
 .Cm updates ,
 the classification is the routing kind (which API endpoint was
 consulted).
+For
+.Cm list ,
+.Em all
+is offline and lists every parseable pin; passing
+.Em tag
+or
+.Em branch
+taps the GitHub API per unique pin to classify authoritatively
+before filtering.
 Default is
 .Em all .
-.Cm list
-is offline by design and cannot authoritatively classify refs, so the
-flag is accepted and ignored for that subcommand.
 .It Fl -help
 Show a usage summary and exit.
 .It Fl -version
