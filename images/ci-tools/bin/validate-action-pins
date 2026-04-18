@@ -60,6 +60,15 @@ readonly _CURL_ERRFD
 # silently ignore --retry.
 readonly _CURL_FLAGS=(-fsSL --retry 3 --retry-delay 2)
 
+# Accepted "semver-like" tag shape, shared by the bash classifier
+# and the jq tag filter. Matches:
+#   v1, v1.2, v1.2.3, and the same without the leading v.
+# Missing minor/patch components are treated as zero in comparisons
+# (see list_newer_tags). Pre-release and non-numeric suffixes are
+# intentionally excluded — users pinning to v1.0.0-rc1 or nightly
+# don't want those reported as upgrade targets.
+readonly _SEMVER_RE='^v?[0-9]+(\.[0-9]+){0,2}$'
+
 # ── usage / version ──────────────────────────────────────────────────
 
 usage() {
@@ -443,14 +452,16 @@ list_newer_tags() {
   if [[ -z "${json}" ]]; then
     return 1
   fi
-  jq -r --arg c "${current}" '
+  # Shared grammar with the bash classifier; passed as a jq --arg so
+  # the pattern lives in one place (_SEMVER_RE above).
+  jq -r --arg c "${current}" --arg re "${_SEMVER_RE}" '
     def tok(s):
       (s | sub("^v"; "") | split("."))
       | [range(3) as $i | .[$i] // "0"]
       | map(tonumber? // 0);
 
     [ .[].name
-      | select(test("^v?[0-9]+(\\.[0-9]+){0,2}$"))
+      | select(test($re))
       | { name: ., key: tok(.) }
     ] as $tags
     | (tok($c)) as $ck
@@ -698,7 +709,7 @@ cmd_updates() {
       # else is treated as a branch, empty refs have no hint.
       if [[ -z "${effective_ref}" ]]; then
         effective_kind="unknown"
-      elif [[ "${effective_ref}" =~ ^v?[0-9]+(\.[0-9]+){0,2}$ ]]; then
+      elif [[ "${effective_ref}" =~ ${_SEMVER_RE} ]]; then
         effective_kind="tag"
         newer_tags="$(list_newer_tags "${action}" "${effective_ref}" || true)"
         if [[ -n "${newer_tags}" ]]; then
