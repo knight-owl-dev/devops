@@ -72,6 +72,54 @@ setup() {
   assert_equal "${ok_count}" "1"
 }
 
+# ── subcommand dispatch ─────────────────────────────────────────────
+
+@test "bare FILE and explicit 'check FILE' produce identical output" {
+  local bare_out subcmd_out
+  bare_out="$("${SCRIPT}" "${FIXTURES_DIR}/workflows/tag-ok.yml")"
+  subcmd_out="$("${SCRIPT}" check "${FIXTURES_DIR}/workflows/tag-ok.yml")"
+  assert_equal "${bare_out}" "${subcmd_out}"
+}
+
+@test "'check --version' still prints the version" {
+  run "${SCRIPT}" check --version
+  assert_success
+  assert_output --regexp '^validate-action-pins '
+}
+
+@test "unknown flag exits 2 with a usage error" {
+  run "${SCRIPT}" --bogus "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_failure 2
+  assert_output --partial "unknown flag: --bogus"
+}
+
+@test "short unknown flag exits 2" {
+  run "${SCRIPT}" -x "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_failure 2
+  assert_output --partial "unknown flag: -x"
+}
+
+@test "non-subcommand word is treated as a file path, not rejected" {
+  # 'foo' is not a known subcommand, so it stays as $1 and is consumed as a
+  # filename. Missing-file WARN confirms the non-reject path.
+  run "${SCRIPT}" foo "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_success
+  assert_output --partial "WARN: foo not found"
+  assert_output --partial "OK   tag-ok.yml:"
+}
+
+@test "'check' without any files exits 1 with usage" {
+  run "${SCRIPT}" check
+  assert_failure 1
+  assert_output --partial "Usage: validate-action-pins"
+}
+
+@test "'--' terminator passes subsequent args as files" {
+  run "${SCRIPT}" check -- "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_success
+  assert_output --partial "OK   tag-ok.yml:"
+}
+
 # ── connectivity probe ──────────────────────────────────────────────
 
 @test "connectivity probe failure warns and exits 0" {

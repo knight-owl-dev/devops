@@ -9,6 +9,9 @@
 .Op Fl -help
 .Op Fl -version
 .Ar file ...
+.Nm
+.Cm check
+.Ar file ...
 .Sh DESCRIPTION
 .Nm
 scans GitHub Actions workflow files for
@@ -30,6 +33,15 @@ Output lines are prefixed with the workflow filename:
 .Pp
 If the API is unreachable or a required dependency is missing, the check
 is skipped and the tool exits successfully.
+.Sh SUBCOMMANDS
+.Bl -tag -width indent
+.It Cm check Ar file ...
+Verify SHA pins in the given workflow files.
+This is the default when no subcommand is given; bare
+.Ic validate-action-pins Ar file ...
+is equivalent to
+.Ic validate-action-pins check Ar file ... .
+.El
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl -help
@@ -53,6 +65,8 @@ the GitHub API is unreachable.
 .It 1
 One or more pins do not match their claimed tag, or no files were
 provided.
+.It 2
+Usage error \(em an unknown flag was supplied.
 .El
 .Sh EXAMPLES
 Validate all workflows in a repository:

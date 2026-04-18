@@ -9,6 +9,7 @@ set -euo pipefail
 #
 # Usage:
 #   validate-action-pins .github/workflows/*.yml
+#   validate-action-pins check .github/workflows/*.yml
 #   validate-action-pins --help
 #   validate-action-pins --version
 #
@@ -31,6 +32,7 @@ set -euo pipefail
 #       dependencies or unreachable GitHub API)
 #   1 - One or more pins do not match their claimed tag, or no files
 #       provided
+#   2 - Usage error (unknown flag)
 
 readonly PROGRAM="validate-action-pins"
 readonly VERSION="${VALIDATE_ACTION_PINS_VERSION:-unknown}"
@@ -41,13 +43,16 @@ readonly VERSION="${VALIDATE_ACTION_PINS_VERSION:-unknown}"
 
 usage() {
   cat << 'USAGE'
-Usage: validate-action-pins [OPTIONS] FILE...
+Usage: validate-action-pins [OPTIONS] [SUBCOMMAND] FILE...
 
 Verify that GitHub Actions SHA pins match their claimed tags.
 
 Scans workflow files for lines like:
   uses: actions/checkout@de0fac2e... # v6
 and checks that the pinned SHA resolves to the stated tag via the GitHub API.
+
+Subcommands:
+  check     Verify SHA pins (default when no subcommand is given)
 
 Options:
   --help       Show this help message and exit
@@ -134,59 +139,30 @@ resolve_tag() {
   return 1
 }
 
-# ── main ─────────────────────────────────────────────────────────────
+# ── subcommands ──────────────────────────────────────────────────────
 
-main() {
-  if [[ $# -eq 0 ]]; then
-    usage >&2
-    exit 1
-  fi
-
-  local arg
-  for arg in "${@}"; do
-    case "${arg}" in
-      --help)
-        usage
-        exit 0
-        ;;
-      --version)
-        echo "${PROGRAM} ${VERSION}"
-        exit 0
-        ;;
-      --) break ;;
-      *) ;;
-    esac
-  done
-
-  local cmd
-  for cmd in curl jq; do
-    if ! command -v "${cmd}" > /dev/null 2>&1; then
-      echo "WARN: ${cmd} not found — skipping pin validation"
-      exit 0
-    fi
-  done
-
-  init_auth_header
-
-  if [[ -z "${VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY:-}" ]]; then
-    if ! curl -fsSL "${auth_header[@]+"${auth_header[@]}"}" \
-      -H "Accept: application/vnd.github+json" \
-      "${GITHUB_API_BASE}/rate_limit" > /dev/null 2>&1; then
-      echo "WARN: cannot reach GitHub API — skipping pin validation"
-      exit 0
-    fi
-  fi
-
+# Verify SHA pins in the given workflow files.
+#
+# Emits one line per unique (action, tag) pair:
+#   OK    matches
+#   FAIL  pin does not match the tag's resolved SHA
+#   WARN  ref could not be resolved
+#
+# Arguments:
+#   $@ - One or more workflow file paths
+#
+# Returns:
+#   0 - all pins match, or no pins found
+#   1 - one or more pins do not match
+cmd_check() {
   local -i failures=0
   local -i found_pins=0
   local -A resolve_cache=()
-
+  local -A seen_in_file=()
   local file basename line
   local action pinned_sha claimed_tag cache_key cached resolved_sha
-  local -A seen_in_file
 
   for file in "${@}"; do
-    [[ "${file}" == --* ]] && continue
     if [[ ! -f "${file}" ]]; then
       echo "WARN: ${file} not found, skipping"
       continue
@@ -195,7 +171,6 @@ main() {
     basename="${file##*/}"
     seen_in_file=()
 
-    # Match lines like: uses: owner/repo@<40-hex-sha> # <tag>
     while IFS= read -r line; do
       if [[ "${line}" =~ uses:[[:space:]]*([^@]+)@([0-9a-f]{40})[[:space:]]*#[[:space:]]*([^[:space:]]+) ]]; then
         action="${BASH_REMATCH[1]}"
@@ -239,8 +214,96 @@ main() {
 
   if [[ "${failures}" -gt 0 ]]; then
     echo "FAIL: ${failures} pin(s) did not match"
+    return 1
+  fi
+  return 0
+}
+
+# ── main ─────────────────────────────────────────────────────────────
+
+main() {
+  if [[ $# -eq 0 ]]; then
+    usage >&2
     exit 1
   fi
+
+  # Short-circuit --help/--version at any position, before we try to
+  # interpret a subcommand or flags.
+  local arg
+  for arg in "${@}"; do
+    case "${arg}" in
+      --help)
+        usage
+        exit 0
+        ;;
+      --version)
+        echo "${PROGRAM} ${VERSION}"
+        exit 0
+        ;;
+      --) break ;;
+      *) ;;
+    esac
+  done
+
+  # Detect subcommand. Anything else stays as a positional file arg,
+  # preserving back-compat for bare-file invocations.
+  local subcmd="check"
+  if [[ $# -gt 0 ]]; then
+    case "${1}" in
+      check)
+        subcmd="${1}"
+        shift
+        ;;
+    esac
+  fi
+
+  # Collect files; reject unknown flags with exit 2.
+  local files=()
+  while [[ $# -gt 0 ]]; do
+    case "${1}" in
+      --)
+        shift
+        files+=("${@}")
+        break
+        ;;
+      -*)
+        echo "${PROGRAM}: unknown flag: ${1}" >&2
+        exit 2
+        ;;
+      *)
+        files+=("${1}")
+        shift
+        ;;
+    esac
+  done
+
+  if [[ "${#files[@]}" -eq 0 ]]; then
+    usage >&2
+    exit 1
+  fi
+
+  local cmd
+  for cmd in curl jq; do
+    if ! command -v "${cmd}" > /dev/null 2>&1; then
+      echo "WARN: ${cmd} not found — skipping pin validation"
+      exit 0
+    fi
+  done
+
+  init_auth_header
+
+  if [[ -z "${VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY:-}" ]]; then
+    if ! curl -fsSL "${auth_header[@]+"${auth_header[@]}"}" \
+      -H "Accept: application/vnd.github+json" \
+      "${GITHUB_API_BASE}/rate_limit" > /dev/null 2>&1; then
+      echo "WARN: cannot reach GitHub API — skipping pin validation"
+      exit 0
+    fi
+  fi
+
+  case "${subcmd}" in
+    check) cmd_check "${files[@]}" ;;
+  esac
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
