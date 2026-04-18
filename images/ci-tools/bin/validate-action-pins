@@ -597,6 +597,52 @@ _emit_check() {
     "${1}" "${2}" "${3}" "${4:0:12}" "${5}"
 }
 
+# Emit a single line of `updates` plain-format output. One helper
+# covers all four shape variants so cmd_updates' main loop stays a
+# tight classify → filter → emit pipeline.
+#
+# Arguments:
+#   $1 - file basename
+#   $2 - action (owner/repo)
+#   $3 - classified kind: "tag", "branch", or "unknown"
+#   $4 - effective ref (comment for SHA pins, ref itself otherwise);
+#        for "unknown", the caller passes the original ref instead
+#   $5 - available upgrade (newer tag list for tag, short HEAD sha
+#        for branch, empty for up-to-date or unknown)
+#
+# Output shapes:
+#   <basename>: <action>  current=<ref>  [unknown]
+#   <basename>: <action>  current=<ref>  [up-to-date]  (<kind>)
+#   <basename>: <action>  current=<ref>  newer=<list>  (tag)
+#   <basename>: <action>  current=<ref>  head=<sha>  (branch)
+_emit_update_plain() {
+  local basename="${1}" action="${2}" kind="${3}" ref="${4}" avail="${5}"
+  case "${kind}" in
+    unknown)
+      printf '%s: %s  current=%s  [unknown]\n' \
+        "${basename}" "${action}" "${ref}"
+      ;;
+    tag)
+      if [[ -z "${avail}" ]]; then
+        printf '%s: %s  current=%s  [up-to-date]  (tag)\n' \
+          "${basename}" "${action}" "${ref}"
+      else
+        printf '%s: %s  current=%s  newer=%s  (tag)\n' \
+          "${basename}" "${action}" "${ref}" "${avail}"
+      fi
+      ;;
+    branch)
+      if [[ -z "${avail}" ]]; then
+        printf '%s: %s  current=%s  [up-to-date]  (branch)\n' \
+          "${basename}" "${action}" "${ref}"
+      else
+        printf '%s: %s  current=%s  head=%s  (branch)\n' \
+          "${basename}" "${action}" "${ref}" "${avail}"
+      fi
+      ;;
+  esac
+}
+
 # Verify SHA pins in the given workflow files.
 #
 # Only SHA pins with an explicit `# <ref>` comment are validated — the
@@ -808,41 +854,20 @@ cmd_updates() {
       # Apply --only filter on the classified kind before emitting.
       _include_pin "${only}" "${effective_kind}" || continue
 
+      # For TSV, column 3 is "current_ref" — the classified ref hint
+      # except for unknown pins, where we fall back to the original
+      # @ref so the row still points at something recognisable.
+      local col_ref="${effective_ref}"
+      [[ "${effective_kind}" == "unknown" ]] && col_ref="${ref}"
+
       case "${format}" in
         tsv)
-          if [[ "${effective_kind}" == "unknown" ]]; then
-            printf '%s\t%s\t%s\t%s\t%s\n' \
-              "${file}" "${action}" "${ref}" "" "${effective_kind}"
-          else
-            printf '%s\t%s\t%s\t%s\t%s\n' \
-              "${file}" "${action}" "${effective_ref}" "${available}" "${effective_kind}"
-          fi
+          printf '%s\t%s\t%s\t%s\t%s\n' \
+            "${file}" "${action}" "${col_ref}" "${available}" "${effective_kind}"
           ;;
         *)
-          case "${effective_kind}" in
-            unknown)
-              printf '%s: %s  current=%s  [unknown]\n' \
-                "${basename}" "${action}" "${ref}"
-              ;;
-            tag)
-              if [[ -z "${available}" ]]; then
-                printf '%s: %s  current=%s  [up-to-date]  (tag)\n' \
-                  "${basename}" "${action}" "${effective_ref}"
-              else
-                printf '%s: %s  current=%s  newer=%s  (tag)\n' \
-                  "${basename}" "${action}" "${effective_ref}" "${available}"
-              fi
-              ;;
-            branch)
-              if [[ -z "${available}" ]]; then
-                printf '%s: %s  current=%s  [up-to-date]  (branch)\n' \
-                  "${basename}" "${action}" "${effective_ref}"
-              else
-                printf '%s: %s  current=%s  head=%s  (branch)\n' \
-                  "${basename}" "${action}" "${effective_ref}" "${available}"
-              fi
-              ;;
-          esac
+          _emit_update_plain "${basename}" "${action}" \
+            "${effective_kind}" "${col_ref}" "${available}"
           ;;
       esac
     done < "${file}"
