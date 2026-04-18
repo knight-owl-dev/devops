@@ -320,6 +320,78 @@ setup() {
   assert_equal "${warn_count}" "1"
 }
 
+# ── --only filter (shared across check and updates) ─────────────────
+
+@test "check --only=branch on a tag-pin file emits nothing" {
+  run "${SCRIPT}" check --only=branch "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_success
+  refute_output --partial "OK "
+  refute_output --partial "FAIL "
+  refute_output --partial "WARN "
+}
+
+@test "check --only=branch on a branch-pin file emits the WARN" {
+  run "${SCRIPT}" check --only=branch "${FIXTURES_DIR}/workflows/branch-behind.yml"
+  assert_success
+  assert_output --partial "WARN branch-behind.yml:"
+  assert_output --partial "3 commit(s) behind main HEAD"
+}
+
+@test "check --only=tag on a branch-pin file emits nothing" {
+  run "${SCRIPT}" check --only=tag "${FIXTURES_DIR}/workflows/branch-ok.yml"
+  assert_success
+  refute_output --partial "OK "
+  refute_output --partial "WARN "
+}
+
+@test "check --only=tag keeps tag mismatches visible (and failing)" {
+  run "${SCRIPT}" check --only=tag "${FIXTURES_DIR}/workflows/tag-mismatch.yml"
+  assert_failure 1
+  assert_output --partial "FAIL tag-mismatch.yml:"
+  assert_output --partial "does NOT match v1"
+}
+
+@test "updates --only=branch on a mixed file drops tag records" {
+  run "${SCRIPT}" updates --only=branch "${FIXTURES_DIR}/workflows/updates-mixed.yml"
+  assert_success
+  refute_output --partial "foo/bar"
+  assert_output --partial "foo/br-ok"
+  assert_output --partial "foo/br-behind"
+  assert_output --partial "(branch)"
+  refute_output --partial "(tag)"
+}
+
+@test "updates --only=tag on a mixed file drops branch records" {
+  run "${SCRIPT}" updates --only=tag "${FIXTURES_DIR}/workflows/updates-mixed.yml"
+  assert_success
+  assert_output --partial "foo/bar"
+  refute_output --partial "foo/br-ok"
+  refute_output --partial "foo/br-behind"
+  assert_output --partial "(tag)"
+  refute_output --partial "(branch)"
+}
+
+@test "--only=branch does not affect list (offline by design)" {
+  run "${SCRIPT}" list --only=branch "${FIXTURES_DIR}/workflows/mixed.yml"
+  assert_success
+  # Every non-docker/non-local pin appears regardless of filter.
+  assert_output --partial "actions/checkout@v6.0.2"
+  assert_output --partial "org/repo@main"
+  assert_output --partial "foo/bar@"
+}
+
+@test "--only accepts space-separated form" {
+  run "${SCRIPT}" check --only branch "${FIXTURES_DIR}/workflows/branch-ok.yml"
+  assert_success
+  assert_output --partial "OK   branch-ok.yml:"
+}
+
+@test "invalid --only value exits 2" {
+  run "${SCRIPT}" updates --only=bogus "${FIXTURES_DIR}/workflows/updates-mixed.yml"
+  assert_failure 2
+  assert_output --partial "invalid --only: bogus"
+}
+
 # ── unit-level: source the script, call functions directly ─────────
 
 @test "resolve_ref returns <sha>\\ttag for a lightweight tag" {

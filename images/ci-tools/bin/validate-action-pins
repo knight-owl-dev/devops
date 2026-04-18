@@ -57,6 +57,10 @@ Subcommands:
 
 Options:
   --format=plain|tsv   Output format for `list` and `updates` (default: plain)
+  --only=all|tag|branch
+                       Restrict `check`/`updates` output to a single
+                       classified kind. Default: all. Ignored by `list`
+                       (offline by design, cannot authoritatively classify).
   --help               Show this help message and exit
   --version            Print the version and exit
 
@@ -201,6 +205,20 @@ _effective_ref() {
   else
     echo "${2}"
   fi
+}
+
+# Decide whether a pin should be included given the --only filter.
+#
+# Arguments:
+#   $1 - filter value: "all", "tag", or "branch" (and "unknown" for
+#        refs that could not be classified authoritatively)
+#   $2 - the pin's classified kind
+#
+# Returns:
+#   0 - pin matches the filter (include)
+#   1 - pin is filtered out (skip)
+_include_pin() {
+  [[ "${1}" == "all" || "${1}" == "${2}" ]]
 }
 
 # Module-scope dedup sets, one per scope boundary that the
@@ -415,12 +433,15 @@ _emit_check() {
 #         (informational — never counted as a failure)
 #
 # Arguments:
-#   $@ - One or more workflow file paths
+#   $1   - --only filter: "all", "tag", or "branch"
+#   $2.. - One or more workflow file paths
 #
 # Returns:
 #   0 - all pins match, or no pins found
 #   1 - one or more pins do not match
 cmd_check() {
+  local only="${1}"
+  shift
   check_api_preflight || return 0
 
   local -i failures=0
@@ -469,6 +490,9 @@ cmd_check() {
       cached="${resolve_cache[${cache_key}]}"
 
       if [[ "${cached}" == "NONE" ]]; then
+        # Unresolvable refs have no authoritative kind; include them
+        # only when the user asked for all kinds.
+        _include_pin "${only}" "unknown" || continue
         _emit_check WARN "${basename}" "${action}" "${ref}" \
           "— could not resolve ref ${comment}"
         continue
@@ -476,6 +500,9 @@ cmd_check() {
 
       resolved="${cached%%$'\t'*}"
       resolved_kind="${cached#*$'\t'}"
+
+      # Apply --only filter on the authoritative kind (post-API).
+      _include_pin "${only}" "${resolved_kind}" || continue
 
       if [[ "${ref}" == "${resolved}" ]]; then
         _emit_check OK "${basename}" "${action}" "${ref}" "matches ${comment}"
@@ -529,12 +556,14 @@ cmd_check() {
 #
 # Arguments:
 #   $1   - format: "plain" or "tsv"
-#   $2.. - workflow file paths
+#   $2   - --only filter: "all", "tag", or "branch"
+#   $3.. - workflow file paths
 #
 # Plain output (one line per unique pin):
 #   <basename>: <action>  current=<ref>  [up-to-date]  (<kind>)
 #   <basename>: <action>  current=<ref>  newer=<t1> <t2> ...  (tag)
 #   <basename>: <action>  current=<ref>  head=<short-sha>  (branch)
+#   <basename>: <action>  current=<ref>  [unknown]
 #
 # TSV output (5 columns, no header):
 #   <file>\t<action>\t<current_ref>\t<available>\t<kind>
@@ -547,8 +576,8 @@ cmd_check() {
 #   - Branch ref: 1 call to /repos/.../git/ref/heads/<branch>
 #   - SHA pin with no # comment: no calls, recorded as "unknown"
 cmd_updates() {
-  local format="${1}"
-  shift
+  local format="${1}" only="${2}"
+  shift 2
 
   check_api_preflight "update check" || return 0
 
@@ -580,6 +609,8 @@ cmd_updates() {
       head_full=""
       available=""
 
+      # Classify and route: semver-shaped refs fetch tags, everything
+      # else is treated as a branch, empty refs have no hint.
       if [[ -z "${effective_ref}" ]]; then
         effective_kind="unknown"
       elif [[ "${effective_ref}" =~ ^v?[0-9]+(\.[0-9]+){0,2}$ ]]; then
@@ -596,6 +627,9 @@ cmd_updates() {
         fi
       fi
 
+      # Apply --only filter on the classified kind before emitting.
+      _include_pin "${only}" "${effective_kind}" || continue
+
       case "${format}" in
         tsv)
           if [[ "${effective_kind}" == "unknown" ]]; then
@@ -609,7 +643,7 @@ cmd_updates() {
         *)
           case "${effective_kind}" in
             unknown)
-              printf '%s: %s  current=%s  [no ref hint]\n' \
+              printf '%s: %s  current=%s  [unknown]\n' \
                 "${basename}" "${action}" "${ref}"
               ;;
             tag)
@@ -639,6 +673,12 @@ cmd_updates() {
 
 # List pinned actions found in the given workflow files. No API calls.
 #
+# `list` is offline-by-design: it cannot authoritatively classify
+# refs as tag vs branch without hitting the API, so the --only
+# filter has no effect here (main accepts and ignores it for list).
+# Use `check --only=...` or `updates --only=...` when authoritative
+# classification is needed.
+#
 # Arguments:
 #   $1   - format: "plain" or "tsv"
 #   $2.. - workflow file paths
@@ -647,6 +687,7 @@ cmd_updates() {
 #   <basename>: <action>@<ref>  (# <comment>)
 # TSV output (one line per occurrence, header-less):
 #   <file>\t<action>\t<ref>\t<kind>\t<comment>
+#   (`kind` is the pin format: sha or ref.)
 #
 # Returns 0 always; per-file read errors are reported as WARN on stderr.
 cmd_list() {
@@ -721,6 +762,7 @@ main() {
 
   # Collect files and any subcommand-scoped flags.
   local format="plain"
+  local only="all"
   local files=()
   while [[ $# -gt 0 ]]; do
     case "${1}" in
@@ -734,6 +776,18 @@ main() {
           exit 2
         fi
         format="${2}"
+        shift 2
+        ;;
+      --only=*)
+        only="${1#*=}"
+        shift
+        ;;
+      --only)
+        if [[ $# -lt 2 ]]; then
+          echo "${PROGRAM}: --only requires a value" >&2
+          exit 2
+        fi
+        only="${2}"
         shift 2
         ;;
       --)
@@ -760,15 +814,23 @@ main() {
       ;;
   esac
 
+  case "${only}" in
+    all | tag | branch) ;;
+    *)
+      echo "${PROGRAM}: invalid --only: ${only} (expected 'all', 'tag', or 'branch')" >&2
+      exit 2
+      ;;
+  esac
+
   if [[ "${#files[@]}" -eq 0 ]]; then
     usage >&2
     exit 1
   fi
 
   case "${subcmd}" in
-    check) cmd_check "${files[@]}" ;;
+    check) cmd_check "${only}" "${files[@]}" ;;
     list) cmd_list "${format}" "${files[@]}" ;;
-    updates) cmd_updates "${format}" "${files[@]}" ;;
+    updates) cmd_updates "${format}" "${only}" "${files[@]}" ;;
   esac
 }
 

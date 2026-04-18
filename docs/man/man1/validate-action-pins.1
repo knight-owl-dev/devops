@@ -11,6 +11,7 @@
 .Ar file ...
 .Nm
 .Cm check
+.Op Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch
 .Ar file ...
 .Nm
 .Cm list
@@ -19,6 +20,7 @@
 .Nm
 .Cm updates
 .Op Fl -format Ar plain Ns | Ns Ar tsv
+.Op Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch
 .Ar file ...
 .Sh DESCRIPTION
 .Nm
@@ -139,9 +141,31 @@ pagination, which is not implemented in this iteration.
 .Bl -tag -width indent
 .It Fl -format Ar plain Ns | Ns Ar tsv
 Output format for
-.Cm list .
+.Cm list
+and
+.Cm updates .
 Default is
 .Em plain .
+.It Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch
+Restrict
+.Cm check
+and
+.Cm updates
+output to a single classified kind.
+For
+.Cm check ,
+the classification is the authoritative kind returned by the API
+(tag vs branch); unresolvable refs are reported only with
+.Em all .
+For
+.Cm updates ,
+the classification is the routing kind (which API endpoint was
+consulted).
+Default is
+.Em all .
+.Cm list
+is offline by design and cannot authoritatively classify refs, so the
+flag is accepted and ignored for that subcommand.
 .It Fl -help
 Show a usage summary and exit.
 .It Fl -version
