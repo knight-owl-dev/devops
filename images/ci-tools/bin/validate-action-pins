@@ -91,52 +91,83 @@ gh_api() {
     "${url}" 2> /dev/null || true
 }
 
-# Resolve a tag to its commit SHA, handling both lightweight and annotated tags.
+# Resolve a ref (tag or branch) to its commit SHA, classifying the ref
+# by which GitHub endpoint answered. Tags are probed first to match the
+# Dependabot convention of `owner/repo@<sha> # <ref>` where <ref> is
+# usually a tag; branch references fall back to /git/ref/heads.
 #
 # Arguments:
 #   $1 - Repository (owner/repo)
-#   $2 - Tag name (e.g. v6)
+#   $2 - Ref name (e.g. v6, main)
 #
-# Outputs:
-#   40-character commit SHA, or empty string on failure
-resolve_tag() {
-  local repo="${1}" tag="${2}"
+# Output (on success, tab-separated, single line):
+#   <40-hex-commit-sha>\t<tag|branch>
+#
+# Returns:
+#   0 - resolved as a tag or a branch
+#   1 - ref is neither a known tag nor a known branch
+resolve_ref() {
+  local repo="${1}" ref="${2}"
 
-  local ref_json
-  ref_json="$(gh_api "/repos/${repo}/git/ref/tags/${tag}")"
-  if [[ -z "${ref_json}" ]]; then
-    return 1
-  fi
-
-  local obj_type obj_sha
-  obj_type="$(echo "${ref_json}" | jq -r '.object.type // empty')"
-  obj_sha="$(echo "${ref_json}" | jq -r '.object.sha // empty')"
-
-  if [[ -z "${obj_type}" || -z "${obj_sha}" ]]; then
-    return 1
-  fi
-
-  if [[ "${obj_type}" == "commit" ]]; then
-    echo "${obj_sha}"
-    return 0
-  fi
-
-  # Annotated tag — dereference to the commit.
-  if [[ "${obj_type}" == "tag" ]]; then
-    local tag_json
-    tag_json="$(gh_api "/repos/${repo}/git/tags/${obj_sha}")"
-    if [[ -z "${tag_json}" ]]; then
-      return 1
+  # Tag first (lightweight + annotated).
+  local tag_json
+  tag_json="$(gh_api "/repos/${repo}/git/ref/tags/${ref}")"
+  if [[ -n "${tag_json}" ]]; then
+    local obj_type obj_sha
+    obj_type="$(echo "${tag_json}" | jq -r '.object.type // empty')"
+    obj_sha="$(echo "${tag_json}" | jq -r '.object.sha // empty')"
+    if [[ "${obj_type}" == "commit" && -n "${obj_sha}" ]]; then
+      printf '%s\ttag\n' "${obj_sha}"
+      return 0
     fi
-    local commit_sha
-    commit_sha="$(echo "${tag_json}" | jq -r '.object.sha // empty')"
-    if [[ -n "${commit_sha}" ]]; then
-      echo "${commit_sha}"
+    if [[ "${obj_type}" == "tag" && -n "${obj_sha}" ]]; then
+      local tag_obj_json commit_sha
+      tag_obj_json="$(gh_api "/repos/${repo}/git/tags/${obj_sha}")"
+      if [[ -n "${tag_obj_json}" ]]; then
+        commit_sha="$(echo "${tag_obj_json}" | jq -r '.object.sha // empty')"
+        if [[ -n "${commit_sha}" ]]; then
+          printf '%s\ttag\n' "${commit_sha}"
+          return 0
+        fi
+      fi
+    fi
+  fi
+
+  # Branch fallback.
+  local branch_json branch_sha
+  branch_json="$(gh_api "/repos/${repo}/git/ref/heads/${ref}")"
+  if [[ -n "${branch_json}" ]]; then
+    branch_sha="$(echo "${branch_json}" | jq -r '.object.sha // empty')"
+    if [[ -n "${branch_sha}" ]]; then
+      printf '%s\tbranch\n' "${branch_sha}"
       return 0
     fi
   fi
 
   return 1
+}
+
+# Count how many commits $base is behind $head using the GitHub compare API.
+#
+# Arguments:
+#   $1 - Repository (owner/repo)
+#   $2 - Base SHA (the pinned commit)
+#   $3 - Head SHA (the current branch HEAD)
+#
+# Output:
+#   Integer on success (0 if the two SHAs are on diverged history); empty
+#   on API failure.
+#
+# Returns:
+#   0 on success, 1 on API failure
+compare_behind() {
+  local repo="${1}" base="${2}" head="${3}"
+  local json
+  json="$(gh_api "/repos/${repo}/compare/${base}...${head}")"
+  if [[ -z "${json}" ]]; then
+    return 1
+  fi
+  jq -r '.behind_by // empty' <<< "${json}"
 }
 
 # Parse a single `uses:` line into its component fields.
@@ -239,9 +270,11 @@ cmd_check() {
   local -i failures=0
   local -i found_pins=0
   local -A resolve_cache=()
+  local -A compare_cache=()
   local -A seen_in_file=()
   local file basename line
-  local action pinned_sha claimed_tag cache_key cached resolved_sha
+  local action pinned_sha claimed_ref cache_key cached resolved kind
+  local compare_key behind
 
   for file in "${@}"; do
     if [[ ! -f "${file}" ]]; then
@@ -256,10 +289,10 @@ cmd_check() {
       if [[ "${line}" =~ uses:[[:space:]]*([^@]+)@([0-9a-f]{40})[[:space:]]*#[[:space:]]*([^[:space:]]+) ]]; then
         action="${BASH_REMATCH[1]}"
         pinned_sha="${BASH_REMATCH[2]}"
-        claimed_tag="${BASH_REMATCH[3]}"
+        claimed_ref="${BASH_REMATCH[3]}"
         found_pins=1
 
-        cache_key="${action}#${claimed_tag}"
+        cache_key="${action}#${claimed_ref}"
 
         if [[ -n "${seen_in_file[${cache_key}]+x}" ]]; then
           continue
@@ -267,24 +300,47 @@ cmd_check() {
         seen_in_file["${cache_key}"]=1
 
         if [[ -z "${resolve_cache[${cache_key}]+x}" ]]; then
-          resolved_sha=""
-          if resolved_sha="$(resolve_tag "${action}" "${claimed_tag}")"; then
-            resolve_cache["${cache_key}"]="${resolved_sha}"
+          if cached="$(resolve_ref "${action}" "${claimed_ref}")"; then
+            resolve_cache["${cache_key}"]="${cached}"
           else
-            resolve_cache["${cache_key}"]="!"
+            resolve_cache["${cache_key}"]="NONE"
           fi
         fi
 
         cached="${resolve_cache[${cache_key}]}"
 
-        if [[ "${cached}" == "!" ]]; then
-          echo "WARN ${basename}: ${action}@${pinned_sha:0:12}... — could not resolve tag ${claimed_tag}"
-        elif [[ "${pinned_sha}" == "${cached}" ]]; then
-          echo "OK   ${basename}: ${action}@${pinned_sha:0:12}... matches ${claimed_tag}"
-        else
-          echo "FAIL ${basename}: ${action}@${pinned_sha:0:12}... does NOT match ${claimed_tag} (expected ${cached:0:12}...)"
-          failures=$((failures + 1))
+        if [[ "${cached}" == "NONE" ]]; then
+          echo "WARN ${basename}: ${action}@${pinned_sha:0:12}... — could not resolve ref ${claimed_ref}"
+          continue
         fi
+
+        resolved="${cached%%$'\t'*}"
+        kind="${cached#*$'\t'}"
+
+        if [[ "${pinned_sha}" == "${resolved}" ]]; then
+          echo "OK   ${basename}: ${action}@${pinned_sha:0:12}... matches ${claimed_ref}"
+          continue
+        fi
+
+        if [[ "${kind}" == "branch" ]]; then
+          compare_key="${action}#${pinned_sha}#${resolved}"
+          if [[ -z "${compare_cache[${compare_key}]+x}" ]]; then
+            behind="$(compare_behind "${action}" "${pinned_sha}" "${resolved}" || true)"
+            compare_cache["${compare_key}"]="${behind}"
+          fi
+          behind="${compare_cache[${compare_key}]}"
+
+          if [[ -n "${behind}" && "${behind}" -gt 0 ]]; then
+            echo "WARN ${basename}: ${action}@${pinned_sha:0:12}... is ${behind} commit(s) behind ${claimed_ref} HEAD (at ${resolved:0:12}...)"
+          else
+            echo "WARN ${basename}: ${action}@${pinned_sha:0:12}... diverges from ${claimed_ref} HEAD (at ${resolved:0:12}...)"
+          fi
+          continue
+        fi
+
+        # Tag kind — mismatch is a hard failure.
+        echo "FAIL ${basename}: ${action}@${pinned_sha:0:12}... does NOT match ${claimed_ref} (expected ${resolved:0:12}...)"
+        failures=$((failures + 1))
       fi
     done < "${file}"
   done

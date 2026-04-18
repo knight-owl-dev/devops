@@ -265,28 +265,101 @@ setup() {
   assert_output --partial "WARN: jq not found"
 }
 
+# ── branch-pin support in `check` ──────────────────────────────────
+
+@test "branch pin matching HEAD prints OK and exits 0" {
+  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/branch-ok.yml"
+  assert_success
+  assert_output --partial "OK   branch-ok.yml: foo/br-ok@aaaaaaaaaaaa..."
+  assert_output --partial "matches main"
+}
+
+@test "branch pin behind HEAD prints WARN with commit count and exits 0" {
+  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/branch-behind.yml"
+  assert_success
+  assert_output --partial "WARN branch-behind.yml: foo/br-behind@cccccccccccc..."
+  assert_output --partial "is 3 commit(s) behind main HEAD"
+}
+
+@test "branch pin diverged from HEAD prints WARN diverges and exits 0" {
+  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/branch-diverge.yml"
+  assert_success
+  assert_output --partial "WARN branch-diverge.yml: foo/br-diverge@eeeeeeeeeeee..."
+  assert_output --partial "diverges from main HEAD"
+}
+
+@test "unresolvable ref prints WARN and exits 0" {
+  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/unresolvable.yml"
+  assert_success
+  assert_output --partial "WARN unresolvable.yml: foo/nosuch@ffffffffffff..."
+  assert_output --partial "could not resolve ref nosuch"
+}
+
+@test "tag mismatch still prints FAIL and exits 1 (regression guard)" {
+  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/tag-mismatch.yml"
+  assert_failure 1
+  assert_output --partial "FAIL tag-mismatch.yml:"
+  assert_output --partial "does NOT match v1"
+}
+
+@test "duplicate branch pins on the same ref produce a single WARN" {
+  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/duplicate-branch-pins.yml"
+  assert_success
+  local warn_count
+  warn_count="$(grep -c '^WARN ' <<< "${output}" || true)"
+  assert_equal "${warn_count}" "1"
+}
+
 # ── unit-level: source the script, call functions directly ─────────
 
-@test "resolve_tag returns commit SHA for a lightweight tag ref" {
+@test "resolve_ref returns <sha>\\ttag for a lightweight tag" {
   # shellcheck disable=SC1090
   source "${SCRIPT}"
-  run resolve_tag "foo/bar" "v1"
+  run resolve_ref "foo/bar" "v1"
   assert_success
-  assert_output "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  assert_output $'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ttag'
 }
 
-@test "resolve_tag dereferences an annotated tag ref" {
+@test "resolve_ref returns <sha>\\ttag for an annotated tag" {
   # shellcheck disable=SC1090
   source "${SCRIPT}"
-  run resolve_tag "foo/annotated" "v2"
+  run resolve_ref "foo/annotated" "v2"
   assert_success
-  assert_output "cccccccccccccccccccccccccccccccccccccccc"
+  assert_output $'cccccccccccccccccccccccccccccccccccccccc\ttag'
 }
 
-@test "resolve_tag returns nonzero when ref does not exist" {
+@test "resolve_ref returns <sha>\\tbranch for a branch ref" {
   # shellcheck disable=SC1090
   source "${SCRIPT}"
-  run resolve_tag "foo/bar" "v999"
+  run resolve_ref "foo/br-ok" "main"
+  assert_success
+  assert_output $'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\tbranch'
+}
+
+@test "resolve_ref returns nonzero when ref is neither tag nor branch" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run resolve_ref "foo/bar" "v999"
   assert_failure
   assert_output ""
+}
+
+@test "compare_behind returns the .behind_by integer" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run compare_behind "foo/br-behind" \
+    "cccccccccccccccccccccccccccccccccccccccc" \
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  assert_success
+  assert_output "3"
+}
+
+@test "compare_behind returns 0 for diverged histories" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run compare_behind "foo/br-diverge" \
+    "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" \
+    "dddddddddddddddddddddddddddddddddddddddd"
+  assert_success
+  assert_output "0"
 }

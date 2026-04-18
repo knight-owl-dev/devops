@@ -1,0 +1,9 @@
+name: duplicate-branch-pins
+on: push
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: foo/br-behind@cccccccccccccccccccccccccccccccccccccccc # main
+      - uses: foo/br-behind@cccccccccccccccccccccccccccccccccccccccc # main
+      - uses: foo/br-behind@cccccccccccccccccccccccccccccccccccccccc # main
