@@ -403,7 +403,7 @@ setup() {
   run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/updates-major-alias.yml"
   assert_success
   assert_output --partial "current=v6"
-  # v6 normalises to [6,0,0]; all three-part tags strictly greater
+  # v6 normalizes to [6,0,0]; all three-part tags strictly greater
   # (v6.0.1, v6.0.2, v7.0.0) should be listed.
   assert_output --partial "newer=v6.0.1 v6.0.2 v7.0.0"
   assert_output --partial "(tag)"
@@ -465,7 +465,7 @@ v6.0.2
 v7.0.0"
 }
 
-@test "list_newer_tags accepts a major-only ref (v6 normalises to [6,0,0])" {
+@test "list_newer_tags accepts a major-only ref (v6 normalizes to [6,0,0])" {
   # shellcheck disable=SC1090
   source "${SCRIPT}"
   run list_newer_tags "foo/bar" "v6"
