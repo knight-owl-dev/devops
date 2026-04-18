@@ -901,14 +901,18 @@ cmd_list() {
 
 # ── main ─────────────────────────────────────────────────────────────
 
-main() {
-  if [[ $# -eq 0 ]]; then
-    usage >&2
-    exit 1
-  fi
+# Parsed CLI state. Populated by _parse_cli_args during main(); read by
+# main's dispatch. Module-scope so callers can read them without threading
+# output through multiple return values.
+cli_subcmd="check"
+cli_format="plain"
+cli_only="all"
+cli_files=()
 
-  # Short-circuit --help/--version at any position, before we try to
-  # interpret a subcommand or flags.
+# Short-circuit --help / --version at any arg position. Exits 0 after
+# printing usage or the version line; returns normally if neither flag
+# appears before a `--` terminator.
+_short_circuit_help_version() {
   local arg
   for arg in "${@}"; do
     case "${arg}" in
@@ -924,27 +928,30 @@ main() {
       *) ;;
     esac
   done
+}
 
-  # Detect subcommand. Anything else stays as a positional file arg,
-  # preserving back-compat for bare-file invocations.
-  local subcmd="check"
+# Parse remaining args into cli_subcmd + cli_format + cli_only + cli_files.
+# Exits 2 on unknown flag or bad flag value. Unknown leading words fall
+# through as positional files, preserving bare-FILE back-compat.
+_parse_cli_args() {
+  cli_subcmd="check"
+  cli_format="plain"
+  cli_only="all"
+  cli_files=()
+
   if [[ $# -gt 0 ]]; then
     case "${1}" in
       check | list | updates)
-        subcmd="${1}"
+        cli_subcmd="${1}"
         shift
         ;;
     esac
   fi
 
-  # Collect files and any subcommand-scoped flags.
-  local format="plain"
-  local only="all"
-  local files=()
   while [[ $# -gt 0 ]]; do
     case "${1}" in
       --format=*)
-        format="${1#*=}"
+        cli_format="${1#*=}"
         shift
         ;;
       --format)
@@ -952,11 +959,11 @@ main() {
           echo "${PROGRAM}: --format requires a value" >&2
           exit 2
         fi
-        format="${2}"
+        cli_format="${2}"
         shift 2
         ;;
       --only=*)
-        only="${1#*=}"
+        cli_only="${1#*=}"
         shift
         ;;
       --only)
@@ -964,12 +971,12 @@ main() {
           echo "${PROGRAM}: --only requires a value" >&2
           exit 2
         fi
-        only="${2}"
+        cli_only="${2}"
         shift 2
         ;;
       --)
         shift
-        files+=("${@}")
+        cli_files+=("${@}")
         break
         ;;
       -*)
@@ -977,37 +984,47 @@ main() {
         exit 2
         ;;
       *)
-        files+=("${1}")
+        cli_files+=("${1}")
         shift
         ;;
     esac
   done
 
-  case "${format}" in
+  case "${cli_format}" in
     plain | tsv) ;;
     *)
-      echo "${PROGRAM}: invalid --format: ${format} (expected 'plain' or 'tsv')" >&2
+      echo "${PROGRAM}: invalid --format: ${cli_format} (expected 'plain' or 'tsv')" >&2
       exit 2
       ;;
   esac
 
-  case "${only}" in
+  case "${cli_only}" in
     all | tag | branch) ;;
     *)
-      echo "${PROGRAM}: invalid --only: ${only} (expected 'all', 'tag', or 'branch')" >&2
+      echo "${PROGRAM}: invalid --only: ${cli_only} (expected 'all', 'tag', or 'branch')" >&2
       exit 2
       ;;
   esac
+}
 
-  if [[ "${#files[@]}" -eq 0 ]]; then
+main() {
+  if [[ $# -eq 0 ]]; then
     usage >&2
     exit 1
   fi
 
-  case "${subcmd}" in
-    check) cmd_check "${only}" "${files[@]}" ;;
-    list) cmd_list "${format}" "${only}" "${files[@]}" ;;
-    updates) cmd_updates "${format}" "${only}" "${files[@]}" ;;
+  _short_circuit_help_version "$@"
+  _parse_cli_args "$@"
+
+  if [[ "${#cli_files[@]}" -eq 0 ]]; then
+    usage >&2
+    exit 1
+  fi
+
+  case "${cli_subcmd}" in
+    check) cmd_check "${cli_only}" "${cli_files[@]}" ;;
+    list) cmd_list "${cli_format}" "${cli_only}" "${cli_files[@]}" ;;
+    updates) cmd_updates "${cli_format}" "${cli_only}" "${cli_files[@]}" ;;
   esac
 }
 
