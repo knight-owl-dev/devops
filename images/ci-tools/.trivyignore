@@ -19,10 +19,27 @@ CVE-2026-25679
 
 # internal/syscall/unix: Root.Chmod can follow symlinks out of the root
 # (fixed in Go 1.25.9 / 1.26.2)
-# Affects: actionlint (Go 1.25.7), shfmt v3.13.1 (Go 1.26.1), yq v4.52.5 (Go 1.26.1)
-# Remove this entry once all three ship builds on Go >= 1.25.9 or 1.26.2.
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1)
+# Remove this entry once both ship builds on Go >= 1.25.9 or 1.26.2.
 # Tracking issue: #96
 CVE-2026-32282
+
+# crypto/x509: chain building does unbounded work (fixed in Go 1.25.9 / 1.26.2)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1)
+# Both are offline tools that do not perform X.509 chain building on
+# untrusted input, so the practical risk is negligible.
+# Remove this entry once both ship builds on Go >= 1.25.9 or 1.26.2.
+# Tracking issue: #96
+CVE-2026-32280
+
+# crypto/x509: certificate validation bypass via incorrect DNS constraint
+# handling (fixed in Go 1.26.2)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1)
+# Both are offline tools that do not validate TLS certificates against
+# untrusted input, so the practical risk is negligible.
+# Remove this entry once both ship builds on Go >= 1.26.2.
+# Tracking issue: #96
+CVE-2026-33810
 
 # picomatch: ReDoS via crafted extglob patterns (fixed in 4.0.4 / 3.0.2 / 2.3.2)
 # Affects: npm 11.12.1 bundled tinyglobby → picomatch 4.0.3
