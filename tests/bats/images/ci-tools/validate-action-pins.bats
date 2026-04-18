@@ -239,6 +239,37 @@ setup() {
 
 # ── connectivity probe ──────────────────────────────────────────────
 
+@test "preflight warns when rate-limit remaining is tight" {
+  # Custom fixture: /rate_limit with remaining=5 (below the 20 threshold).
+  mkdir -p "${BATS_TEST_TMPDIR}/api-low"
+  cat > "${BATS_TEST_TMPDIR}/api-low/rate_limit" <<'JSON'
+{ "resources": { "core": { "limit": 60, "remaining": 5, "reset": 0 } } }
+JSON
+  VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY='' \
+    GITHUB_API_BASE="file://${BATS_TEST_TMPDIR}/api-low" \
+    run "${SCRIPT}" "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  # Still exits 0 — the warning is informational.
+  assert_success
+  assert_output --partial "rate limit is low (5 remaining)"
+  assert_output --partial "set GITHUB_TOKEN"
+}
+
+@test "VALIDATE_ACTION_PINS_VERBOSE surfaces curl stderr" {
+  # Point at a missing fixture dir so curl fails; verbose mode lets
+  # the "file not found" or similar message through.
+  mkdir -p "${BATS_TEST_TMPDIR}/empty"
+  VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY='' \
+    VALIDATE_ACTION_PINS_VERBOSE=1 \
+    GITHUB_API_BASE="file://${BATS_TEST_TMPDIR}/empty" \
+    run "${SCRIPT}" "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_success
+  # The WARN summary is still there.
+  assert_output --partial "cannot reach GitHub API"
+  # And curl's own error shows through (exact wording varies across
+  # curl versions; match the minimum common substring).
+  assert_output --partial "curl"
+}
+
 @test "connectivity probe failure warns and exits 0" {
   mkdir -p "${BATS_TEST_TMPDIR}/empty"
   VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY='' \
