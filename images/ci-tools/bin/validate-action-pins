@@ -253,9 +253,10 @@ _effective_ref() {
 # Decide whether a pin should be included given the --only filter.
 #
 # Arguments:
-#   $1 - filter value: "all", "tag", or "branch" (and "unknown" for
-#        refs that could not be classified authoritatively)
-#   $2 - the pin's classified kind
+#   $1 - filter value: "all", "tag", or "branch" (validated by main)
+#   $2 - the pin's classified kind: "tag", "branch", or "unknown"
+#        (unknown is emitted by callers for refs that could not be
+#        classified authoritatively)
 #
 # Returns:
 #   0 - pin matches the filter (include)
@@ -315,6 +316,11 @@ parse_uses_line() {
   if [[ "${line}" =~ ^[[:space:]]*# ]]; then
     return 1
   fi
+  # Regex capture groups:
+  #   [1] action  — `owner/repo` before the `@`
+  #   [2] ref     — the `@<something>` portion (SHA or symbolic)
+  #   [3] — the full `# <word>` trailing-comment (unused; wrapper only)
+  #   [4] comment — the first word of the trailing comment, may be empty
   if ! [[ "${line}" =~ uses:[[:space:]]*([^@[:space:]]+)@([^[:space:]#]+)[[:space:]]*(#[[:space:]]*([^[:space:]]+))? ]]; then
     return 1
   fi
