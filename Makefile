@@ -63,11 +63,17 @@ lint-lockfile:
 lint-docker:
 	@echo "Linting Dockerfiles..." && hadolint images/*/Dockerfile && echo "OK"
 
-# Lint shell scripts
+# Lint shell scripts.
+#
+# Bats files reference variables bats sets at runtime (output,
+# BATS_TEST_DIRNAME, BATS_TEST_TMPDIR, ...) plus helper-exported ones
+# that shellcheck can't trace across bats_load_library. SC2154
+# ("referenced but not assigned") is suppressed for that directory
+# only, not globally.
 lint-sh:
 	@echo "Linting shell scripts..." \
 		&& shellcheck scripts/*.sh scripts/*/*.sh tests/deb/*.sh images/*/bin/* \
-		&& shellcheck tests/bats/*/*.bash tests/bats/*/*/*.bats \
+		&& shellcheck -e SC2154 tests/bats/*/*.bash tests/bats/*/*/*.bats \
 		&& echo "OK"
 
 # Check shell script formatting

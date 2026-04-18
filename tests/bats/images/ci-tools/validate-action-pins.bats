@@ -1,11 +1,5 @@
 #!/usr/bin/env bats
 # shellcheck shell=bash
-#
-# REPO_ROOT, FIXTURES_DIR, API_FIXTURES_DIR, SCRIPT are populated by
-# common_setup and the per-test setup; BATS_* and `output` are populated
-# by bats at runtime. shellcheck can't see any of those, so SC2154 is
-# suppressed at file scope — the bats community norm.
-# shellcheck disable=SC2154
 
 load ../../helpers/common
 
