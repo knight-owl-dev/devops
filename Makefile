@@ -7,10 +7,14 @@ IMAGE_TAG ?= $(IMAGE):local
 VALIDATE_ACTION_PINS := $(shell \
 	command -v validate-action-pins 2>/dev/null \
 	|| echo images/ci-tools/bin/validate-action-pins)
+# Pass `-t` to `docker run` when stdin is a terminal, so TTY-aware tools
+# (bats pretty output, etc.) see a real terminal inside the container.
+# Override with `DOCKER_TTY=` (empty) or `DOCKER_TTY=-t` (force) as needed.
+DOCKER_TTY ?= $(shell test -t 0 && echo -t)
 
 .PHONY: sync resolve build verify scan clean \
 	lint lint-fix lint-lockfile lint-docker lint-sh lint-sh-fmt lint-sh-fmt-fix \
-	lint-actions lint-md lint-md-fix lint-man man test-package help
+	lint-actions lint-md lint-md-fix lint-man man test-package test-bats help
 
 # Resolve latest versions, build, and verify image
 sync: resolve build verify
@@ -28,7 +32,7 @@ build:
 
 # Verify all tools in the built image
 verify:
-	@docker run --rm \
+	@docker run --rm $(DOCKER_TTY) \
 		-v $(CURDIR)/scripts:/scripts \
 		-v $(CURDIR)/images/$(IMAGE)/versions.lock:/versions.lock:ro \
 		$(IMAGE_TAG) /scripts/$(IMAGE)/verify.sh
@@ -36,7 +40,7 @@ verify:
 # Scan image for vulnerabilities
 scan: build
 	@echo "Scanning $(IMAGE_TAG) for vulnerabilities..."
-	@docker run --rm \
+	@docker run --rm $(DOCKER_TTY) \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v $(CURDIR)/images/$(IMAGE)/.trivyignore:/.trivyignore:ro \
 		aquasec/trivy:0.70.0 image \
@@ -63,6 +67,7 @@ lint-docker:
 lint-sh:
 	@echo "Linting shell scripts..." \
 		&& shellcheck scripts/*.sh scripts/*/*.sh tests/deb/*.sh images/*/bin/* \
+		&& shellcheck tests/bats/*/*.bash tests/bats/*/*/*.bats \
 		&& echo "OK"
 
 # Check shell script formatting
@@ -106,6 +111,12 @@ man:
 test-package:
 	@./tests/deb/test-all.sh
 
+# Run BATS tests inside the ci-tools image.
+test-bats:
+	@docker run --rm $(DOCKER_TTY) \
+		-v $(CURDIR):/work -w /work \
+		$(IMAGE_TAG) bats -r tests/bats/
+
 # Remove local image
 clean:
 	@echo "Removing $(IMAGE_TAG) ..."
@@ -135,6 +146,7 @@ help:
 	@echo "  make lint-sh-fmt       Check shell script formatting"
 	@echo "  make lint-sh-fmt-fix   Fix shell script formatting"
 	@echo "  make man               Preview man pages"
+	@echo "  make test-bats         Run BATS tests inside the ci-tools image"
 	@echo "  make test-package      Build and test deb package locally"
 	@echo "  make help              Show this message"
 	@echo ""

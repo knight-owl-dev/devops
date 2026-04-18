@@ -1,0 +1,7 @@
+name: tag-mismatch
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: foo/bar@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v1

@@ -1,0 +1,7 @@
+name: annotated
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: foo/annotated@cccccccccccccccccccccccccccccccccccccccc # v2

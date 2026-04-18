@@ -1,0 +1,7 @@
+{
+  "ref": "refs/tags/v1",
+  "object": {
+    "type": "commit",
+    "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

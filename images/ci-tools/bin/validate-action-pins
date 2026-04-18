@@ -16,8 +16,15 @@ set -euo pipefail
 #   curl, jq — if either is missing the script warns and exits 0
 #
 # Environment:
-#   GITHUB_TOKEN - (Optional) GitHub token for higher API rate limits
-#                  (60 req/hr unauthenticated → 5000 req/hr with token)
+#   GITHUB_TOKEN                          - (Optional) GitHub token for higher
+#                                           API rate limits (60 req/hr
+#                                           unauthenticated → 5000 req/hr with
+#                                           token)
+#   GITHUB_API_BASE                       - (Optional) Override API base URL.
+#                                           Defaults to https://api.github.com.
+#                                           Tests point this at file:// fixtures.
+#   VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY - (Optional) If set, skip the
+#                                           /rate_limit probe. For tests.
 #
 # Exit codes:
 #   0 - All pins match, no pins found, or validation skipped (missing
@@ -27,6 +34,8 @@ set -euo pipefail
 
 readonly PROGRAM="validate-action-pins"
 readonly VERSION="${VALIDATE_ACTION_PINS_VERSION:-unknown}"
+
+: "${GITHUB_API_BASE:=https://api.github.com}"
 
 # ── usage / version ──────────────────────────────────────────────────
 
@@ -49,45 +58,19 @@ Environment:
 USAGE
 }
 
-if [[ $# -eq 0 ]]; then
-  usage >&2
-  exit 1
-fi
-
-for arg in "${@}"; do
-  case "${arg}" in
-    --help)
-      usage
-      exit 0
-      ;;
-    --version)
-      echo "${PROGRAM} ${VERSION}"
-      exit 0
-      ;;
-    --) break ;;
-    *) ;;
-  esac
-done
-
-# ── dependency check ──────────────────────────────────────────────────
-
-for cmd in curl jq; do
-  if ! command -v "${cmd}" > /dev/null 2>&1; then
-    echo "WARN: ${cmd} not found — skipping pin validation"
-    exit 0
-  fi
-done
-
 # ── helpers ──────────────────────────────────────────────────────────
 
-FAILURES=0
-
-declare -A RESOLVE_CACHE  # "owner/repo#tag" → SHA on success, "!" on failure
-
+# Auth header array, populated by init_auth_header. Empty by default so the
+# module is safe to source without side effects on $GITHUB_TOKEN.
 auth_header=()
-if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-  auth_header=(-H "Authorization: token ${GITHUB_TOKEN}")
-fi
+
+# Populate auth_header from GITHUB_TOKEN if set. Safe to call multiple times.
+init_auth_header() {
+  auth_header=()
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    auth_header=(-H "Authorization: token ${GITHUB_TOKEN}")
+  fi
+}
 
 # GitHub API GET with optional auth and error handling.
 #
@@ -97,7 +80,7 @@ fi
 # Outputs:
 #   JSON response on stdout, or empty string on failure
 gh_api() {
-  local url="https://api.github.com${1}"
+  local url="${GITHUB_API_BASE}${1}"
   curl -fsSL "${auth_header[@]+"${auth_header[@]}"}" \
     -H "Accept: application/vnd.github+json" \
     "${url}" 2> /dev/null || true
@@ -151,75 +134,115 @@ resolve_tag() {
   return 1
 }
 
-# ── connectivity check ───────────────────────────────────────────────
+# ── main ─────────────────────────────────────────────────────────────
 
-if ! curl -fsSL "${auth_header[@]+"${auth_header[@]}"}" \
-  -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/rate_limit" > /dev/null 2>&1; then
-  echo "WARN: cannot reach GitHub API — skipping pin validation"
-  exit 0
-fi
-
-# ── scan and validate ────────────────────────────────────────────────
-
-FOUND_PINS=0
-
-for file in "${@}"; do
-  [[ "${file}" == --* ]] && continue
-  if [[ ! -f "${file}" ]]; then
-    echo "WARN: ${file} not found, skipping"
-    continue
+main() {
+  if [[ $# -eq 0 ]]; then
+    usage >&2
+    exit 1
   fi
 
-  basename="${file##*/}"
-  declare -A seen_in_file=()
+  local arg
+  for arg in "${@}"; do
+    case "${arg}" in
+      --help)
+        usage
+        exit 0
+        ;;
+      --version)
+        echo "${PROGRAM} ${VERSION}"
+        exit 0
+        ;;
+      --) break ;;
+      *) ;;
+    esac
+  done
 
-  # Match lines like: uses: owner/repo@<40-hex-sha> # <tag>
-  while IFS= read -r line; do
-    # Extract owner/repo, SHA, and tag from the uses line.
-    if [[ "${line}" =~ uses:[[:space:]]*([^@]+)@([0-9a-f]{40})[[:space:]]*#[[:space:]]*([^[:space:]]+) ]]; then
-      action="${BASH_REMATCH[1]}"
-      pinned_sha="${BASH_REMATCH[2]}"
-      claimed_tag="${BASH_REMATCH[3]}"
-      FOUND_PINS=1
+  local cmd
+  for cmd in curl jq; do
+    if ! command -v "${cmd}" > /dev/null 2>&1; then
+      echo "WARN: ${cmd} not found — skipping pin validation"
+      exit 0
+    fi
+  done
 
-      cache_key="${action}#${claimed_tag}"
+  init_auth_header
 
-      # Skip duplicates within the same file.
-      if [[ -n "${seen_in_file[${cache_key}]+x}" ]]; then
-        continue
-      fi
-      seen_in_file["${cache_key}"]=1
+  if [[ -z "${VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY:-}" ]]; then
+    if ! curl -fsSL "${auth_header[@]+"${auth_header[@]}"}" \
+      -H "Accept: application/vnd.github+json" \
+      "${GITHUB_API_BASE}/rate_limit" > /dev/null 2>&1; then
+      echo "WARN: cannot reach GitHub API — skipping pin validation"
+      exit 0
+    fi
+  fi
 
-      # Resolve via API only once across all files.
-      if [[ -z "${RESOLVE_CACHE[${cache_key}]+x}" ]]; then
-        resolved_sha=""
-        if resolved_sha="$(resolve_tag "${action}" "${claimed_tag}")"; then
-          RESOLVE_CACHE["${cache_key}"]="${resolved_sha}"
+  local -i failures=0
+  local -i found_pins=0
+  local -A resolve_cache=()
+
+  local file basename line
+  local action pinned_sha claimed_tag cache_key cached resolved_sha
+  local -A seen_in_file
+
+  for file in "${@}"; do
+    [[ "${file}" == --* ]] && continue
+    if [[ ! -f "${file}" ]]; then
+      echo "WARN: ${file} not found, skipping"
+      continue
+    fi
+
+    basename="${file##*/}"
+    seen_in_file=()
+
+    # Match lines like: uses: owner/repo@<40-hex-sha> # <tag>
+    while IFS= read -r line; do
+      if [[ "${line}" =~ uses:[[:space:]]*([^@]+)@([0-9a-f]{40})[[:space:]]*#[[:space:]]*([^[:space:]]+) ]]; then
+        action="${BASH_REMATCH[1]}"
+        pinned_sha="${BASH_REMATCH[2]}"
+        claimed_tag="${BASH_REMATCH[3]}"
+        found_pins=1
+
+        cache_key="${action}#${claimed_tag}"
+
+        if [[ -n "${seen_in_file[${cache_key}]+x}" ]]; then
+          continue
+        fi
+        seen_in_file["${cache_key}"]=1
+
+        if [[ -z "${resolve_cache[${cache_key}]+x}" ]]; then
+          resolved_sha=""
+          if resolved_sha="$(resolve_tag "${action}" "${claimed_tag}")"; then
+            resolve_cache["${cache_key}"]="${resolved_sha}"
+          else
+            resolve_cache["${cache_key}"]="!"
+          fi
+        fi
+
+        cached="${resolve_cache[${cache_key}]}"
+
+        if [[ "${cached}" == "!" ]]; then
+          echo "WARN ${basename}: ${action}@${pinned_sha:0:12}... — could not resolve tag ${claimed_tag}"
+        elif [[ "${pinned_sha}" == "${cached}" ]]; then
+          echo "OK   ${basename}: ${action}@${pinned_sha:0:12}... matches ${claimed_tag}"
         else
-          RESOLVE_CACHE["${cache_key}"]="!"
+          echo "FAIL ${basename}: ${action}@${pinned_sha:0:12}... does NOT match ${claimed_tag} (expected ${cached:0:12}...)"
+          failures=$((failures + 1))
         fi
       fi
+    done < "${file}"
+  done
 
-      cached="${RESOLVE_CACHE[${cache_key}]}"
+  if [[ "${found_pins}" -eq 0 ]]; then
+    echo "No SHA-pinned actions found in the provided files."
+  fi
 
-      if [[ "${cached}" == "!" ]]; then
-        echo "WARN ${basename}: ${action}@${pinned_sha:0:12}... — could not resolve tag ${claimed_tag}"
-      elif [[ "${pinned_sha}" == "${cached}" ]]; then
-        echo "OK   ${basename}: ${action}@${pinned_sha:0:12}... matches ${claimed_tag}"
-      else
-        echo "FAIL ${basename}: ${action}@${pinned_sha:0:12}... does NOT match ${claimed_tag} (expected ${cached:0:12}...)"
-        FAILURES=$((FAILURES + 1))
-      fi
-    fi
-  done < "${file}"
-done
+  if [[ "${failures}" -gt 0 ]]; then
+    echo "FAIL: ${failures} pin(s) did not match"
+    exit 1
+  fi
+}
 
-if [[ "${FOUND_PINS}" -eq 0 ]]; then
-  echo "No SHA-pinned actions found in the provided files."
-fi
-
-if [[ "${FAILURES}" -gt 0 ]]; then
-  echo "FAIL: ${FAILURES} pin(s) did not match"
-  exit 1
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
 fi
