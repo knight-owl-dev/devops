@@ -422,6 +422,11 @@ check_api_preflight() {
 
   local body_file
   body_file="$(mktemp)"
+  # Single cleanup hook covers every return path below, including
+  # the ones yet to be added. RETURN trap fires when the function
+  # returns (any reason); the :- guards against body_file being
+  # unset if mktemp ever fails before assignment.
+  trap 'rm -f "${body_file:-}"' RETURN
 
   if [[ "${GITHUB_API_BASE}" == file://* ]]; then
     # file:// — test harness path. No HTTP status; curl's exit code
@@ -431,7 +436,6 @@ check_api_preflight() {
       -H "Accept: application/vnd.github+json" \
       "${GITHUB_API_BASE}/rate_limit" > "${body_file}" 2> "${_CURL_ERRFD}"; then
       echo "WARN: cannot reach GitHub API — skipping ${op}"
-      rm -f "${body_file}"
       return 1
     fi
   else
@@ -446,10 +450,7 @@ check_api_preflight() {
       "${GITHUB_API_BASE}/rate_limit" 2> "${_CURL_ERRFD}" \
       || echo "000")"
 
-    if ! _preflight_classify_status "${http_code}" "${op}"; then
-      rm -f "${body_file}"
-      return 1
-    fi
+    _preflight_classify_status "${http_code}" "${op}" || return 1
   fi
 
   # Rate-limit awareness. Zero budget is a full skip — every subsequent
@@ -458,7 +459,6 @@ check_api_preflight() {
   # a WARN only, so a short sweep can still finish.
   local remaining
   remaining="$(jq -r '.resources.core.remaining // empty' < "${body_file}" 2> "${_CURL_ERRFD}" || true)"
-  rm -f "${body_file}"
   if [[ -n "${remaining}" ]]; then
     if [[ "${remaining}" -le 0 ]]; then
       echo "WARN: GitHub API rate limit exhausted — skipping ${op}"
