@@ -184,6 +184,44 @@ compare_behind() {
   jq -r '.behind_by // empty' <<< "${json}"
 }
 
+# Return the "effective" ref for a parsed pin — the Dependabot-style
+# ref hint a caller should resolve against.
+#
+# Arguments:
+#   $1 - kind (from parse_uses_line): "sha" or "ref"
+#   $2 - ref (the @<x> portion)
+#   $3 - comment (the first word after `#`, may be empty)
+#
+# Output:
+#   For SHA pins, the comment (empty if absent — caller decides how to
+#   treat that). For floating refs (kind=ref), the ref itself.
+_effective_ref() {
+  if [[ "${1}" == "sha" ]]; then
+    echo "${3}"
+  else
+    echo "${2}"
+  fi
+}
+
+# First-occurrence gate for per-command dedup. Callers decide the
+# dedup scope by choosing when to reset the associative array (per
+# file, per run, never).
+#
+# Arguments:
+#   $1 - name of an associative array (the caller's dedup set)
+#   $2 - key to check
+#
+# Returns:
+#   0 - key is new (first seen); array is marked
+#   1 - key has already been seen in this set
+_once_per() {
+  # shellcheck disable=SC2178  # nameref points at caller's assoc array
+  local -n _seen="${1}"
+  [[ -n "${_seen[${2}]+x}" ]] && return 1
+  _seen["${2}"]=1
+  return 0
+}
+
 # Parse a single `uses:` line into its component fields.
 #
 # Arguments:
@@ -379,6 +417,7 @@ cmd_check() {
   local -i found_pins=0
   local -A resolve_cache=()
   local -A compare_cache=()
+  # shellcheck disable=SC2034  # consumed by _once_per via nameref
   local -A seen_in_file=()
   local file basename line parsed
   local action ref kind comment cache_key cached resolved resolved_kind
@@ -390,6 +429,7 @@ cmd_check() {
       continue
     fi
     basename="${file##*/}"
+    # shellcheck disable=SC2034  # consumed by _once_per via nameref
     seen_in_file=()
 
     while IFS= read -r line; do
@@ -407,10 +447,7 @@ cmd_check() {
       found_pins=1
 
       cache_key="${action}#${comment}"
-      if [[ -n "${seen_in_file[${cache_key}]+x}" ]]; then
-        continue
-      fi
-      seen_in_file["${cache_key}"]=1
+      _once_per seen_in_file "${cache_key}" || continue
 
       if [[ -z "${resolve_cache[${cache_key}]+x}" ]]; then
         if cached="$(resolve_ref "${action}" "${comment}")"; then
@@ -505,6 +542,7 @@ cmd_updates() {
 
   check_api_preflight "update check" || return 0
 
+  # shellcheck disable=SC2034  # consumed by _once_per via nameref
   local -A seen_in_run=()
   local file basename line parsed
   local action ref kind comment effective_ref effective_kind
@@ -523,19 +561,9 @@ cmd_updates() {
       fi
       IFS=$'\t' read -r action ref kind comment <<< "${parsed}"
 
-      # Prefer the trailing comment as the ref hint (Dependabot
-      # convention). Symbolic (non-sha) refs use their own value.
-      if [[ "${kind}" == "sha" ]]; then
-        effective_ref="${comment}"
-      else
-        effective_ref="${ref}"
-      fi
-
+      effective_ref="$(_effective_ref "${kind}" "${ref}" "${comment}")"
       key="${action}@${effective_ref}"
-      if [[ -n "${seen_in_run[${key}]+x}" ]]; then
-        continue
-      fi
-      seen_in_run["${key}"]=1
+      _once_per seen_in_run "${key}" || continue
 
       newer_tags=""
       head_full=""
