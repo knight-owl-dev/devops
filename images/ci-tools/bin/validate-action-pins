@@ -255,40 +255,46 @@ check_api_preflight() {
   return 0
 }
 
-# Pick the newest semver tag from a repo.
+# List all tags strictly newer than $current, sorted ascending.
 #
 # Arguments:
 #   $1 - Repository (owner/repo)
-#   $2 - Optional major version filter (e.g. "6" returns only v6.x.y);
-#        empty string returns the absolute latest across majors
+#   $2 - Current ref (e.g. v6.0.0, v6, 1.2.3); parsed as v?X[.Y[.Z]]
 #
 # Output:
-#   Tag name (e.g. v6.0.2) on stdout, or empty if no matching tag exists
+#   One tag name per line, oldest → newest; empty if none.
 #
 # Notes:
-#   - Only strict three-part semver tags (vX.Y.Z) are considered; pre-
-#     release suffixes (-rc1, -beta) and non-semver names (nightly,
-#     main-20240101) are skipped.
-#   - The first page of /tags is consulted (30 tags). Repos with many
-#     tags across majors may need pagination, which is not implemented
-#     in this iteration.
-latest_tag() {
-  local repo="${1}" major="${2:-}"
+#   - Accepts one-, two-, or three-part numeric tags with an optional
+#     v prefix (v6, v6.0, v6.0.2, 1.2.3). Missing components are
+#     treated as zero for comparison so v6 and v6.0.0 are equal.
+#   - Pre-release (-rc, -beta) and non-numeric tag names are skipped
+#     by default.
+#   - One page of /tags is consulted (30 tags). Repos with very many
+#     tags across majors may need pagination, which is not
+#     implemented in this iteration.
+list_newer_tags() {
+  local repo="${1}" current="${2}"
   local json
   json="$(gh_api "/repos/${repo}/tags")"
   if [[ -z "${json}" ]]; then
     return 1
   fi
-  jq -r --arg m "${major}" '
+  jq -r --arg c "${current}" '
+    def tok(s):
+      (s | sub("^v"; "") | split("."))
+      | [range(3) as $i | .[$i] // "0"]
+      | map(tonumber? // 0);
+
     [ .[].name
-      | select(test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$"))
-      | select($m == "" or test("^v?" + $m + "\\."))
-    ] as $xs
-    | $xs
-    | map({ n: ., k: (sub("^v"; "") | split(".") | map(tonumber? // 0)) })
-    | sort_by(.k)
-    | last
-    | (.n // empty)
+      | select(test("^v?[0-9]+(\\.[0-9]+){0,2}$"))
+      | { name: ., key: tok(.) }
+    ] as $tags
+    | (tok($c)) as $ck
+    | $tags
+    | map(select(.key > $ck))
+    | sort_by(.key)
+    | .[].name
   ' <<< "${json}"
 }
 
@@ -424,8 +430,14 @@ cmd_check() {
   return 0
 }
 
-# Report available upgrades for each pinned action. Always informational
+# Report upgrade inventory for each unique pin. Always informational
 # — exit 0 on success regardless of whether upgrades are available.
+#
+# The goal is to save time on periodic audits, not to pick "the" next
+# version: for tag pins, every tag newer than the current one is listed
+# (across minor AND major bumps, since Dependabot does not open major
+# bumps by default). For branch pins, the current branch HEAD is
+# reported so stale SHA-to-branch pins are visible at a glance.
 #
 # Arguments:
 #   $1   - format: "plain" or "tsv"
@@ -433,16 +445,19 @@ cmd_check() {
 #
 # Plain output (one line per unique pin):
 #   <basename>: <action>  current=<ref>  [up-to-date]  (<kind>)
-#   <basename>: <action>  current=<ref>  latest=<ol>  (major: <cml>)  (<kind>)
+#   <basename>: <action>  current=<ref>  newer=<t1> <t2> ...  (tag)
+#   <basename>: <action>  current=<ref>  head=<short-sha>  (branch)
 #
-# TSV output (6 columns, no header):
-#   <file>\t<action>\t<current_ref>\t<current_major_latest>\t<overall_latest>\t<kind>
+# TSV output (5 columns, no header):
+#   <file>\t<action>\t<current_ref>\t<available>\t<kind>
+#     where <available> is a space-separated list of newer tags for
+#     tag pins, or the short HEAD SHA for branch pins (empty when
+#     up-to-date in either case).
 #
-# Per-action API calls:
-#   - Tag ref:    2 calls to /repos/.../tags (same endpoint, per-major
-#                 and overall filters applied via jq)
+# Per-unique-pin API cost:
+#   - Tag ref:    1 call to /repos/.../tags
 #   - Branch ref: 1 call to /repos/.../git/ref/heads/<branch>
-#   - SHA pin without a # comment: no calls, recorded as "unknown"
+#   - SHA pin with no # comment: no calls, recorded as "unknown"
 cmd_updates() {
   local format="${1}"
   shift
@@ -452,8 +467,7 @@ cmd_updates() {
   local -A seen_in_run=()
   local file basename line parsed
   local action ref kind comment effective_ref effective_kind
-  local major current_major_latest overall_latest head_full
-  local is_up_to_date key
+  local newer_tags head_full available key
 
   for file in "${@}"; do
     if [[ ! -f "${file}" ]]; then
@@ -482,60 +496,61 @@ cmd_updates() {
       fi
       seen_in_run["${key}"]=1
 
-      current_major_latest=""
-      overall_latest=""
+      newer_tags=""
       head_full=""
+      available=""
 
       if [[ -z "${effective_ref}" ]]; then
         effective_kind="unknown"
-      elif [[ "${effective_ref}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      elif [[ "${effective_ref}" =~ ^v?[0-9]+(\.[0-9]+){0,2}$ ]]; then
         effective_kind="tag"
-        major="${effective_ref#v}"
-        major="${major%%.*}"
-        current_major_latest="$(latest_tag "${action}" "${major}" || true)"
-        overall_latest="$(latest_tag "${action}" "" || true)"
+        newer_tags="$(list_newer_tags "${action}" "${effective_ref}" || true)"
+        if [[ -n "${newer_tags}" ]]; then
+          available="$(tr '\n' ' ' <<< "${newer_tags}" | sed 's/ *$//')"
+        fi
       else
         effective_kind="branch"
         head_full="$(head_sha "${action}" "${effective_ref}" || true)"
-        overall_latest="${head_full:0:12}"
+        if [[ "${kind}" == "sha" && "${ref}" != "${head_full}" && -n "${head_full}" ]]; then
+          available="${head_full:0:12}"
+        fi
       fi
-
-      is_up_to_date="no"
-      case "${effective_kind}" in
-        tag)
-          if [[ -n "${overall_latest}" && "${effective_ref}" == "${overall_latest}" ]]; then
-            is_up_to_date="yes"
-          fi
-          ;;
-        branch)
-          if [[ "${kind}" == "sha" ]]; then
-            if [[ -n "${head_full}" && "${ref}" == "${head_full}" ]]; then
-              is_up_to_date="yes"
-            fi
-          else
-            is_up_to_date="yes"
-          fi
-          ;;
-      esac
 
       case "${format}" in
         tsv)
-          printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-            "${file}" "${action}" "${effective_ref}" \
-            "${current_major_latest}" "${overall_latest}" "${effective_kind}"
+          if [[ "${effective_kind}" == "unknown" ]]; then
+            printf '%s\t%s\t%s\t%s\t%s\n' \
+              "${file}" "${action}" "${ref}" "" "${effective_kind}"
+          else
+            printf '%s\t%s\t%s\t%s\t%s\n' \
+              "${file}" "${action}" "${effective_ref}" "${available}" "${effective_kind}"
+          fi
           ;;
         *)
-          if [[ "${effective_kind}" == "unknown" ]]; then
-            printf '%s: %s  current=%s  [no ref hint]\n' \
-              "${basename}" "${action}" "${ref}"
-          elif [[ "${is_up_to_date}" == "yes" ]]; then
-            printf '%s: %s  current=%s  [up-to-date]  (%s)\n' \
-              "${basename}" "${action}" "${effective_ref}" "${effective_kind}"
-          else
-            printf '%s: %s  current=%s  latest=%s  (major: %s)  (%s)\n' \
-              "${basename}" "${action}" "${effective_ref}" \
-              "${overall_latest}" "${current_major_latest}" "${effective_kind}"
-          fi
+          case "${effective_kind}" in
+            unknown)
+              printf '%s: %s  current=%s  [no ref hint]\n' \
+                "${basename}" "${action}" "${ref}"
+              ;;
+            tag)
+              if [[ -z "${available}" ]]; then
+                printf '%s: %s  current=%s  [up-to-date]  (tag)\n' \
+                  "${basename}" "${action}" "${effective_ref}"
+              else
+                printf '%s: %s  current=%s  newer=%s  (tag)\n' \
+                  "${basename}" "${action}" "${effective_ref}" "${available}"
+              fi
+              ;;
+            branch)
+              if [[ -z "${available}" ]]; then
+                printf '%s: %s  current=%s  [up-to-date]  (branch)\n' \
+                  "${basename}" "${action}" "${effective_ref}"
+              else
+                printf '%s: %s  current=%s  head=%s  (branch)\n' \
+                  "${basename}" "${action}" "${effective_ref}" "${available}"
+              fi
+              ;;
+          esac
           ;;
       esac
     done < "${file}"

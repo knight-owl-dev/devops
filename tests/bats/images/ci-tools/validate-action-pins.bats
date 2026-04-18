@@ -381,21 +381,31 @@ setup() {
 
 # ── updates subcommand ──────────────────────────────────────────────
 
-@test "updates reports newer same-major and overall latest for a tag pin" {
+@test "updates lists every newer tag across minors and majors" {
   run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/updates-new-major.yml"
   assert_success
   assert_output --partial "foo/bar"
   assert_output --partial "current=v6.0.0"
-  assert_output --partial "latest=v7.0.0"
-  assert_output --partial "major: v6.0.2"
+  assert_output --partial "newer=v6.0.1 v6.0.2 v7.0.0"
   assert_output --partial "(tag)"
+  refute_output --partial "[up-to-date]"
 }
 
-@test "updates reports up-to-date when pin is at the overall latest tag" {
+@test "updates reports up-to-date when no newer tag exists" {
   run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/updates-at-latest.yml"
   assert_success
   assert_output --partial "current=v7.0.0"
   assert_output --partial "[up-to-date]"
+  assert_output --partial "(tag)"
+}
+
+@test "updates classifies major-only aliases (e.g. @v6) as tag pins" {
+  run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/updates-major-alias.yml"
+  assert_success
+  assert_output --partial "current=v6"
+  # v6 normalises to [6,0,0]; all three-part tags strictly greater
+  # (v6.0.1, v6.0.2, v7.0.0) should be listed.
+  assert_output --partial "newer=v6.0.1 v6.0.2 v7.0.0"
   assert_output --partial "(tag)"
 }
 
@@ -411,12 +421,12 @@ setup() {
   run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/branch-behind.yml"
   assert_success
   assert_output --partial "current=main"
-  assert_output --partial "latest=bbbbbbbbbbbb"
+  assert_output --partial "head=bbbbbbbbbbbb"
   assert_output --partial "(branch)"
   refute_output --partial "[up-to-date]"
 }
 
-@test "updates tsv emits six tab-separated columns per row" {
+@test "updates tsv emits five tab-separated columns per row" {
   run "${SCRIPT}" updates --format=tsv "${FIXTURES_DIR}/workflows/updates-mixed.yml"
   assert_success
   local line_count
@@ -426,8 +436,16 @@ setup() {
   while IFS= read -r line; do
     [[ -z "${line}" ]] && continue
     local tab_count="${line//[^$'\t']/}"
-    assert_equal "${#tab_count}" "5"
+    assert_equal "${#tab_count}" "4"
   done <<< "${output}"
+}
+
+@test "updates tsv puts the space-separated newer list in column 4" {
+  run "${SCRIPT}" updates --format=tsv "${FIXTURES_DIR}/workflows/updates-new-major.yml"
+  assert_success
+  local col4
+  col4="$(awk -F'\t' 'NR==1 {print $4}' <<< "${output}")"
+  assert_equal "${col4}" "v6.0.1 v6.0.2 v7.0.0"
 }
 
 @test "updates exits 0 even when updates are available" {
@@ -435,41 +453,42 @@ setup() {
   assert_success
 }
 
-# ── latest_tag / head_sha (sourced) ─────────────────────────────────
+# ── list_newer_tags / head_sha (sourced) ────────────────────────────
 
-@test "latest_tag picks the highest strict-semver tag overall" {
+@test "list_newer_tags returns all tags strictly newer, sorted ascending" {
   # shellcheck disable=SC1090
   source "${SCRIPT}"
-  run latest_tag "foo/bar" ""
+  run list_newer_tags "foo/bar" "v6.0.0"
   assert_success
-  assert_output "v7.0.0"
+  assert_output "v6.0.1
+v6.0.2
+v7.0.0"
 }
 
-@test "latest_tag filters to the given major" {
+@test "list_newer_tags accepts a major-only ref (v6 normalises to [6,0,0])" {
   # shellcheck disable=SC1090
   source "${SCRIPT}"
-  run latest_tag "foo/bar" "6"
+  run list_newer_tags "foo/bar" "v6"
   assert_success
-  assert_output "v6.0.2"
+  assert_output "v6.0.1
+v6.0.2
+v7.0.0"
 }
 
-@test "latest_tag skips pre-release tags" {
+@test "list_newer_tags returns empty when pin is at the newest tag" {
   # shellcheck disable=SC1090
   source "${SCRIPT}"
-  run latest_tag "foo/bar" "1"
+  run list_newer_tags "foo/bar" "v7.0.0"
   assert_success
-  # The fixture only has v1.0.0-beta for major 1; strict-semver filter
-  # drops it, so no match is returned.
   assert_output ""
 }
 
-@test "latest_tag skips non-semver tags (nightly, date-stamped)" {
+@test "list_newer_tags skips pre-release and non-semver tags" {
   # shellcheck disable=SC1090
   source "${SCRIPT}"
-  run latest_tag "foo/bar" ""
+  run list_newer_tags "foo/bar" "v0.9.0"
   assert_success
-  # Non-semver fixture entries (nightly, main-20240101) must never be
-  # returned as "latest".
+  refute_output --partial "-beta"
   refute_output --partial "nightly"
   refute_output --partial "main-"
 }
