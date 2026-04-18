@@ -54,11 +54,18 @@ if [[ -n "${VALIDATE_ACTION_PINS_VERBOSE:-}" ]]; then
 fi
 readonly _CURL_ERRFD
 
-# curl flags used everywhere. Retries cover transient 5xx / DNS
+# curl flags used by gh_api. Retries cover transient 5xx / DNS
 # blips; --fail converts HTTP 4xx/5xx into nonzero exit so callers
-# don't mistake an error body for a valid response. `file://` URLs
-# silently ignore --retry.
-readonly _CURL_FLAGS=(-fsSL --retry 3 --retry-delay 2)
+# don't mistake an error body for a valid response; --max-time caps
+# any single attempt so a stalled connection can't compound across
+# retries. `file://` URLs silently ignore --retry and --max-time.
+readonly _CURL_FLAGS=(-fsSL --retry 3 --retry-delay 2 --max-time 10)
+
+# Curl flags used by the preflight rate_limit probe. Same retry +
+# max-time policy as gh_api, but without --fail because the probe
+# inspects the HTTP status code itself (401/403/429/etc.) and needs
+# a body even on error.
+readonly _CURL_PROBE_FLAGS=(-sS --retry 3 --retry-delay 2 --max-time 10)
 
 # Accepted "semver-like" tag shape, shared by the bash classifier
 # and the jq tag filter. Matches:
@@ -340,6 +347,44 @@ parse_uses_line() {
   printf '%s\t%s\t%s\t%s\n' "${action}" "${ref}" "${kind}" "${comment}"
 }
 
+# Translate a preflight HTTP status code into a (warn, skip?) decision.
+# Extracted so each code path is test-covered without needing a fake
+# HTTP server — tests source the script and call this directly.
+#
+# Arguments:
+#   $1 - HTTP status code, or "000" for transport failure (no response)
+#   $2 - operation name used in the WARN message
+#
+# Output:
+#   WARN line(s) to stdout for every non-200 code
+#
+# Returns:
+#   0 - status is benign; caller may proceed
+#   1 - caller should skip its work
+_preflight_classify_status() {
+  case "${1}" in
+    200) return 0 ;;
+    401 | 403)
+      echo "WARN: GitHub API authentication failed (HTTP ${1}) — skipping ${2}"
+      echo "      check GITHUB_TOKEN; an unset or expired token produces this response"
+      return 1
+      ;;
+    429)
+      echo "WARN: GitHub API secondary rate limit hit (HTTP 429) — skipping ${2}"
+      echo "      slow down, set GITHUB_TOKEN, or retry after the Retry-After interval"
+      return 1
+      ;;
+    000)
+      echo "WARN: cannot reach GitHub API — skipping ${2}"
+      return 1
+      ;;
+    *)
+      echo "WARN: GitHub API returned unexpected HTTP ${1} — skipping ${2}"
+      return 1
+      ;;
+  esac
+}
+
 # Preflight for API-dependent subcommands: dep check, auth init, and a
 # connectivity probe. Emits WARN and returns 1 when the caller should
 # gracefully skip its work.
@@ -391,35 +436,20 @@ check_api_preflight() {
     fi
   else
     # HTTP(s) — extract status so we can distinguish transport failure
-    # (code "000") from auth rejection (401/403) from any other
-    # unexpected response.
+    # (code "000") from auth rejection (401/403) from secondary rate
+    # limit (429) from any other unexpected response.
     local http_code
-    http_code="$(curl -sS --retry 3 --retry-delay 2 \
+    http_code="$(curl "${_CURL_PROBE_FLAGS[@]}" \
       -o "${body_file}" -w '%{http_code}' \
       "${auth_header[@]+"${auth_header[@]}"}" \
       -H "Accept: application/vnd.github+json" \
       "${GITHUB_API_BASE}/rate_limit" 2> "${_CURL_ERRFD}" \
       || echo "000")"
 
-    case "${http_code}" in
-      200) ;;
-      401 | 403)
-        echo "WARN: GitHub API authentication failed (HTTP ${http_code}) — skipping ${op}"
-        echo "      check GITHUB_TOKEN; an unset or expired token produces this response"
-        rm -f "${body_file}"
-        return 1
-        ;;
-      000)
-        echo "WARN: cannot reach GitHub API — skipping ${op}"
-        rm -f "${body_file}"
-        return 1
-        ;;
-      *)
-        echo "WARN: GitHub API returned unexpected HTTP ${http_code} — skipping ${op}"
-        rm -f "${body_file}"
-        return 1
-        ;;
-    esac
+    if ! _preflight_classify_status "${http_code}" "${op}"; then
+      rm -f "${body_file}"
+      return 1
+    fi
   fi
 
   # Rate-limit awareness. Zero budget is a full skip — every subsequent

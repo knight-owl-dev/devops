@@ -158,3 +158,56 @@ v7.0.0"
   assert_success
   assert_output "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 }
+
+# ── _preflight_classify_status ──────────────────────────────────────
+
+@test "_preflight_classify_status returns 0 on HTTP 200 with no output" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run _preflight_classify_status 200 "pin validation"
+  assert_success
+  assert_output ""
+}
+
+@test "_preflight_classify_status warns on 401 and asks to check GITHUB_TOKEN" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run _preflight_classify_status 401 "pin validation"
+  assert_failure 1
+  assert_output --partial "authentication failed (HTTP 401)"
+  assert_output --partial "check GITHUB_TOKEN"
+}
+
+@test "_preflight_classify_status warns on 403 (same auth bucket as 401)" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run _preflight_classify_status 403 "pin validation"
+  assert_failure 1
+  assert_output --partial "authentication failed (HTTP 403)"
+}
+
+@test "_preflight_classify_status warns on 429 secondary rate limit" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run _preflight_classify_status 429 "update check"
+  assert_failure 1
+  assert_output --partial "secondary rate limit hit (HTTP 429)"
+  assert_output --partial "update check"
+  assert_output --partial "Retry-After"
+}
+
+@test "_preflight_classify_status warns on 000 transport failure" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run _preflight_classify_status 000 "pin validation"
+  assert_failure 1
+  assert_output --partial "cannot reach GitHub API"
+}
+
+@test "_preflight_classify_status warns on any other unexpected code" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run _preflight_classify_status 503 "pin validation"
+  assert_failure 1
+  assert_output --partial "unexpected HTTP 503"
+}
