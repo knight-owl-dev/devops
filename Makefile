@@ -73,7 +73,7 @@ lint-docker:
 lint-sh:
 	@echo "Linting shell scripts..." \
 		&& shellcheck scripts/*.sh scripts/*/*.sh tests/deb/*.sh images/*/bin/* \
-		&& shellcheck -e SC2154 tests/bats/*/*.bash tests/bats/*/*/*.bats \
+		&& shellcheck -e SC2154 tests/bats/*/*.bash tests/bats/*/*/*/*.bats \
 		&& echo "OK"
 
 # Check shell script formatting

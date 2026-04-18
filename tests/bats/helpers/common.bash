@@ -6,7 +6,7 @@
 # Layout expectations:
 #   REPO_ROOT is computed from BATS_TEST_DIRNAME by walking up to the first
 #   ancestor containing a Makefile. Suite files should call `common_setup` from
-#   their own setup() — it normalises the environment for deterministic runs.
+#   their own setup() — it normalizes the environment for deterministic runs.
 
 # BATS_* variables are set by bats at runtime.
 # shellcheck disable=SC2154
