@@ -10,6 +10,7 @@ set -euo pipefail
 # Usage:
 #   validate-action-pins .github/workflows/*.yml
 #   validate-action-pins check .github/workflows/*.yml
+#   validate-action-pins list [--format=plain|tsv] .github/workflows/*.yml
 #   validate-action-pins --help
 #   validate-action-pins --version
 #
@@ -45,18 +46,17 @@ usage() {
   cat << 'USAGE'
 Usage: validate-action-pins [OPTIONS] [SUBCOMMAND] FILE...
 
-Verify that GitHub Actions SHA pins match their claimed tags.
-
-Scans workflow files for lines like:
-  uses: actions/checkout@de0fac2e... # v6
-and checks that the pinned SHA resolves to the stated tag via the GitHub API.
+Verify, inventory, or report on GitHub Actions pins in workflow files.
 
 Subcommands:
-  check     Verify SHA pins (default when no subcommand is given)
+  check     Verify SHA pins against their claimed tags via the GitHub API.
+            This is the default when no subcommand is given.
+  list      Print every `uses:` pin found in the files. No API calls.
 
 Options:
-  --help       Show this help message and exit
-  --version    Print the version and exit
+  --format=plain|tsv   Output format for `list` (default: plain)
+  --help               Show this help message and exit
+  --version            Print the version and exit
 
 Environment:
   GITHUB_TOKEN   Optional token for higher API rate limits
@@ -139,6 +139,85 @@ resolve_tag() {
   return 1
 }
 
+# Parse a single `uses:` line into its component fields.
+#
+# Arguments:
+#   $1 - A line of text
+#
+# Output (on success, tab-separated, single line):
+#   <action>\t<ref>\t<kind>\t<comment>
+#   kind is "sha" if the ref is a 40-hex SHA, "ref" otherwise
+#   comment is the first word after "#" (may be empty)
+#
+# Returns:
+#   0 - parsed a remote action pin
+#   1 - line did not contain a pin (skipped), or action is local/docker
+parse_uses_line() {
+  local line="${1}"
+  local action ref comment kind
+  if ! [[ "${line}" =~ uses:[[:space:]]*([^@[:space:]]+)@([^[:space:]#]+)[[:space:]]*(#[[:space:]]*([^[:space:]]+))? ]]; then
+    return 1
+  fi
+  action="${BASH_REMATCH[1]}"
+  ref="${BASH_REMATCH[2]}"
+  comment="${BASH_REMATCH[4]:-}"
+
+  # Skip anything that is not a remote owner/repo reference:
+  #   - no slash (malformed)
+  #   - scheme-prefixed (docker://alpine)
+  #   - local paths (./local-action)
+  if [[ "${action}" != */* || "${action}" == *://* || "${action}" == .* ]]; then
+    return 1
+  fi
+
+  if [[ "${ref}" =~ ^[0-9a-f]{40}$ ]]; then
+    kind="sha"
+  else
+    kind="ref"
+  fi
+
+  # Defensive: strip tabs/newlines from fields for TSV safety.
+  action="${action//$'\t'/}"
+  ref="${ref//$'\t'/}"
+  comment="${comment//$'\t'/ }"
+  action="${action//$'\n'/}"
+  ref="${ref//$'\n'/}"
+  comment="${comment//$'\n'/ }"
+
+  printf '%s\t%s\t%s\t%s\n' "${action}" "${ref}" "${kind}" "${comment}"
+}
+
+# Preflight for API-dependent subcommands: dep check, auth init, and a
+# connectivity probe. Emits WARN and returns 1 when the caller should
+# gracefully skip validation.
+#
+# Returns:
+#   0 - curl, jq, and the API are available
+#   1 - a dependency is missing or the API is unreachable (WARN emitted)
+check_api_preflight() {
+  local cmd
+  for cmd in curl jq; do
+    if ! command -v "${cmd}" > /dev/null 2>&1; then
+      echo "WARN: ${cmd} not found — skipping pin validation"
+      return 1
+    fi
+  done
+
+  init_auth_header
+
+  if [[ -n "${VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY:-}" ]]; then
+    return 0
+  fi
+
+  if ! curl -fsSL "${auth_header[@]+"${auth_header[@]}"}" \
+    -H "Accept: application/vnd.github+json" \
+    "${GITHUB_API_BASE}/rate_limit" > /dev/null 2>&1; then
+    echo "WARN: cannot reach GitHub API — skipping pin validation"
+    return 1
+  fi
+  return 0
+}
+
 # ── subcommands ──────────────────────────────────────────────────────
 
 # Verify SHA pins in the given workflow files.
@@ -155,6 +234,8 @@ resolve_tag() {
 #   0 - all pins match, or no pins found
 #   1 - one or more pins do not match
 cmd_check() {
+  check_api_preflight || return 0
+
   local -i failures=0
   local -i found_pins=0
   local -A resolve_cache=()
@@ -219,6 +300,50 @@ cmd_check() {
   return 0
 }
 
+# List pinned actions found in the given workflow files. No API calls.
+#
+# Arguments:
+#   $1   - format: "plain" or "tsv"
+#   $2.. - workflow file paths
+#
+# Plain output (one line per occurrence):
+#   <basename>: <action>@<ref>  (# <comment>)
+# TSV output (one line per occurrence, header-less):
+#   <file>\t<action>\t<ref>\t<kind>\t<comment>
+#
+# Returns 0 always; per-file read errors are reported as WARN on stderr.
+cmd_list() {
+  local format="${1}"
+  shift
+  local file line parsed action ref kind comment
+
+  for file in "${@}"; do
+    if [[ ! -f "${file}" ]]; then
+      echo "WARN: ${file} not found, skipping" >&2
+      continue
+    fi
+    while IFS= read -r line; do
+      if parsed="$(parse_uses_line "${line}")"; then
+        IFS=$'\t' read -r action ref kind comment <<< "${parsed}"
+        case "${format}" in
+          tsv)
+            printf '%s\t%s\t%s\t%s\t%s\n' \
+              "${file}" "${action}" "${ref}" "${kind}" "${comment}"
+            ;;
+          *)
+            if [[ -n "${comment}" ]]; then
+              printf '%s: %s@%s  (# %s)\n' \
+                "${file##*/}" "${action}" "${ref}" "${comment}"
+            else
+              printf '%s: %s@%s\n' "${file##*/}" "${action}" "${ref}"
+            fi
+            ;;
+        esac
+      fi
+    done < "${file}"
+  done
+}
+
 # ── main ─────────────────────────────────────────────────────────────
 
 main() {
@@ -250,17 +375,30 @@ main() {
   local subcmd="check"
   if [[ $# -gt 0 ]]; then
     case "${1}" in
-      check)
+      check | list)
         subcmd="${1}"
         shift
         ;;
     esac
   fi
 
-  # Collect files; reject unknown flags with exit 2.
+  # Collect files and any subcommand-scoped flags.
+  local format="plain"
   local files=()
   while [[ $# -gt 0 ]]; do
     case "${1}" in
+      --format=*)
+        format="${1#*=}"
+        shift
+        ;;
+      --format)
+        if [[ $# -lt 2 ]]; then
+          echo "${PROGRAM}: --format requires a value" >&2
+          exit 2
+        fi
+        format="${2}"
+        shift 2
+        ;;
       --)
         shift
         files+=("${@}")
@@ -277,32 +415,22 @@ main() {
     esac
   done
 
+  case "${format}" in
+    plain | tsv) ;;
+    *)
+      echo "${PROGRAM}: invalid --format: ${format} (expected 'plain' or 'tsv')" >&2
+      exit 2
+      ;;
+  esac
+
   if [[ "${#files[@]}" -eq 0 ]]; then
     usage >&2
     exit 1
   fi
 
-  local cmd
-  for cmd in curl jq; do
-    if ! command -v "${cmd}" > /dev/null 2>&1; then
-      echo "WARN: ${cmd} not found — skipping pin validation"
-      exit 0
-    fi
-  done
-
-  init_auth_header
-
-  if [[ -z "${VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY:-}" ]]; then
-    if ! curl -fsSL "${auth_header[@]+"${auth_header[@]}"}" \
-      -H "Accept: application/vnd.github+json" \
-      "${GITHUB_API_BASE}/rate_limit" > /dev/null 2>&1; then
-      echo "WARN: cannot reach GitHub API — skipping pin validation"
-      exit 0
-    fi
-  fi
-
   case "${subcmd}" in
     check) cmd_check "${files[@]}" ;;
+    list) cmd_list "${format}" "${files[@]}" ;;
   esac
 }
 
