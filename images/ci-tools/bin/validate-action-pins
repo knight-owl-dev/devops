@@ -993,22 +993,27 @@ _short_circuit_help_version() {
 }
 
 # Parse remaining args into cli_subcmd + cli_format + cli_only + cli_files.
-# Exits 2 on unknown flag or bad flag value. Unknown leading words fall
-# through as positional files, preserving bare-FILE back-compat.
+# Exits 2 on unknown flag or bad flag value.
+#
+# Subcommand detection is permissive: `check`, `list`, or `updates`
+# is picked up the first time it appears as a positional word,
+# regardless of what flags precede or follow it. All of these
+# invocations route to the list subcommand:
+#
+#     validate-action-pins list --format=tsv workflows/*.yml
+#     validate-action-pins --format=tsv list workflows/*.yml
+#     validate-action-pins --format=tsv workflows/*.yml list
+#
+# Only the first occurrence is consumed as a subcommand; a second
+# `check|list|updates` word, or anything after a `--` terminator,
+# is treated as a filename. Use `--` to disambiguate workflow
+# files whose name matches a subcommand.
 _parse_cli_args() {
   cli_subcmd="check"
   cli_format="plain"
   cli_only="all"
   cli_files=()
-
-  if [[ $# -gt 0 ]]; then
-    case "${1}" in
-      check | list | updates)
-        cli_subcmd="${1}"
-        shift
-        ;;
-    esac
-  fi
+  local subcmd_seen=false
 
   while [[ $# -gt 0 ]]; do
     case "${1}" in
@@ -1044,6 +1049,18 @@ _parse_cli_args() {
       -*)
         echo "${PROGRAM}: unknown flag: ${1}" >&2
         exit 2
+        ;;
+      check | list | updates)
+        if ${subcmd_seen}; then
+          # Already claimed a subcommand; a second matching word is a
+          # filename (rare, but possible for a workflow literally named
+          # `list.yml` without the suffix).
+          cli_files+=("${1}")
+        else
+          cli_subcmd="${1}"
+          subcmd_seen=true
+        fi
+        shift
         ;;
       *)
         cli_files+=("${1}")

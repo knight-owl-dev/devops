@@ -76,6 +76,49 @@ setup() {
   assert_output --partial "OK   tag-ok.yml:"
 }
 
+# ── permissive subcommand placement ─────────────────────────────────
+
+@test "subcommand can appear after flags" {
+  # Flag-then-subcommand ordering: most modern CLI tools (gh,
+  # kubectl) accept either order; we do too.
+  run "${SCRIPT}" --format=tsv list "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_success
+  assert_output --regexp $'\tfoo/bar\t'
+}
+
+@test "subcommand can appear after files" {
+  # Even at the end, the subcommand wins over files.
+  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/tag-ok.yml" list
+  assert_success
+  assert_output --partial "tag-ok.yml: foo/bar@"
+}
+
+@test "subcommand after --only flag routes correctly" {
+  run "${SCRIPT}" --only=tag list \
+    "${FIXTURES_DIR}/workflows/tag-ok.yml" \
+    "${FIXTURES_DIR}/workflows/branch-ok.yml"
+  assert_success
+  assert_output --partial "tag-ok.yml: foo/bar@"
+  refute_output --partial "branch-ok.yml"
+}
+
+@test "second subcommand word becomes a file path" {
+  # First 'list' is the subcommand; second 'list' is a positional
+  # file arg — which doesn't exist, so we get a missing-file WARN.
+  run "${SCRIPT}" list list "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_success
+  assert_output --partial "WARN: list not found"
+  assert_output --partial "tag-ok.yml: foo/bar@"
+}
+
+@test "'-- check' treats check as a file, not a subcommand" {
+  # After --, no word is interpreted as a subcommand.
+  run "${SCRIPT}" -- check "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_success
+  assert_output --partial "WARN: check not found"
+  assert_output --partial "OK   tag-ok.yml:"
+}
+
 # ── flag validation ─────────────────────────────────────────────────
 
 @test "unknown flag exits 2 with a usage error" {

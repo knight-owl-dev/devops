@@ -61,6 +61,13 @@ Output lines are prefixed with the workflow filename:
 If the API is unreachable or a required dependency is missing, the check
 is skipped and the tool exits successfully.
 .Sh SUBCOMMANDS
+The subcommand word may appear anywhere among the positional
+arguments \(em before, between, or after files and flags \(em and
+is consumed on its first occurrence.
+Use
+.Ic --
+to disambiguate a workflow file whose name happens to match a
+subcommand.
 .Bl -tag -width indent
 .It Cm check Ar file ...
 Verify SHA pins in the given workflow files.
