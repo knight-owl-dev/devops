@@ -203,22 +203,32 @@ _effective_ref() {
   fi
 }
 
-# First-occurrence gate for per-command dedup. Callers decide the
-# dedup scope by choosing when to reset the associative array (per
-# file, per run, never).
+# Module-scope dedup sets, one per scope boundary that the
+# subcommands care about. The arrays are reset at their respective
+# boundaries (per-file loop in cmd_check, per-invocation entry in
+# cmd_updates) so sourced tests that call a subcommand twice start
+# from a clean state.
 #
-# Arguments:
-#   $1 - name of an associative array (the caller's dedup set)
-#   $2 - key to check
-#
-# Returns:
-#   0 - key is new (first seen); array is marked
-#   1 - key has already been seen in this set
-_once_per() {
-  # shellcheck disable=SC2178  # nameref points at caller's assoc array
-  local -n _seen="${1}"
-  [[ -n "${_seen[${2}]+x}" ]] && return 1
-  _seen["${2}"]=1
+# Scope conventions:
+#   seen_in_file - cmd_check resets inside the per-file loop; one
+#                  OK/FAIL/WARN line per unique pin per file.
+#   seen_in_run  - cmd_updates resets on entry; one record per
+#                  unique pin across the whole invocation.
+#   (cmd_list uses no dedup — every occurrence is listed.)
+declare -A seen_in_file=()
+declare -A seen_in_run=()
+
+# First-occurrence gates. Return 0 the first time a key is seen in
+# the corresponding scope, 1 thereafter. Callers idiomatically chain
+# as `_once_per_X "${key}" || continue`.
+_once_per_file() {
+  [[ -n "${seen_in_file[${1}]+x}" ]] && return 1
+  seen_in_file["${1}"]=1
+  return 0
+}
+_once_per_run() {
+  [[ -n "${seen_in_run[${1}]+x}" ]] && return 1
+  seen_in_run["${1}"]=1
   return 0
 }
 
@@ -417,11 +427,12 @@ cmd_check() {
   local -i found_pins=0
   local -A resolve_cache=()
   local -A compare_cache=()
-  # shellcheck disable=SC2034  # consumed by _once_per via nameref
-  local -A seen_in_file=()
   local file basename line parsed
   local action ref kind comment cache_key cached resolved resolved_kind
   local compare_key behind
+
+  # Clean slate in case a sourced test re-enters the subcommand.
+  seen_in_file=()
 
   for file in "${@}"; do
     if [[ ! -f "${file}" ]]; then
@@ -429,8 +440,7 @@ cmd_check() {
       continue
     fi
     basename="${file##*/}"
-    # shellcheck disable=SC2034  # consumed by _once_per via nameref
-    seen_in_file=()
+    seen_in_file=()  # per-file dedup scope
 
     while IFS= read -r line; do
       if ! parsed="$(parse_uses_line "${line}")"; then
@@ -447,7 +457,7 @@ cmd_check() {
       found_pins=1
 
       cache_key="${action}#${comment}"
-      _once_per seen_in_file "${cache_key}" || continue
+      _once_per_file "${cache_key}" || continue
 
       if [[ -z "${resolve_cache[${cache_key}]+x}" ]]; then
         if cached="$(resolve_ref "${action}" "${comment}")"; then
@@ -542,11 +552,12 @@ cmd_updates() {
 
   check_api_preflight "update check" || return 0
 
-  # shellcheck disable=SC2034  # consumed by _once_per via nameref
-  local -A seen_in_run=()
   local file basename line parsed
   local action ref kind comment effective_ref effective_kind
   local newer_tags head_full available key
+
+  # Per-invocation dedup: report each unique pin once across all files.
+  seen_in_run=()
 
   for file in "${@}"; do
     if [[ ! -f "${file}" ]]; then
@@ -563,7 +574,7 @@ cmd_updates() {
 
       effective_ref="$(_effective_ref "${kind}" "${ref}" "${comment}")"
       key="${action}@${effective_ref}"
-      _once_per seen_in_run "${key}" || continue
+      _once_per_run "${key}" || continue
 
       newer_tags=""
       head_full=""
