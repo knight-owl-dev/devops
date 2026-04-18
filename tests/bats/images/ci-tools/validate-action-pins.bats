@@ -74,6 +74,21 @@ setup() {
   assert_equal "${ok_count}" "1"
 }
 
+@test "same pin across multiple files produces one OK per file (resolve_cache)" {
+  # seen_in_file resets per file, so the second file would re-enter the
+  # resolve path — but resolve_cache short-circuits the API call. We verify
+  # the output shape: exactly one OK per file, and each lists its own basename.
+  run "${SCRIPT}" \
+    "${FIXTURES_DIR}/workflows/tag-ok.yml" \
+    "${FIXTURES_DIR}/workflows/tag-ok-2.yml"
+  assert_success
+  local ok_count
+  ok_count="$(grep -c '^OK ' <<< "${output}" || true)"
+  assert_equal "${ok_count}" "2"
+  assert_output --partial "OK   tag-ok.yml:"
+  assert_output --partial "OK   tag-ok-2.yml:"
+}
+
 # ── subcommand dispatch ─────────────────────────────────────────────
 
 @test "bare FILE and explicit 'check FILE' produce identical output" {
