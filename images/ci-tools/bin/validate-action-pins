@@ -385,15 +385,65 @@ _preflight_classify_status() {
   esac
 }
 
+# Probe the rate_limit endpoint through file:// (test harness).
+# No HTTP status semantics — curl's exit code is the only signal.
+# On success the JSON body is written to $1 for the caller's
+# rate-limit-remaining check.
+#
+# Arguments:
+#   $1 - destination file for the response body
+#   $2 - operation name for the WARN message
+#
+# Returns:
+#   0 - body fetched; caller may proceed
+#   1 - curl failed (WARN emitted); caller should skip
+_preflight_probe_file() {
+  local body_file="${1}" op="${2}"
+  if ! curl "${_CURL_FLAGS[@]}" "${auth_header[@]+"${auth_header[@]}"}" \
+    -H "Accept: application/vnd.github+json" \
+    "${GITHUB_API_BASE}/rate_limit" > "${body_file}" 2> "${_CURL_ERRFD}"; then
+    echo "WARN: cannot reach GitHub API — skipping ${op}"
+    return 1
+  fi
+}
+
+# Probe the rate_limit endpoint via HTTP(s). Extracts the response
+# status code and routes it through _preflight_classify_status so
+# transport failure, auth rejection, secondary rate limit, and any
+# other unexpected response each get a distinct operator-facing
+# WARN. The body is written to $1 even on non-200 responses so the
+# caller can inspect it if the classifier says OK.
+#
+# Arguments:
+#   $1 - destination file for the response body
+#   $2 - operation name for the WARN message
+#
+# Returns:
+#   0 - HTTP 200; body in $1, caller may proceed
+#   1 - non-200 or transport failure (WARN emitted); caller skips
+_preflight_probe_http() {
+  local body_file="${1}" op="${2}"
+  local http_code
+  http_code="$(curl "${_CURL_PROBE_FLAGS[@]}" \
+    -o "${body_file}" -w '%{http_code}' \
+    "${auth_header[@]+"${auth_header[@]}"}" \
+    -H "Accept: application/vnd.github+json" \
+    "${GITHUB_API_BASE}/rate_limit" 2> "${_CURL_ERRFD}" \
+    || echo "000")"
+  _preflight_classify_status "${http_code}" "${op}"
+}
+
 # Preflight for API-dependent subcommands: dep check, auth init, and a
 # connectivity probe. Emits WARN and returns 1 when the caller should
 # gracefully skip its work.
 #
-# Distinguishes four failure modes so operators can act on the WARN:
+# Distinguishes these failure modes so operators can act on the WARN:
 #   - missing curl or jq
-#   - cannot reach the API host (DNS/network)
+#   - cannot reach the API host (file:// read failure or HTTP "000")
 #   - authentication rejected (HTTP 401/403 — bad GITHUB_TOKEN)
+#   - secondary rate limit (HTTP 429)
 #   - unexpected HTTP status (generic fallback)
+#   - primary rate limit exhausted (remaining == 0)
 #
 # When the probe succeeds, also checks rate-limit remaining and emits
 # a WARN (still returning 0) if the budget looks tight.
@@ -403,7 +453,7 @@ _preflight_classify_status() {
 #
 # Returns:
 #   0 - curl, jq, and the API are available (subcommand may proceed)
-#   1 - a dependency, connectivity, or auth problem (skip the work)
+#   1 - a dependency, connectivity, auth, or budget problem (skip)
 check_api_preflight() {
   local op="${1:-pin validation}"
   local cmd
@@ -429,28 +479,9 @@ check_api_preflight() {
   trap 'rm -f "${body_file:-}"' RETURN
 
   if [[ "${GITHUB_API_BASE}" == file://* ]]; then
-    # file:// — test harness path. No HTTP status; curl's exit code
-    # is the only signal. Body is still captured for the rate-limit
-    # check below.
-    if ! curl "${_CURL_FLAGS[@]}" "${auth_header[@]+"${auth_header[@]}"}" \
-      -H "Accept: application/vnd.github+json" \
-      "${GITHUB_API_BASE}/rate_limit" > "${body_file}" 2> "${_CURL_ERRFD}"; then
-      echo "WARN: cannot reach GitHub API — skipping ${op}"
-      return 1
-    fi
+    _preflight_probe_file "${body_file}" "${op}" || return 1
   else
-    # HTTP(s) — extract status so we can distinguish transport failure
-    # (code "000") from auth rejection (401/403) from secondary rate
-    # limit (429) from any other unexpected response.
-    local http_code
-    http_code="$(curl "${_CURL_PROBE_FLAGS[@]}" \
-      -o "${body_file}" -w '%{http_code}' \
-      "${auth_header[@]+"${auth_header[@]}"}" \
-      -H "Accept: application/vnd.github+json" \
-      "${GITHUB_API_BASE}/rate_limit" 2> "${_CURL_ERRFD}" \
-      || echo "000")"
-
-    _preflight_classify_status "${http_code}" "${op}" || return 1
+    _preflight_probe_http "${body_file}" "${op}" || return 1
   fi
 
   # Rate-limit awareness. Zero budget is a full skip — every subsequent
