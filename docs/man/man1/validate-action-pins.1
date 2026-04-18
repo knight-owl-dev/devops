@@ -70,8 +70,10 @@ Print every
 .Ic uses:\&
 pin found in the input files.
 Performs no API calls, so it runs offline and without authentication.
+.Pp
 Plain output has the form
 .Dl <basename>: <action>@<ref>  (# <comment>)
+.Pp
 TSV output (one record per line, no header) has the fields:
 .Dl <file>\etab<action>\etab<ref>\etab<kind>\etab<comment>
 where
@@ -81,6 +83,7 @@ is
 for 40-hex pins and
 .Em ref
 for symbolic references (tag or branch; not distinguished without an API call).
+.Pp
 Actions pinned to a
 .Ic docker://
 scheme or a local
@@ -96,16 +99,19 @@ SHA-to-branch pins that have drifted are visible at a glance.
 Output is informational \(em
 .Cm updates
 exits 0 whether or not upgrades are available.
+.Pp
 Plain output:
 .Dl <basename>: <action>  current=<ref>  [up-to-date]  (<kind>)
 .Dl <basename>: <action>  current=<ref>  newer=<t1> <t2> ...  (tag)
 .Dl <basename>: <action>  current=<ref>  head=<short-sha>  (branch)
+.Pp
 TSV output (five columns, no header):
 .Dl <file>\etab<action>\etab<ref>\etab<available>\etab<kind>
 where
 .Em available
 is a space-separated list of newer tags for tag pins, the short HEAD
 SHA for stale branch pins, or empty when up-to-date.
+.Pp
 Tag refs are parsed as
 .Em v?X[.Y[.Z]]
 with missing components treated as zero, so
@@ -118,6 +124,7 @@ Pre-release (e.g.
 .Em -rc1 ,
 .Em -beta )
 and non-semver tag names are skipped.
+.Pp
 Each unique action/ref pair costs at most one GitHub API call.
 Setting
 .Ev GITHUB_TOKEN
