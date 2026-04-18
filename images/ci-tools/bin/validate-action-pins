@@ -52,9 +52,11 @@ Subcommands:
   check     Verify SHA pins against their claimed tags via the GitHub API.
             This is the default when no subcommand is given.
   list      Print every `uses:` pin found in the files. No API calls.
+  updates   Report available upgrades for each unique pin. Honours
+            GITHUB_TOKEN for higher rate limits (effectively required).
 
 Options:
-  --format=plain|tsv   Output format for `list` (default: plain)
+  --format=plain|tsv   Output format for `list` and `updates` (default: plain)
   --help               Show this help message and exit
   --version            Print the version and exit
 
@@ -220,16 +222,20 @@ parse_uses_line() {
 
 # Preflight for API-dependent subcommands: dep check, auth init, and a
 # connectivity probe. Emits WARN and returns 1 when the caller should
-# gracefully skip validation.
+# gracefully skip its work.
+#
+# Arguments:
+#   $1 - operation name for the WARN message (default "pin validation")
 #
 # Returns:
 #   0 - curl, jq, and the API are available
 #   1 - a dependency is missing or the API is unreachable (WARN emitted)
 check_api_preflight() {
+  local op="${1:-pin validation}"
   local cmd
   for cmd in curl jq; do
     if ! command -v "${cmd}" > /dev/null 2>&1; then
-      echo "WARN: ${cmd} not found — skipping pin validation"
+      echo "WARN: ${cmd} not found — skipping ${op}"
       return 1
     fi
   done
@@ -243,10 +249,72 @@ check_api_preflight() {
   if ! curl -fsSL "${auth_header[@]+"${auth_header[@]}"}" \
     -H "Accept: application/vnd.github+json" \
     "${GITHUB_API_BASE}/rate_limit" > /dev/null 2>&1; then
-    echo "WARN: cannot reach GitHub API — skipping pin validation"
+    echo "WARN: cannot reach GitHub API — skipping ${op}"
     return 1
   fi
   return 0
+}
+
+# Pick the newest semver tag from a repo.
+#
+# Arguments:
+#   $1 - Repository (owner/repo)
+#   $2 - Optional major version filter (e.g. "6" returns only v6.x.y);
+#        empty string returns the absolute latest across majors
+#
+# Output:
+#   Tag name (e.g. v6.0.2) on stdout, or empty if no matching tag exists
+#
+# Notes:
+#   - Only strict three-part semver tags (vX.Y.Z) are considered; pre-
+#     release suffixes (-rc1, -beta) and non-semver names (nightly,
+#     main-20240101) are skipped.
+#   - The first page of /tags is consulted (30 tags). Repos with many
+#     tags across majors may need pagination, which is not implemented
+#     in this iteration.
+latest_tag() {
+  local repo="${1}" major="${2:-}"
+  local json
+  json="$(gh_api "/repos/${repo}/tags")"
+  if [[ -z "${json}" ]]; then
+    return 1
+  fi
+  jq -r --arg m "${major}" '
+    [ .[].name
+      | select(test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$"))
+      | select($m == "" or test("^v?" + $m + "\\."))
+    ] as $xs
+    | $xs
+    | map({ n: ., k: (sub("^v"; "") | split(".") | map(tonumber? // 0)) })
+    | sort_by(.k)
+    | last
+    | (.n // empty)
+  ' <<< "${json}"
+}
+
+# Return the current HEAD commit SHA of a branch.
+#
+# Arguments:
+#   $1 - Repository (owner/repo)
+#   $2 - Branch name
+#
+# Output:
+#   40-hex SHA on stdout, or empty on failure
+#
+# Returns:
+#   0 on success, 1 on API failure
+head_sha() {
+  local repo="${1}" branch="${2}"
+  local json sha
+  json="$(gh_api "/repos/${repo}/git/ref/heads/${branch}")"
+  if [[ -z "${json}" ]]; then
+    return 1
+  fi
+  sha="$(jq -r '.object.sha // empty' <<< "${json}")"
+  if [[ -z "${sha}" ]]; then
+    return 1
+  fi
+  echo "${sha}"
 }
 
 # ── subcommands ──────────────────────────────────────────────────────
@@ -356,6 +424,124 @@ cmd_check() {
   return 0
 }
 
+# Report available upgrades for each pinned action. Always informational
+# — exit 0 on success regardless of whether upgrades are available.
+#
+# Arguments:
+#   $1   - format: "plain" or "tsv"
+#   $2.. - workflow file paths
+#
+# Plain output (one line per unique pin):
+#   <basename>: <action>  current=<ref>  [up-to-date]  (<kind>)
+#   <basename>: <action>  current=<ref>  latest=<ol>  (major: <cml>)  (<kind>)
+#
+# TSV output (6 columns, no header):
+#   <file>\t<action>\t<current_ref>\t<current_major_latest>\t<overall_latest>\t<kind>
+#
+# Per-action API calls:
+#   - Tag ref:    2 calls to /repos/.../tags (same endpoint, per-major
+#                 and overall filters applied via jq)
+#   - Branch ref: 1 call to /repos/.../git/ref/heads/<branch>
+#   - SHA pin without a # comment: no calls, recorded as "unknown"
+cmd_updates() {
+  local format="${1}"
+  shift
+
+  check_api_preflight "update check" || return 0
+
+  local -A seen_in_run=()
+  local file basename line parsed
+  local action ref kind comment effective_ref effective_kind
+  local major current_major_latest overall_latest head_full
+  local is_up_to_date key
+
+  for file in "${@}"; do
+    if [[ ! -f "${file}" ]]; then
+      echo "WARN: ${file} not found, skipping" >&2
+      continue
+    fi
+    basename="${file##*/}"
+
+    while IFS= read -r line; do
+      if ! parsed="$(parse_uses_line "${line}")"; then
+        continue
+      fi
+      IFS=$'\t' read -r action ref kind comment <<< "${parsed}"
+
+      # Prefer the trailing comment as the ref hint (Dependabot
+      # convention). Symbolic (non-sha) refs use their own value.
+      if [[ "${kind}" == "sha" ]]; then
+        effective_ref="${comment}"
+      else
+        effective_ref="${ref}"
+      fi
+
+      key="${action}@${effective_ref}"
+      if [[ -n "${seen_in_run[${key}]+x}" ]]; then
+        continue
+      fi
+      seen_in_run["${key}"]=1
+
+      current_major_latest=""
+      overall_latest=""
+      head_full=""
+
+      if [[ -z "${effective_ref}" ]]; then
+        effective_kind="unknown"
+      elif [[ "${effective_ref}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        effective_kind="tag"
+        major="${effective_ref#v}"
+        major="${major%%.*}"
+        current_major_latest="$(latest_tag "${action}" "${major}" || true)"
+        overall_latest="$(latest_tag "${action}" "" || true)"
+      else
+        effective_kind="branch"
+        head_full="$(head_sha "${action}" "${effective_ref}" || true)"
+        overall_latest="${head_full:0:12}"
+      fi
+
+      is_up_to_date="no"
+      case "${effective_kind}" in
+        tag)
+          if [[ -n "${overall_latest}" && "${effective_ref}" == "${overall_latest}" ]]; then
+            is_up_to_date="yes"
+          fi
+          ;;
+        branch)
+          if [[ "${kind}" == "sha" ]]; then
+            if [[ -n "${head_full}" && "${ref}" == "${head_full}" ]]; then
+              is_up_to_date="yes"
+            fi
+          else
+            is_up_to_date="yes"
+          fi
+          ;;
+      esac
+
+      case "${format}" in
+        tsv)
+          printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "${file}" "${action}" "${effective_ref}" \
+            "${current_major_latest}" "${overall_latest}" "${effective_kind}"
+          ;;
+        *)
+          if [[ "${effective_kind}" == "unknown" ]]; then
+            printf '%s: %s  current=%s  [no ref hint]\n' \
+              "${basename}" "${action}" "${ref}"
+          elif [[ "${is_up_to_date}" == "yes" ]]; then
+            printf '%s: %s  current=%s  [up-to-date]  (%s)\n' \
+              "${basename}" "${action}" "${effective_ref}" "${effective_kind}"
+          else
+            printf '%s: %s  current=%s  latest=%s  (major: %s)  (%s)\n' \
+              "${basename}" "${action}" "${effective_ref}" \
+              "${overall_latest}" "${current_major_latest}" "${effective_kind}"
+          fi
+          ;;
+      esac
+    done < "${file}"
+  done
+}
+
 # List pinned actions found in the given workflow files. No API calls.
 #
 # Arguments:
@@ -431,7 +617,7 @@ main() {
   local subcmd="check"
   if [[ $# -gt 0 ]]; then
     case "${1}" in
-      check | list)
+      check | list | updates)
         subcmd="${1}"
         shift
         ;;
@@ -487,6 +673,7 @@ main() {
   case "${subcmd}" in
     check) cmd_check "${files[@]}" ;;
     list) cmd_list "${format}" "${files[@]}" ;;
+    updates) cmd_updates "${format}" "${files[@]}" ;;
   esac
 }
 

@@ -363,3 +363,106 @@ setup() {
   assert_success
   assert_output "0"
 }
+
+# ── updates subcommand ──────────────────────────────────────────────
+
+@test "updates reports newer same-major and overall latest for a tag pin" {
+  run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/updates-new-major.yml"
+  assert_success
+  assert_output --partial "foo/bar"
+  assert_output --partial "current=v6.0.0"
+  assert_output --partial "latest=v7.0.0"
+  assert_output --partial "major: v6.0.2"
+  assert_output --partial "(tag)"
+}
+
+@test "updates reports up-to-date when pin is at the overall latest tag" {
+  run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/updates-at-latest.yml"
+  assert_success
+  assert_output --partial "current=v7.0.0"
+  assert_output --partial "[up-to-date]"
+  assert_output --partial "(tag)"
+}
+
+@test "updates reports up-to-date when branch pin matches HEAD" {
+  run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/branch-ok.yml"
+  assert_success
+  assert_output --partial "current=main"
+  assert_output --partial "[up-to-date]"
+  assert_output --partial "(branch)"
+}
+
+@test "updates reports short HEAD for a stale branch pin" {
+  run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/branch-behind.yml"
+  assert_success
+  assert_output --partial "current=main"
+  assert_output --partial "latest=bbbbbbbbbbbb"
+  assert_output --partial "(branch)"
+  refute_output --partial "[up-to-date]"
+}
+
+@test "updates tsv emits six tab-separated columns per row" {
+  run "${SCRIPT}" updates --format=tsv "${FIXTURES_DIR}/workflows/updates-mixed.yml"
+  assert_success
+  local line_count
+  line_count="$(grep -cE '[^[:space:]]' <<< "${output}" || true)"
+  assert_equal "${line_count}" "3"
+  local line
+  while IFS= read -r line; do
+    [[ -z "${line}" ]] && continue
+    local tab_count="${line//[^$'\t']/}"
+    assert_equal "${#tab_count}" "5"
+  done <<< "${output}"
+}
+
+@test "updates exits 0 even when updates are available" {
+  run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/updates-new-major.yml"
+  assert_success
+}
+
+# ── latest_tag / head_sha (sourced) ─────────────────────────────────
+
+@test "latest_tag picks the highest strict-semver tag overall" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run latest_tag "foo/bar" ""
+  assert_success
+  assert_output "v7.0.0"
+}
+
+@test "latest_tag filters to the given major" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run latest_tag "foo/bar" "6"
+  assert_success
+  assert_output "v6.0.2"
+}
+
+@test "latest_tag skips pre-release tags" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run latest_tag "foo/bar" "1"
+  assert_success
+  # The fixture only has v1.0.0-beta for major 1; strict-semver filter
+  # drops it, so no match is returned.
+  assert_output ""
+}
+
+@test "latest_tag skips non-semver tags (nightly, date-stamped)" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run latest_tag "foo/bar" ""
+  assert_success
+  # Non-semver fixture entries (nightly, main-20240101) must never be
+  # returned as "latest".
+  refute_output --partial "nightly"
+  refute_output --partial "main-"
+}
+
+@test "head_sha returns the branch HEAD SHA" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run head_sha "foo/br-behind" "main"
+  assert_success
+  assert_output "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

@@ -16,6 +16,10 @@
 .Cm list
 .Op Fl -format Ar plain Ns | Ns Ar tsv
 .Ar file ...
+.Nm
+.Cm updates
+.Op Fl -format Ar plain Ns | Ns Ar tsv
+.Ar file ...
 .Sh DESCRIPTION
 .Nm
 scans GitHub Actions workflow files for
@@ -82,6 +86,31 @@ Actions pinned to a
 scheme or a local
 .Ic ./
 path are skipped.
+.It Cm updates Oo Fl -format Ar plain Ns | Ns Ar tsv Oc Ar file ...
+Report the latest upgrade available for each unique pin.
+For tag pins the current major's latest and the overall latest are both
+reported; for branch pins the current HEAD SHA is reported.
+Output is informational \(em
+.Cm updates
+exits 0 whether or not upgrades are available.
+Plain output:
+.Dl <basename>: <action>  current=<ref>  [up-to-date]  (<kind>)
+.Dl <basename>: <action>  current=<ref>  latest=<ol>  (major: <cml>)  (<kind>)
+TSV output (six columns, no header):
+.Dl <file>\etab<action>\etab<ref>\etab<major_latest>\etab<overall_latest>\etab<kind>
+Each unique action/ref pair is resolved with at most two GitHub API
+calls (one for tag listings, one for branch HEAD).
+Setting
+.Ev GITHUB_TOKEN
+is effectively required for any workflow with more than a handful of
+pins because the unauthenticated rate limit is 60 requests per hour.
+Only strict three-part semver tags are considered for
+.Ic latest ;
+pre-release and non-semver tag names are skipped.
+The first page of
+.Ic /tags
+is consulted (30 entries); repos with many tags across majors may need
+pagination, which is not implemented in this iteration.
 .El
 .Sh OPTIONS
 .Bl -tag -width indent
@@ -130,6 +159,16 @@ Inventory every pin across the workflows:
 Export a machine-readable pin list:
 .Pp
 .Dl validate-action-pins list --format=tsv .github/workflows/*.yml
+.Pp
+Report available upgrades for every pin (authenticated to avoid rate limits):
+.Pp
+.Dl GITHUB_TOKEN=... validate-action-pins updates .github/workflows/*.yml
+.Pp
+Pipe the upgrade report into
+.Xr awk 1
+for scripted processing:
+.Pp
+.Dl GITHUB_TOKEN=... validate-action-pins updates --format=tsv .github/workflows/*.yml | awk -F\et '$5 != $3 { print $2 " is out of date" }'
 .Sh DEPENDENCIES
 .Nm
 requires
