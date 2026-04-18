@@ -2,10 +2,10 @@
 # shellcheck shell=bash
 #
 # REPO_ROOT, FIXTURES_DIR, API_FIXTURES_DIR, SCRIPT are populated by
-# common_setup and the per-test setup; BATS_* are populated by bats at runtime.
-# Each @test runs in its own subshell, so exports are scoped per test — the
-# subshell warnings are expected.
-# shellcheck disable=SC2030,SC2031,SC2154
+# common_setup and the per-test setup; BATS_* and `output` are populated
+# by bats at runtime. shellcheck can't see any of those, so SC2154 is
+# suppressed at file scope — the bats community norm.
+# shellcheck disable=SC2154
 
 load ../../helpers/common
 
@@ -205,11 +205,12 @@ setup() {
 }
 
 @test "list does not run the connectivity probe" {
-  # Point API base at a missing dir; clear SKIP — check would WARN here.
-  unset VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY
-  export GITHUB_API_BASE="file://${BATS_TEST_TMPDIR}/empty"
+  # Point API base at a missing dir and clear SKIP on the command line —
+  # check would WARN here, but list should not probe at all.
   mkdir -p "${BATS_TEST_TMPDIR}/empty"
-  run "${SCRIPT}" list "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY='' \
+    GITHUB_API_BASE="file://${BATS_TEST_TMPDIR}/empty" \
+    run "${SCRIPT}" list "${FIXTURES_DIR}/workflows/tag-ok.yml"
   assert_success
   refute_output --partial "cannot reach GitHub API"
   assert_output --partial "tag-ok.yml: foo/bar@"
@@ -245,10 +246,10 @@ setup() {
 # ── connectivity probe ──────────────────────────────────────────────
 
 @test "connectivity probe failure warns and exits 0" {
-  unset VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY
-  export GITHUB_API_BASE="file://${BATS_TEST_TMPDIR}/empty"
   mkdir -p "${BATS_TEST_TMPDIR}/empty"
-  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY='' \
+    GITHUB_API_BASE="file://${BATS_TEST_TMPDIR}/empty" \
+    run "${SCRIPT}" "${FIXTURES_DIR}/workflows/tag-ok.yml"
   assert_success
   assert_output --partial "WARN: cannot reach GitHub API"
 }
