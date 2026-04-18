@@ -93,10 +93,50 @@ gh_api() {
     "${url}" 2> /dev/null || true
 }
 
+# Resolve a tag ref (lightweight or annotated) to its commit SHA.
+#
+# Arguments:
+#   $1 - Repository (owner/repo)
+#   $2 - Tag name (e.g. v6)
+#
+# Output:
+#   40-hex commit SHA on stdout; empty on failure.
+#
+# Returns:
+#   0 - resolved as a tag
+#   1 - ref is not a known tag
+_resolve_as_tag() {
+  local repo="${1}" ref="${2}"
+  local json obj_type obj_sha
+  json="$(gh_api "/repos/${repo}/git/ref/tags/${ref}")"
+  [[ -z "${json}" ]] && return 1
+
+  obj_type="$(jq -r '.object.type // empty' <<< "${json}")"
+  obj_sha="$(jq -r '.object.sha // empty' <<< "${json}")"
+  [[ -z "${obj_type}" || -z "${obj_sha}" ]] && return 1
+
+  if [[ "${obj_type}" == "commit" ]]; then
+    echo "${obj_sha}"
+    return 0
+  fi
+  if [[ "${obj_type}" == "tag" ]]; then
+    # Annotated tag — dereference the tag object to its commit.
+    local tag_obj_json commit_sha
+    tag_obj_json="$(gh_api "/repos/${repo}/git/tags/${obj_sha}")"
+    [[ -z "${tag_obj_json}" ]] && return 1
+    commit_sha="$(jq -r '.object.sha // empty' <<< "${tag_obj_json}")"
+    [[ -z "${commit_sha}" ]] && return 1
+    echo "${commit_sha}"
+    return 0
+  fi
+  return 1
+}
+
 # Resolve a ref (tag or branch) to its commit SHA, classifying the ref
 # by which GitHub endpoint answered. Tags are probed first to match the
 # Dependabot convention of `owner/repo@<sha> # <ref>` where <ref> is
-# usually a tag; branch references fall back to /git/ref/heads.
+# usually a tag; branch references fall back to /git/ref/heads via
+# head_sha.
 #
 # Arguments:
 #   $1 - Repository (owner/repo)
@@ -109,43 +149,15 @@ gh_api() {
 #   0 - resolved as a tag or a branch
 #   1 - ref is neither a known tag nor a known branch
 resolve_ref() {
-  local repo="${1}" ref="${2}"
-
-  # Tag first (lightweight + annotated).
-  local tag_json
-  tag_json="$(gh_api "/repos/${repo}/git/ref/tags/${ref}")"
-  if [[ -n "${tag_json}" ]]; then
-    local obj_type obj_sha
-    obj_type="$(echo "${tag_json}" | jq -r '.object.type // empty')"
-    obj_sha="$(echo "${tag_json}" | jq -r '.object.sha // empty')"
-    if [[ "${obj_type}" == "commit" && -n "${obj_sha}" ]]; then
-      printf '%s\ttag\n' "${obj_sha}"
-      return 0
-    fi
-    if [[ "${obj_type}" == "tag" && -n "${obj_sha}" ]]; then
-      local tag_obj_json commit_sha
-      tag_obj_json="$(gh_api "/repos/${repo}/git/tags/${obj_sha}")"
-      if [[ -n "${tag_obj_json}" ]]; then
-        commit_sha="$(echo "${tag_obj_json}" | jq -r '.object.sha // empty')"
-        if [[ -n "${commit_sha}" ]]; then
-          printf '%s\ttag\n' "${commit_sha}"
-          return 0
-        fi
-      fi
-    fi
+  local repo="${1}" ref="${2}" sha
+  if sha="$(_resolve_as_tag "${repo}" "${ref}")"; then
+    printf '%s\ttag\n' "${sha}"
+    return 0
   fi
-
-  # Branch fallback.
-  local branch_json branch_sha
-  branch_json="$(gh_api "/repos/${repo}/git/ref/heads/${ref}")"
-  if [[ -n "${branch_json}" ]]; then
-    branch_sha="$(echo "${branch_json}" | jq -r '.object.sha // empty')"
-    if [[ -n "${branch_sha}" ]]; then
-      printf '%s\tbranch\n' "${branch_sha}"
-      return 0
-    fi
+  if sha="$(head_sha "${repo}" "${ref}")"; then
+    printf '%s\tbranch\n' "${sha}"
+    return 0
   fi
-
   return 1
 }
 
@@ -325,12 +337,34 @@ head_sha() {
 
 # ── subcommands ──────────────────────────────────────────────────────
 
+# Emit a single line of `check` output.
+#
+# Arguments:
+#   $1 - level: "OK", "FAIL", or "WARN"
+#   $2 - file basename
+#   $3 - action (owner/repo)
+#   $4 - pinned SHA (truncated to 12 chars for display)
+#   $5 - detail tail (everything after the SHA prefix)
+#
+# Format (level is padded to a 4-char column):
+#   <level> <basename>: <action>@<sha:0:12>... <detail>
+_emit_check() {
+  printf '%-4s %s: %s@%s... %s\n' \
+    "${1}" "${2}" "${3}" "${4:0:12}" "${5}"
+}
+
 # Verify SHA pins in the given workflow files.
 #
-# Emits one line per unique (action, tag) pair:
-#   OK    matches
-#   FAIL  pin does not match the tag's resolved SHA
-#   WARN  ref could not be resolved
+# Only SHA pins with an explicit `# <ref>` comment are validated — the
+# comment is the ref hint resolve_ref consults. Floating pins
+# (kind=ref) and SHA pins without a comment are skipped, consistent
+# with the tool's original contract.
+#
+# Emits one line per unique (action, ref) pair:
+#   OK    pinned SHA matches the resolved ref
+#   FAIL  tag ref resolves to a different SHA (hard failure)
+#   WARN  branch ref has drifted, or ref could not be resolved at all
+#         (informational — never counted as a failure)
 #
 # Arguments:
 #   $@ - One or more workflow file paths
@@ -346,8 +380,8 @@ cmd_check() {
   local -A resolve_cache=()
   local -A compare_cache=()
   local -A seen_in_file=()
-  local file basename line
-  local action pinned_sha claimed_ref cache_key cached resolved kind
+  local file basename line parsed
+  local action ref kind comment cache_key cached resolved resolved_kind
   local compare_key behind
 
   for file in "${@}"; do
@@ -355,67 +389,74 @@ cmd_check() {
       echo "WARN: ${file} not found, skipping"
       continue
     fi
-
     basename="${file##*/}"
     seen_in_file=()
 
     while IFS= read -r line; do
-      if [[ "${line}" =~ uses:[[:space:]]*([^@]+)@([0-9a-f]{40})[[:space:]]*#[[:space:]]*([^[:space:]]+) ]]; then
-        action="${BASH_REMATCH[1]}"
-        pinned_sha="${BASH_REMATCH[2]}"
-        claimed_ref="${BASH_REMATCH[3]}"
-        found_pins=1
-
-        cache_key="${action}#${claimed_ref}"
-
-        if [[ -n "${seen_in_file[${cache_key}]+x}" ]]; then
-          continue
-        fi
-        seen_in_file["${cache_key}"]=1
-
-        if [[ -z "${resolve_cache[${cache_key}]+x}" ]]; then
-          if cached="$(resolve_ref "${action}" "${claimed_ref}")"; then
-            resolve_cache["${cache_key}"]="${cached}"
-          else
-            resolve_cache["${cache_key}"]="NONE"
-          fi
-        fi
-
-        cached="${resolve_cache[${cache_key}]}"
-
-        if [[ "${cached}" == "NONE" ]]; then
-          echo "WARN ${basename}: ${action}@${pinned_sha:0:12}... — could not resolve ref ${claimed_ref}"
-          continue
-        fi
-
-        resolved="${cached%%$'\t'*}"
-        kind="${cached#*$'\t'}"
-
-        if [[ "${pinned_sha}" == "${resolved}" ]]; then
-          echo "OK   ${basename}: ${action}@${pinned_sha:0:12}... matches ${claimed_ref}"
-          continue
-        fi
-
-        if [[ "${kind}" == "branch" ]]; then
-          compare_key="${action}#${pinned_sha}#${resolved}"
-          if [[ -z "${compare_cache[${compare_key}]+x}" ]]; then
-            behind="$(compare_behind "${action}" "${pinned_sha}" "${resolved}" || true)"
-            compare_cache["${compare_key}"]="${behind}"
-          fi
-          behind="${compare_cache[${compare_key}]}"
-
-          if [[ -n "${behind}" && "${behind}" -gt 0 ]]; then
-            echo "WARN ${basename}: ${action}@${pinned_sha:0:12}... is ${behind} commit(s) behind ${claimed_ref} HEAD (at ${resolved:0:12}...)"
-          else
-            echo "WARN ${basename}: ${action}@${pinned_sha:0:12}... diverges from ${claimed_ref} HEAD (at ${resolved:0:12}...)"
-          fi
-          continue
-        fi
-
-        # Tag kind — mismatch is a hard failure.
-        echo "FAIL ${basename}: ${action}@${pinned_sha:0:12}... does NOT match ${claimed_ref} (expected ${resolved:0:12}...)"
-        failures=$((failures + 1))
+      if ! parsed="$(parse_uses_line "${line}")"; then
+        continue
       fi
+      IFS=$'\t' read -r action ref kind comment <<< "${parsed}"
+
+      # Only SHA pins with a ref comment are in scope for `check`;
+      # floating refs (@main) and bare SHA pins have nothing to
+      # compare against.
+      if [[ "${kind}" != "sha" || -z "${comment}" ]]; then
+        continue
+      fi
+      found_pins=1
+
+      cache_key="${action}#${comment}"
+      if [[ -n "${seen_in_file[${cache_key}]+x}" ]]; then
+        continue
+      fi
+      seen_in_file["${cache_key}"]=1
+
+      if [[ -z "${resolve_cache[${cache_key}]+x}" ]]; then
+        if cached="$(resolve_ref "${action}" "${comment}")"; then
+          resolve_cache["${cache_key}"]="${cached}"
+        else
+          resolve_cache["${cache_key}"]="NONE"
+        fi
+      fi
+      cached="${resolve_cache[${cache_key}]}"
+
+      if [[ "${cached}" == "NONE" ]]; then
+        _emit_check WARN "${basename}" "${action}" "${ref}" \
+          "— could not resolve ref ${comment}"
+        continue
+      fi
+
+      resolved="${cached%%$'\t'*}"
+      resolved_kind="${cached#*$'\t'}"
+
+      if [[ "${ref}" == "${resolved}" ]]; then
+        _emit_check OK "${basename}" "${action}" "${ref}" "matches ${comment}"
+        continue
+      fi
+
+      if [[ "${resolved_kind}" == "branch" ]]; then
+        compare_key="${action}#${ref}#${resolved}"
+        if [[ -z "${compare_cache[${compare_key}]+x}" ]]; then
+          behind="$(compare_behind "${action}" "${ref}" "${resolved}" || true)"
+          compare_cache["${compare_key}"]="${behind}"
+        fi
+        behind="${compare_cache[${compare_key}]}"
+
+        if [[ -n "${behind}" && "${behind}" -gt 0 ]]; then
+          _emit_check WARN "${basename}" "${action}" "${ref}" \
+            "is ${behind} commit(s) behind ${comment} HEAD (at ${resolved:0:12}...)"
+        else
+          _emit_check WARN "${basename}" "${action}" "${ref}" \
+            "diverges from ${comment} HEAD (at ${resolved:0:12}...)"
+        fi
+        continue
+      fi
+
+      # Tag kind — mismatch is a hard failure.
+      _emit_check FAIL "${basename}" "${action}" "${ref}" \
+        "does NOT match ${comment} (expected ${resolved:0:12}...)"
+      failures=$((failures + 1))
     done < "${file}"
   done
 
