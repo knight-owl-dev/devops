@@ -302,6 +302,12 @@ _once_per_run() {
 parse_uses_line() {
   local line="${1}"
   local action ref comment kind
+  # Skip YAML comment lines — anything whose first non-whitespace
+  # character is `#`. Without this, a commented-out `uses:` block
+  # would be parsed as a live pin.
+  if [[ "${line}" =~ ^[[:space:]]*# ]]; then
+    return 1
+  fi
   if ! [[ "${line}" =~ uses:[[:space:]]*([^@[:space:]]+)@([^[:space:]#]+)[[:space:]]*(#[[:space:]]*([^[:space:]]+))? ]]; then
     return 1
   fi

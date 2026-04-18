@@ -237,6 +237,28 @@ setup() {
   assert_failure
 }
 
+@test "parse_uses_line skips YAML comment lines" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run parse_uses_line "# - uses: foo/bar@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v1"
+  assert_failure
+  run parse_uses_line "      # - uses: foo/bar@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v1"
+  assert_failure
+  # A real use line with an inline trailing `# comment` is still parsed.
+  run parse_uses_line "      - uses: foo/bar@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v1"
+  assert_success
+}
+
+@test "check ignores a commented-out uses: pin" {
+  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/commented-uses.yml"
+  assert_success
+  # Only the live line is validated; the commented one isn't.
+  local ok_count
+  ok_count="$(grep -c '^OK ' <<< "${output}" || true)"
+  assert_equal "${ok_count}" "1"
+  refute_output --partial "bbbbbbbbbbbb"
+}
+
 # ── connectivity probe ──────────────────────────────────────────────
 
 @test "preflight warns when rate-limit remaining is tight" {
