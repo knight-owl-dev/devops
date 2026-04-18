@@ -45,6 +45,26 @@ JSON
   assert_output --partial "set GITHUB_TOKEN"
 }
 
+@test "preflight skips work entirely when rate limit is exhausted" {
+  # With remaining=0 every subsequent API call would 403 silently and
+  # surface as "could not resolve" — which misleads operators about the
+  # real cause. Preflight should stop cleanly with a single clear
+  # message instead of spamming per-pin WARNs.
+  mkdir -p "${BATS_TEST_TMPDIR}/api-zero"
+  cat > "${BATS_TEST_TMPDIR}/api-zero/rate_limit" << 'JSON'
+{ "resources": { "core": { "limit": 60, "remaining": 0, "reset": 0 } } }
+JSON
+  VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY='' \
+    GITHUB_API_BASE="file://${BATS_TEST_TMPDIR}/api-zero" \
+    run "${SCRIPT}" "${FIXTURES_DIR}/workflows/tag-ok.yml"
+  assert_success
+  assert_output --partial "rate limit exhausted"
+  assert_output --partial "skipping pin validation"
+  # Confirm the main loop didn't run — no per-pin output.
+  refute_output --partial "could not resolve"
+  refute_output --partial "OK "
+}
+
 # ── verbose escape hatch ────────────────────────────────────────────
 
 @test "VALIDATE_ACTION_PINS_VERBOSE surfaces curl stderr" {

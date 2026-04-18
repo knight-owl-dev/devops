@@ -117,11 +117,14 @@ man:
 test-package:
 	@./tests/deb/test-all.sh
 
-# Run BATS tests inside the ci-tools image.
+# Run BATS tests. BATS_RUNNER defaults to running inside the ci-tools
+# container via `docker run`, so `make test-bats` works from a stock
+# macOS host without needing bats installed. CI (already inside the
+# container) overrides with `BATS_RUNNER=bats` to avoid
+# docker-in-docker.
+BATS_RUNNER ?= docker run --rm $(DOCKER_TTY) -v $(CURDIR):/work -w /work $(IMAGE_TAG) bats
 test-bats:
-	@docker run --rm $(DOCKER_TTY) \
-		-v $(CURDIR):/work -w /work \
-		$(IMAGE_TAG) bats -r tests/bats/
+	@$(BATS_RUNNER) -r tests/bats/
 
 # Remove local image
 clean:

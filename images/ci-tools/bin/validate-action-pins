@@ -422,13 +422,22 @@ check_api_preflight() {
     esac
   fi
 
-  # Surface a tight rate-limit budget so operators know to authenticate
-  # before a long sweep. Non-fatal — we still proceed.
+  # Rate-limit awareness. Zero budget is a full skip — every subsequent
+  # API call would 403 silently and surface as "could not resolve",
+  # which misleads operators about the real cause. Low-but-nonzero is
+  # a WARN only, so a short sweep can still finish.
   local remaining
   remaining="$(jq -r '.resources.core.remaining // empty' < "${body_file}" 2> "${_CURL_ERRFD}" || true)"
   rm -f "${body_file}"
-  if [[ -n "${remaining}" && "${remaining}" -lt 20 ]]; then
-    echo "WARN: GitHub API rate limit is low (${remaining} remaining); set GITHUB_TOKEN if ${op} stalls mid-run"
+  if [[ -n "${remaining}" ]]; then
+    if [[ "${remaining}" -le 0 ]]; then
+      echo "WARN: GitHub API rate limit exhausted — skipping ${op}"
+      echo "      set GITHUB_TOKEN to raise the limit from 60 to 5,000 per hour"
+      return 1
+    fi
+    if [[ "${remaining}" -lt 20 ]]; then
+      echo "WARN: GitHub API rate limit is low (${remaining} remaining); set GITHUB_TOKEN if ${op} stalls mid-run"
+    fi
   fi
   return 0
 }

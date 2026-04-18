@@ -17,6 +17,20 @@ jobs:
       - name: Lint
         run: make lint
 
+  bats:
+    name: BATS
+    runs-on: ubuntu-latest
+    container: ghcr.io/knight-owl-dev/ci-tools:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # The default BATS_RUNNER docker-runs the ci-tools image for local
+      # macOS users who may not have bats installed. In CI we're already
+      # inside that image, so override to run bats directly.
+      - name: Run BATS tests
+        run: make test-bats BATS_RUNNER=bats
+
   # Builds run on ubuntu-latest (x86_64) for both architectures. The tools
   # are bash scripts, so nfpm produces valid debs regardless of host arch.
   # Architecture-specific testing happens in test-deb using native runners.
