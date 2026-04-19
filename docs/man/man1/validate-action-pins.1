@@ -1,4 +1,4 @@
-.Dd February 15, 2026
+.Dd April 18, 2026
 .Dt VALIDATE-ACTION-PINS 1
 .Os
 .Sh NAME
@@ -58,8 +58,25 @@ Output lines are prefixed with the workflow filename:
 .Dl WARN \ ci.yml: org/action@de0fac2e4500... diverges from main HEAD (at abc123456789...)
 .Dl WARN \ ci.yml: org/action@de0fac2e4500... \(em could not resolve ref v6
 .Pp
-If the API is unreachable or a required dependency is missing, the check
-is skipped and the tool exits successfully.
+Validation is skipped with a clear WARN and the tool exits
+successfully if any of these conditions hold: a required dependency
+is missing
+.Po
+.Xr curl 1
+or
+.Xr jq 1
+.Pc ,
+the API host is unreachable, authentication is rejected
+.Pq HTTP 401 or 403 ,
+the secondary rate limit is hit
+.Pq HTTP 429 ,
+the primary rate limit is exhausted
+.Pq remaining == 0 ,
+or an unexpected HTTP status comes back.
+Each cause names itself in the WARN so the operator can act on it.
+Set
+.Ev VALIDATE_ACTION_PINS_VERBOSE
+to surface curl's stderr when the cause is not obvious.
 .Sh SUBCOMMANDS
 The subcommand word may appear anywhere among the positional
 arguments \(em before, between, or after files and flags \(em and
@@ -69,12 +86,17 @@ Use
 to disambiguate a workflow file whose name happens to match a
 subcommand.
 .Bl -tag -width indent
-.It Cm check Ar file ...
+.It Cm check Oo Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch Oc Ar file ...
 Verify SHA pins in the given workflow files.
 This is the default when no subcommand is given; bare
 .Ic validate-action-pins Ar file ...
 is equivalent to
 .Ic validate-action-pins check Ar file ... .
+Only SHA pins with an explicit
+.Ic "# <ref>"
+comment are validated; floating refs
+.Pq e.g. Ic @main
+and bare SHA pins with no comment are skipped.
 .It Cm list Oo Fl -format Ar plain Ns | Ns Ar tsv Oc Oo Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch Oc Ar file ...
 Print every
 .Ic uses:\&
@@ -109,7 +131,7 @@ Actions pinned to a
 scheme or a local
 .Ic ./
 path are skipped.
-.It Cm updates Oo Fl -format Ar plain Ns | Ns Ar tsv Oc Ar file ...
+.It Cm updates Oo Fl -format Ar plain Ns | Ns Ar tsv Oc Oo Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch Oc Ar file ...
 Report upgrade inventory for each unique pin.
 For tag pins, every tag strictly newer than the current ref is listed
 \(em across both minor and major bumps, since Dependabot does not open
@@ -124,6 +146,11 @@ Plain output:
 .Dl <basename>: <action>  current=<ref>  [up-to-date]  (<kind>)
 .Dl <basename>: <action>  current=<ref>  newer=<t1> <t2> ...  (tag)
 .Dl <basename>: <action>  current=<ref>  head=<short-sha>  (branch)
+.Dl <basename>: <action>  current=<ref>  [unknown]
+.Pp
+The final shape is emitted when a SHA pin carries no trailing
+.Ic "# <ref>"
+comment, so there's no hint to classify against.
 .Pp
 TSV output (five columns, no header):
 .Dl <file>\etab<action>\etab<ref>\etab<available>\etab<kind>
@@ -197,6 +224,11 @@ Print the program name and version, then exit.
 Optional GitHub personal access token or fine-grained token.
 When set, API requests use the token for authentication, raising the
 rate limit from 60 to 5\|000 requests per hour.
+.It Ev VALIDATE_ACTION_PINS_VERBOSE
+When set to any non-empty value, passes curl's stderr through
+instead of silencing it.
+Useful for diagnosing transport errors, HTTP status bodies, or
+authentication failures in CI logs.
 .El
 .Sh EXIT STATUS
 .Bl -tag -width indent
