@@ -9,6 +9,8 @@ set -euo pipefail
 #
 # Usage:
 #   validate-action-pins .github/workflows/*.yml
+#   validate-action-pins check .github/workflows/*.yml
+#   validate-action-pins list [--format=plain|tsv] .github/workflows/*.yml
 #   validate-action-pins --help
 #   validate-action-pins --version
 #
@@ -16,78 +18,109 @@ set -euo pipefail
 #   curl, jq — if either is missing the script warns and exits 0
 #
 # Environment:
-#   GITHUB_TOKEN - (Optional) GitHub token for higher API rate limits
-#                  (60 req/hr unauthenticated → 5000 req/hr with token)
+#   GITHUB_TOKEN                          - (Optional) GitHub token for higher
+#                                           API rate limits (60 req/hr
+#                                           unauthenticated → 5000 req/hr with
+#                                           token)
+#   GITHUB_API_BASE                       - (Optional) Override API base URL.
+#                                           Defaults to https://api.github.com.
+#                                           Tests point this at file:// fixtures.
+#   VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY - (Optional) If set, skip the
+#                                           /rate_limit probe. For tests.
+#   VALIDATE_ACTION_PINS_VERBOSE          - (Optional) If set, pass curl
+#                                           stderr through instead of
+#                                           silencing it. Useful for
+#                                           diagnosing 4xx/5xx or DNS
+#                                           issues in CI.
 #
 # Exit codes:
 #   0 - All pins match, no pins found, or validation skipped (missing
 #       dependencies or unreachable GitHub API)
 #   1 - One or more pins do not match their claimed tag, or no files
 #       provided
+#   2 - Usage error (unknown flag)
 
 readonly PROGRAM="validate-action-pins"
 readonly VERSION="${VALIDATE_ACTION_PINS_VERSION:-unknown}"
+
+: "${GITHUB_API_BASE:=https://api.github.com}"
+
+# Destination for curl's stderr. Silent by default so CI logs stay
+# clean; set VALIDATE_ACTION_PINS_VERBOSE=1 to surface transport /
+# HTTP errors during diagnosis.
+_CURL_ERRFD="/dev/null"
+if [[ -n "${VALIDATE_ACTION_PINS_VERBOSE:-}" ]]; then
+  _CURL_ERRFD="/dev/stderr"
+fi
+readonly _CURL_ERRFD
+
+# curl flags used by gh_api. Retries cover transient 5xx / DNS
+# blips; --fail converts HTTP 4xx/5xx into nonzero exit so callers
+# don't mistake an error body for a valid response; --max-time caps
+# any single attempt so a stalled connection can't compound across
+# retries. `file://` URLs silently ignore --retry and --max-time.
+readonly _CURL_FLAGS=(-fsSL --retry 3 --retry-delay 2 --max-time 10)
+
+# Curl flags used by the preflight rate_limit probe. Same retry +
+# max-time policy as gh_api, but without --fail because the probe
+# inspects the HTTP status code itself (401/403/429/etc.) and needs
+# a body even on error.
+readonly _CURL_PROBE_FLAGS=(-sS --retry 3 --retry-delay 2 --max-time 10)
+
+# Accepted "semver-like" tag shape, shared by the bash classifier
+# and the jq tag filter. Matches:
+#   v1, v1.2, v1.2.3, and the same without the leading v.
+# Missing minor/patch components are treated as zero in comparisons
+# (see list_newer_tags). Pre-release and non-numeric suffixes are
+# intentionally excluded — users pinning to v1.0.0-rc1 or nightly
+# don't want those reported as upgrade targets.
+readonly _SEMVER_RE='^v?[0-9]+(\.[0-9]+){0,2}$'
 
 # ── usage / version ──────────────────────────────────────────────────
 
 usage() {
   cat << 'USAGE'
-Usage: validate-action-pins [OPTIONS] FILE...
+Usage: validate-action-pins [OPTIONS] [SUBCOMMAND] FILE...
 
-Verify that GitHub Actions SHA pins match their claimed tags.
+Verify, inventory, or report on GitHub Actions pins in workflow files.
 
-Scans workflow files for lines like:
-  uses: actions/checkout@de0fac2e... # v6
-and checks that the pinned SHA resolves to the stated tag via the GitHub API.
+Subcommands:
+  check     Verify SHA pins against their claimed tags via the GitHub API.
+            This is the default when no subcommand is given.
+  list      Print every `uses:` pin found in the files. No API calls.
+  updates   Report available upgrades for each unique pin. Honours
+            GITHUB_TOKEN for higher rate limits (effectively required).
 
 Options:
-  --help       Show this help message and exit
-  --version    Print the version and exit
+  --format=plain|tsv   Output format for `list` and `updates` (default: plain)
+  --only=all|tag|branch
+                       Restrict output to a single classified kind. Default:
+                       all. `check` uses the authoritative kind from
+                       resolve_ref; `updates` uses the routing kind. `list`
+                       is offline when --only=all (default) and taps the
+                       GitHub API for authoritative classification when
+                       --only=tag or --only=branch.
+  --help               Show this help message and exit
+  --version            Print the version and exit
 
 Environment:
   GITHUB_TOKEN   Optional token for higher API rate limits
 USAGE
 }
 
-if [[ $# -eq 0 ]]; then
-  usage >&2
-  exit 1
-fi
-
-for arg in "${@}"; do
-  case "${arg}" in
-    --help)
-      usage
-      exit 0
-      ;;
-    --version)
-      echo "${PROGRAM} ${VERSION}"
-      exit 0
-      ;;
-    --) break ;;
-    *) ;;
-  esac
-done
-
-# ── dependency check ──────────────────────────────────────────────────
-
-for cmd in curl jq; do
-  if ! command -v "${cmd}" > /dev/null 2>&1; then
-    echo "WARN: ${cmd} not found — skipping pin validation"
-    exit 0
-  fi
-done
-
 # ── helpers ──────────────────────────────────────────────────────────
 
-FAILURES=0
-
-declare -A RESOLVE_CACHE  # "owner/repo#tag" → SHA on success, "!" on failure
-
+# Auth header array, populated by init_auth_header. Empty by default so the
+# module is safe to source without side effects on $GITHUB_TOKEN.
 auth_header=()
-if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-  auth_header=(-H "Authorization: token ${GITHUB_TOKEN}")
-fi
+
+# Populate auth_header from GITHUB_TOKEN if set. Safe to call multiple times.
+init_auth_header() {
+  auth_header=()
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    auth_header=(-H "Authorization: token ${GITHUB_TOKEN}")
+  fi
+}
 
 # GitHub API GET with optional auth and error handling.
 #
@@ -95,131 +128,985 @@ fi
 #   $1 - API URL path (e.g. /repos/owner/repo/git/ref/tags/v1)
 #
 # Outputs:
-#   JSON response on stdout, or empty string on failure
+#   JSON response on stdout, or empty string on failure.
+#
+# Transport errors (DNS, refused, 5xx) are retried up to 3 times via
+# curl --retry. Set VALIDATE_ACTION_PINS_VERBOSE=1 to see curl's
+# stderr when diagnosing auth or network issues.
 gh_api() {
-  local url="https://api.github.com${1}"
-  curl -fsSL "${auth_header[@]+"${auth_header[@]}"}" \
+  local url="${GITHUB_API_BASE}${1}"
+  curl "${_CURL_FLAGS[@]}" "${auth_header[@]+"${auth_header[@]}"}" \
     -H "Accept: application/vnd.github+json" \
-    "${url}" 2> /dev/null || true
+    "${url}" 2> "${_CURL_ERRFD}" || true
 }
 
-# Resolve a tag to its commit SHA, handling both lightweight and annotated tags.
+# Resolve a tag ref (lightweight or annotated) to its commit SHA.
 #
 # Arguments:
 #   $1 - Repository (owner/repo)
 #   $2 - Tag name (e.g. v6)
 #
-# Outputs:
-#   40-character commit SHA, or empty string on failure
-resolve_tag() {
-  local repo="${1}" tag="${2}"
+# Output:
+#   40-hex commit SHA on stdout; empty on failure.
+#
+# Returns:
+#   0 - resolved as a tag
+#   1 - ref is not a known tag
+_resolve_as_tag() {
+  local repo="${1}" ref="${2}"
+  local json obj_type obj_sha
+  json="$(gh_api "/repos/${repo}/git/ref/tags/${ref}")"
+  [[ -z "${json}" ]] && return 1
 
-  local ref_json
-  ref_json="$(gh_api "/repos/${repo}/git/ref/tags/${tag}")"
-  if [[ -z "${ref_json}" ]]; then
-    return 1
-  fi
-
-  local obj_type obj_sha
-  obj_type="$(echo "${ref_json}" | jq -r '.object.type // empty')"
-  obj_sha="$(echo "${ref_json}" | jq -r '.object.sha // empty')"
-
-  if [[ -z "${obj_type}" || -z "${obj_sha}" ]]; then
-    return 1
-  fi
+  obj_type="$(jq -r '.object.type // empty' <<< "${json}")"
+  obj_sha="$(jq -r '.object.sha // empty' <<< "${json}")"
+  [[ -z "${obj_type}" || -z "${obj_sha}" ]] && return 1
 
   if [[ "${obj_type}" == "commit" ]]; then
     echo "${obj_sha}"
     return 0
   fi
-
-  # Annotated tag — dereference to the commit.
   if [[ "${obj_type}" == "tag" ]]; then
-    local tag_json
-    tag_json="$(gh_api "/repos/${repo}/git/tags/${obj_sha}")"
-    if [[ -z "${tag_json}" ]]; then
-      return 1
-    fi
-    local commit_sha
-    commit_sha="$(echo "${tag_json}" | jq -r '.object.sha // empty')"
-    if [[ -n "${commit_sha}" ]]; then
-      echo "${commit_sha}"
-      return 0
-    fi
+    # Annotated tag — dereference the tag object to its commit.
+    local tag_obj_json commit_sha
+    tag_obj_json="$(gh_api "/repos/${repo}/git/tags/${obj_sha}")"
+    [[ -z "${tag_obj_json}" ]] && return 1
+    commit_sha="$(jq -r '.object.sha // empty' <<< "${tag_obj_json}")"
+    [[ -z "${commit_sha}" ]] && return 1
+    echo "${commit_sha}"
+    return 0
   fi
-
   return 1
 }
 
-# ── connectivity check ───────────────────────────────────────────────
+# Resolve a ref (tag or branch) to its commit SHA, classifying the ref
+# by which GitHub endpoint answered. Tags are probed first to match the
+# Dependabot convention of `owner/repo@<sha> # <ref>` where <ref> is
+# usually a tag; branch references fall back to /git/ref/heads via
+# head_sha.
+#
+# Arguments:
+#   $1 - Repository (owner/repo)
+#   $2 - Ref name (e.g. v6, main)
+#
+# Output (on success, tab-separated, single line):
+#   <40-hex-commit-sha>\t<tag|branch>
+#
+# Returns:
+#   0 - resolved as a tag or a branch
+#   1 - ref is neither a known tag nor a known branch
+resolve_ref() {
+  local repo="${1}" ref="${2}" sha
+  if sha="$(_resolve_as_tag "${repo}" "${ref}")"; then
+    printf '%s\ttag\n' "${sha}"
+    return 0
+  fi
+  if sha="$(head_sha "${repo}" "${ref}")"; then
+    printf '%s\tbranch\n' "${sha}"
+    return 0
+  fi
+  return 1
+}
 
-if ! curl -fsSL "${auth_header[@]+"${auth_header[@]}"}" \
-  -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/rate_limit" > /dev/null 2>&1; then
-  echo "WARN: cannot reach GitHub API — skipping pin validation"
-  exit 0
-fi
+# Count how many commits $base is behind $head using the GitHub compare API.
+#
+# Arguments:
+#   $1 - Repository (owner/repo)
+#   $2 - Base SHA (the pinned commit)
+#   $3 - Head SHA (the current branch HEAD)
+#
+# Output:
+#   Integer on success (0 if the two SHAs are on diverged history); empty
+#   on API failure.
+#
+# Returns:
+#   0 on success, 1 on API failure
+compare_behind() {
+  local repo="${1}" base="${2}" head="${3}"
+  local json
+  json="$(gh_api "/repos/${repo}/compare/${base}...${head}")"
+  if [[ -z "${json}" ]]; then
+    return 1
+  fi
+  jq -r '.behind_by // empty' <<< "${json}"
+}
 
-# ── scan and validate ────────────────────────────────────────────────
+# Return the "effective" ref for a parsed pin — the Dependabot-style
+# ref hint a caller should resolve against.
+#
+# Arguments:
+#   $1 - kind (from parse_uses_line): "sha" or "ref"
+#   $2 - ref (the @<x> portion)
+#   $3 - comment (the first word after `#`, may be empty)
+#
+# Output:
+#   For SHA pins, the comment (empty if absent — caller decides how to
+#   treat that). For floating refs (kind=ref), the ref itself.
+_effective_ref() {
+  if [[ "${1}" == "sha" ]]; then
+    echo "${3}"
+  else
+    echo "${2}"
+  fi
+}
 
-FOUND_PINS=0
+# Decide whether a pin should be included given the --only filter.
+#
+# Arguments:
+#   $1 - filter value: "all", "tag", or "branch" (validated by main)
+#   $2 - the pin's classified kind: "tag", "branch", or "unknown"
+#        (unknown is emitted by callers for refs that could not be
+#        classified authoritatively)
+#
+# Returns:
+#   0 - pin matches the filter (include)
+#   1 - pin is filtered out (skip)
+_include_pin() {
+  [[ "${1}" == "all" || "${1}" == "${2}" ]]
+}
 
-for file in "${@}"; do
-  [[ "${file}" == --* ]] && continue
-  if [[ ! -f "${file}" ]]; then
-    echo "WARN: ${file} not found, skipping"
-    continue
+# Module-scope dedup sets, one per scope boundary that the
+# subcommands care about. The arrays are reset at their respective
+# boundaries (per-file loop in cmd_check, per-invocation entry in
+# cmd_updates) so sourced tests that call a subcommand twice start
+# from a clean state.
+#
+# Scope conventions:
+#   seen_in_file - cmd_check resets inside the per-file loop; one
+#                  OK/FAIL/WARN line per unique pin per file.
+#   seen_in_run  - cmd_updates resets on entry; one record per
+#                  unique pin across the whole invocation.
+#   (cmd_list uses no dedup — every occurrence is listed.)
+declare -A seen_in_file=()
+declare -A seen_in_run=()
+
+# First-occurrence gates. Return 0 the first time a key is seen in
+# the corresponding scope, 1 thereafter. Callers idiomatically chain
+# as `_once_per_X "${key}" || continue`.
+_once_per_file() {
+  [[ -n "${seen_in_file[${1}]+x}" ]] && return 1
+  seen_in_file["${1}"]=1
+  return 0
+}
+_once_per_run() {
+  [[ -n "${seen_in_run[${1}]+x}" ]] && return 1
+  seen_in_run["${1}"]=1
+  return 0
+}
+
+# Parse a single `uses:` line into its component fields.
+#
+# Arguments:
+#   $1 - A line of text
+#
+# Output (on success, tab-separated, single line):
+#   <action>\t<ref>\t<kind>\t<comment>
+#   kind is "sha" if the ref is a 40-hex SHA, "ref" otherwise
+#   comment is the first word after "#" (may be empty)
+#
+# Returns:
+#   0 - parsed a remote action pin
+#   1 - line did not contain a pin (skipped), or action is local/docker
+parse_uses_line() {
+  local line="${1}"
+  local action ref comment kind
+  # Skip YAML comment lines — anything whose first non-whitespace
+  # character is `#`. Without this, a commented-out `uses:` block
+  # would be parsed as a live pin.
+  if [[ "${line}" =~ ^[[:space:]]*# ]]; then
+    return 1
+  fi
+  # Regex capture groups:
+  #   [1] action  — `owner/repo` before the `@`
+  #   [2] ref     — the `@<something>` portion (SHA or symbolic)
+  #   [3] — the full `# <word>` trailing-comment (unused; wrapper only)
+  #   [4] comment — the first word of the trailing comment, may be empty
+  if ! [[ "${line}" =~ uses:[[:space:]]*([^@[:space:]]+)@([^[:space:]#]+)[[:space:]]*(#[[:space:]]*([^[:space:]]+))? ]]; then
+    return 1
+  fi
+  action="${BASH_REMATCH[1]}"
+  ref="${BASH_REMATCH[2]}"
+  comment="${BASH_REMATCH[4]:-}"
+
+  # Skip anything that is not a remote owner/repo reference:
+  #   - no slash (malformed)
+  #   - scheme-prefixed (docker://alpine)
+  #   - local paths (./local-action)
+  if [[ "${action}" != */* || "${action}" == *://* || "${action}" == .* ]]; then
+    return 1
   fi
 
-  basename="${file##*/}"
-  declare -A seen_in_file=()
+  if [[ "${ref}" =~ ^[0-9a-f]{40}$ ]]; then
+    kind="sha"
+  else
+    kind="ref"
+  fi
 
-  # Match lines like: uses: owner/repo@<40-hex-sha> # <tag>
-  while IFS= read -r line; do
-    # Extract owner/repo, SHA, and tag from the uses line.
-    if [[ "${line}" =~ uses:[[:space:]]*([^@]+)@([0-9a-f]{40})[[:space:]]*#[[:space:]]*([^[:space:]]+) ]]; then
-      action="${BASH_REMATCH[1]}"
-      pinned_sha="${BASH_REMATCH[2]}"
-      claimed_tag="${BASH_REMATCH[3]}"
-      FOUND_PINS=1
+  # Defensive: strip tabs/newlines from fields for TSV safety.
+  action="${action//$'\t'/}"
+  ref="${ref//$'\t'/}"
+  comment="${comment//$'\t'/ }"
+  action="${action//$'\n'/}"
+  ref="${ref//$'\n'/}"
+  comment="${comment//$'\n'/ }"
 
-      cache_key="${action}#${claimed_tag}"
+  printf '%s\t%s\t%s\t%s\n' "${action}" "${ref}" "${kind}" "${comment}"
+}
 
-      # Skip duplicates within the same file.
-      if [[ -n "${seen_in_file[${cache_key}]+x}" ]]; then
+# Translate a preflight HTTP status code into a (warn, skip?) decision.
+# Extracted so each code path is test-covered without needing a fake
+# HTTP server — tests source the script and call this directly.
+#
+# Arguments:
+#   $1 - HTTP status code, or "000" for transport failure (no response)
+#   $2 - operation name used in the WARN message
+#
+# Output:
+#   WARN line(s) to stdout for every non-200 code
+#
+# Returns:
+#   0 - status is benign; caller may proceed
+#   1 - caller should skip its work
+_preflight_classify_status() {
+  case "${1}" in
+    200) return 0 ;;
+    401 | 403)
+      echo "WARN: GitHub API authentication failed (HTTP ${1}) — skipping ${2}"
+      echo "      check GITHUB_TOKEN; an unset or expired token produces this response"
+      return 1
+      ;;
+    429)
+      echo "WARN: GitHub API secondary rate limit hit (HTTP 429) — skipping ${2}"
+      echo "      slow down, set GITHUB_TOKEN, or retry after the Retry-After interval"
+      return 1
+      ;;
+    000)
+      echo "WARN: cannot reach GitHub API — skipping ${2}"
+      return 1
+      ;;
+    *)
+      echo "WARN: GitHub API returned unexpected HTTP ${1} — skipping ${2}"
+      return 1
+      ;;
+  esac
+}
+
+# Probe the rate_limit endpoint through file:// (test harness).
+# No HTTP status semantics — curl's exit code is the only signal.
+# On success the JSON body is written to $1 for the caller's
+# rate-limit-remaining check.
+#
+# Arguments:
+#   $1 - destination file for the response body
+#   $2 - operation name for the WARN message
+#
+# Returns:
+#   0 - body fetched; caller may proceed
+#   1 - curl failed (WARN emitted); caller should skip
+_preflight_probe_file() {
+  local body_file="${1}" op="${2}"
+  if ! curl "${_CURL_FLAGS[@]}" "${auth_header[@]+"${auth_header[@]}"}" \
+    -H "Accept: application/vnd.github+json" \
+    "${GITHUB_API_BASE}/rate_limit" > "${body_file}" 2> "${_CURL_ERRFD}"; then
+    echo "WARN: cannot reach GitHub API — skipping ${op}"
+    return 1
+  fi
+}
+
+# Probe the rate_limit endpoint via HTTP(s). Extracts the response
+# status code and routes it through _preflight_classify_status so
+# transport failure, auth rejection, secondary rate limit, and any
+# other unexpected response each get a distinct operator-facing
+# WARN. The body is written to $1 even on non-200 responses so the
+# caller can inspect it if the classifier says OK.
+#
+# Arguments:
+#   $1 - destination file for the response body
+#   $2 - operation name for the WARN message
+#
+# Returns:
+#   0 - HTTP 200; body in $1, caller may proceed
+#   1 - non-200 or transport failure (WARN emitted); caller skips
+_preflight_probe_http() {
+  local body_file="${1}" op="${2}"
+  local http_code
+  http_code="$(curl "${_CURL_PROBE_FLAGS[@]}" \
+    -o "${body_file}" -w '%{http_code}' \
+    "${auth_header[@]+"${auth_header[@]}"}" \
+    -H "Accept: application/vnd.github+json" \
+    "${GITHUB_API_BASE}/rate_limit" 2> "${_CURL_ERRFD}" \
+    || echo "000")"
+  _preflight_classify_status "${http_code}" "${op}"
+}
+
+# Preflight for API-dependent subcommands: dep check, auth init, and a
+# connectivity probe. Emits WARN and returns 1 when the caller should
+# gracefully skip its work.
+#
+# Distinguishes these failure modes so operators can act on the WARN:
+#   - missing curl or jq
+#   - cannot reach the API host (file:// read failure or HTTP "000")
+#   - authentication rejected (HTTP 401/403 — bad GITHUB_TOKEN)
+#   - secondary rate limit (HTTP 429)
+#   - unexpected HTTP status (generic fallback)
+#   - primary rate limit exhausted (remaining == 0)
+#
+# When the probe succeeds, also checks rate-limit remaining and emits
+# a WARN (still returning 0) if the budget looks tight.
+#
+# Arguments:
+#   $1 - operation name for the WARN message (default "pin validation")
+#
+# Returns:
+#   0 - curl, jq, and the API are available (subcommand may proceed)
+#   1 - a dependency, connectivity, auth, or budget problem (skip)
+check_api_preflight() {
+  local op="${1:-pin validation}"
+  local cmd
+  for cmd in curl jq; do
+    if ! command -v "${cmd}" > /dev/null 2>&1; then
+      echo "WARN: ${cmd} not found — skipping ${op}"
+      return 1
+    fi
+  done
+
+  init_auth_header
+
+  if [[ -n "${VALIDATE_ACTION_PINS_SKIP_CONNECTIVITY:-}" ]]; then
+    return 0
+  fi
+
+  local body_file
+  body_file="$(mktemp)"
+  # Single cleanup hook covers every return path below, including
+  # the ones yet to be added. RETURN trap fires when the function
+  # returns (any reason); the :- guards against body_file being
+  # unset if mktemp ever fails before assignment.
+  trap 'rm -f "${body_file:-}"' RETURN
+
+  if [[ "${GITHUB_API_BASE}" == file://* ]]; then
+    _preflight_probe_file "${body_file}" "${op}" || return 1
+  else
+    _preflight_probe_http "${body_file}" "${op}" || return 1
+  fi
+
+  # Rate-limit awareness. Zero budget is a full skip — every subsequent
+  # API call would 403 silently and surface as "could not resolve",
+  # which misleads operators about the real cause. Low-but-nonzero is
+  # a WARN only, so a short sweep can still finish.
+  local remaining
+  remaining="$(jq -r '.resources.core.remaining // empty' < "${body_file}" 2> "${_CURL_ERRFD}" || true)"
+  if [[ -n "${remaining}" ]]; then
+    if [[ "${remaining}" -le 0 ]]; then
+      echo "WARN: GitHub API rate limit exhausted — skipping ${op}"
+      echo "      set GITHUB_TOKEN to raise the limit from 60 to 5,000 per hour"
+      return 1
+    fi
+    if [[ "${remaining}" -lt 20 ]]; then
+      echo "WARN: GitHub API rate limit is low (${remaining} remaining); set GITHUB_TOKEN if ${op} stalls mid-run"
+    fi
+  fi
+  return 0
+}
+
+# List all tags strictly newer than $current, sorted ascending.
+#
+# Arguments:
+#   $1 - Repository (owner/repo)
+#   $2 - Current ref (e.g. v6.0.0, v6, 1.2.3); parsed as v?X[.Y[.Z]]
+#
+# Output:
+#   One tag name per line, oldest → newest; empty if none.
+#
+# Notes:
+#   - Accepts one-, two-, or three-part numeric tags with an optional
+#     v prefix (v6, v6.0, v6.0.2, 1.2.3). Missing components are
+#     treated as zero for comparison so v6 and v6.0.0 are equal.
+#   - Pre-release (-rc, -beta) and non-numeric tag names are skipped
+#     by default.
+#   - One page of /tags is consulted (30 tags). Repos with very many
+#     tags across majors may need pagination, which is not
+#     implemented in this iteration.
+list_newer_tags() {
+  local repo="${1}" current="${2}"
+  local json
+  json="$(gh_api "/repos/${repo}/tags")"
+  if [[ -z "${json}" ]]; then
+    return 1
+  fi
+  # Shared grammar with the bash classifier; passed as a jq --arg so
+  # the pattern lives in one place (_SEMVER_RE above).
+  jq -r --arg c "${current}" --arg re "${_SEMVER_RE}" '
+    def tok(s):
+      (s | sub("^v"; "") | split("."))
+      | [range(3) as $i | .[$i] // "0"]
+      | map(tonumber? // 0);
+
+    [ .[].name
+      | select(test($re))
+      | { name: ., key: tok(.) }
+    ] as $tags
+    | (tok($c)) as $ck
+    | $tags
+    | map(select(.key > $ck))
+    | sort_by(.key)
+    | .[].name
+  ' <<< "${json}"
+}
+
+# Return the current HEAD commit SHA of a branch.
+#
+# Arguments:
+#   $1 - Repository (owner/repo)
+#   $2 - Branch name
+#
+# Output:
+#   40-hex SHA on stdout, or empty on failure
+#
+# Returns:
+#   0 on success, 1 on API failure
+head_sha() {
+  local repo="${1}" branch="${2}"
+  local json sha
+  json="$(gh_api "/repos/${repo}/git/ref/heads/${branch}")"
+  if [[ -z "${json}" ]]; then
+    return 1
+  fi
+  sha="$(jq -r '.object.sha // empty' <<< "${json}")"
+  if [[ -z "${sha}" ]]; then
+    return 1
+  fi
+  echo "${sha}"
+}
+
+# ── subcommands ──────────────────────────────────────────────────────
+
+# Emit a single line of `check` output.
+#
+# Arguments:
+#   $1 - level: "OK", "FAIL", or "WARN"
+#   $2 - file basename
+#   $3 - action (owner/repo)
+#   $4 - pinned SHA (truncated to 12 chars for display)
+#   $5 - detail tail (everything after the SHA prefix)
+#
+# Format (level is padded to a 4-char column):
+#   <level> <basename>: <action>@<sha:0:12>... <detail>
+_emit_check() {
+  printf '%-4s %s: %s@%s... %s\n' \
+    "${1}" "${2}" "${3}" "${4:0:12}" "${5}"
+}
+
+# Emit a single line of `updates` plain-format output. One helper
+# covers all four shape variants so cmd_updates' main loop stays a
+# tight classify → filter → emit pipeline.
+#
+# Arguments:
+#   $1 - file basename
+#   $2 - action (owner/repo)
+#   $3 - classified kind: "tag", "branch", or "unknown"
+#   $4 - effective ref (comment for SHA pins, ref itself otherwise);
+#        for "unknown", the caller passes the original ref instead
+#   $5 - available upgrade (newer tag list for tag, short HEAD sha
+#        for branch, empty for up-to-date or unknown)
+#
+# Output shapes:
+#   <basename>: <action>  current=<ref>  [unknown]
+#   <basename>: <action>  current=<ref>  [up-to-date]  (<kind>)
+#   <basename>: <action>  current=<ref>  newer=<list>  (tag)
+#   <basename>: <action>  current=<ref>  head=<sha>  (branch)
+_emit_update_plain() {
+  local basename="${1}" action="${2}" kind="${3}" ref="${4}" avail="${5}"
+  case "${kind}" in
+    unknown)
+      printf '%s: %s  current=%s  [unknown]\n' \
+        "${basename}" "${action}" "${ref}"
+      ;;
+    tag)
+      if [[ -z "${avail}" ]]; then
+        printf '%s: %s  current=%s  [up-to-date]  (tag)\n' \
+          "${basename}" "${action}" "${ref}"
+      else
+        printf '%s: %s  current=%s  newer=%s  (tag)\n' \
+          "${basename}" "${action}" "${ref}" "${avail}"
+      fi
+      ;;
+    branch)
+      if [[ -z "${avail}" ]]; then
+        printf '%s: %s  current=%s  [up-to-date]  (branch)\n' \
+          "${basename}" "${action}" "${ref}"
+      else
+        printf '%s: %s  current=%s  head=%s  (branch)\n' \
+          "${basename}" "${action}" "${ref}" "${avail}"
+      fi
+      ;;
+  esac
+}
+
+# Verify SHA pins in the given workflow files.
+#
+# Only SHA pins with an explicit `# <ref>` comment are validated — the
+# comment is the ref hint resolve_ref consults. Floating pins
+# (kind=ref) and SHA pins without a comment are skipped, consistent
+# with the tool's original contract.
+#
+# Emits one line per unique (action, ref) pair:
+#   OK    pinned SHA matches the resolved ref
+#   FAIL  tag ref resolves to a different SHA (hard failure)
+#   WARN  branch ref has drifted, or ref could not be resolved at all
+#         (informational — never counted as a failure)
+#
+# Arguments:
+#   $1   - --only filter: "all", "tag", or "branch"
+#   $2.. - One or more workflow file paths
+#
+# Returns:
+#   0 - all pins match, or no pins found
+#   1 - one or more pins do not match
+cmd_check() {
+  local only="${1}"
+  shift
+  check_api_preflight || return 0
+
+  local -i failures=0
+  local -i found_pins=0
+  local -A resolve_cache=()
+  local -A compare_cache=()
+  local file basename line parsed
+  local action ref kind comment cache_key cached resolved resolved_kind
+  local compare_key behind
+
+  # Clean slate in case a sourced test re-enters the subcommand.
+  seen_in_file=()
+
+  for file in "${@}"; do
+    if [[ ! -f "${file}" ]]; then
+      echo "WARN: ${file} not found, skipping"
+      continue
+    fi
+    basename="${file##*/}"
+    seen_in_file=()  # per-file dedup scope
+
+    while IFS= read -r line; do
+      if ! parsed="$(parse_uses_line "${line}")"; then
         continue
       fi
-      seen_in_file["${cache_key}"]=1
+      IFS=$'\t' read -r action ref kind comment <<< "${parsed}"
 
-      # Resolve via API only once across all files.
-      if [[ -z "${RESOLVE_CACHE[${cache_key}]+x}" ]]; then
-        resolved_sha=""
-        if resolved_sha="$(resolve_tag "${action}" "${claimed_tag}")"; then
-          RESOLVE_CACHE["${cache_key}"]="${resolved_sha}"
+      # Only SHA pins with a ref comment are in scope for `check`;
+      # floating refs (@main) and bare SHA pins have nothing to
+      # compare against.
+      if [[ "${kind}" != "sha" || -z "${comment}" ]]; then
+        continue
+      fi
+      found_pins=1
+
+      cache_key="${action}#${comment}"
+      _once_per_file "${cache_key}" || continue
+
+      if [[ -z "${resolve_cache[${cache_key}]+x}" ]]; then
+        if cached="$(resolve_ref "${action}" "${comment}")"; then
+          resolve_cache["${cache_key}"]="${cached}"
         else
-          RESOLVE_CACHE["${cache_key}"]="!"
+          resolve_cache["${cache_key}"]="NONE"
+        fi
+      fi
+      cached="${resolve_cache[${cache_key}]}"
+
+      if [[ "${cached}" == "NONE" ]]; then
+        # Unresolvable refs have no authoritative kind; include them
+        # only when the user asked for all kinds.
+        _include_pin "${only}" "unknown" || continue
+        _emit_check WARN "${basename}" "${action}" "${ref}" \
+          "— could not resolve ref ${comment}"
+        continue
+      fi
+
+      resolved="${cached%%$'\t'*}"
+      resolved_kind="${cached#*$'\t'}"
+
+      # Apply --only filter on the authoritative kind (post-API).
+      _include_pin "${only}" "${resolved_kind}" || continue
+
+      if [[ "${ref}" == "${resolved}" ]]; then
+        _emit_check OK "${basename}" "${action}" "${ref}" "matches ${comment}"
+        continue
+      fi
+
+      if [[ "${resolved_kind}" == "branch" ]]; then
+        compare_key="${action}#${ref}#${resolved}"
+        if [[ -z "${compare_cache[${compare_key}]+x}" ]]; then
+          behind="$(compare_behind "${action}" "${ref}" "${resolved}" || true)"
+          compare_cache["${compare_key}"]="${behind}"
+        fi
+        behind="${compare_cache[${compare_key}]}"
+
+        if [[ -n "${behind}" && "${behind}" -gt 0 ]]; then
+          _emit_check WARN "${basename}" "${action}" "${ref}" \
+            "is ${behind} commit(s) behind ${comment} HEAD (at ${resolved:0:12}...)"
+        else
+          _emit_check WARN "${basename}" "${action}" "${ref}" \
+            "diverges from ${comment} HEAD (at ${resolved:0:12}...)"
+        fi
+        continue
+      fi
+
+      # Tag kind — mismatch is a hard failure.
+      _emit_check FAIL "${basename}" "${action}" "${ref}" \
+        "does NOT match ${comment} (expected ${resolved:0:12}...)"
+      failures=$((failures + 1))
+    done < "${file}"
+  done
+
+  if [[ "${found_pins}" -eq 0 ]]; then
+    echo "No SHA-pinned actions found in the provided files."
+  fi
+
+  if [[ "${failures}" -gt 0 ]]; then
+    echo "FAIL: ${failures} pin(s) did not match"
+    return 1
+  fi
+  return 0
+}
+
+# Report upgrade inventory for each unique pin. Always informational
+# — exit 0 on success regardless of whether upgrades are available.
+#
+# The goal is to save time on periodic audits, not to pick "the" next
+# version: for tag pins, every tag newer than the current one is listed
+# (across minor AND major bumps, since Dependabot does not open major
+# bumps by default). For branch pins, the current branch HEAD is
+# reported so stale SHA-to-branch pins are visible at a glance.
+#
+# Arguments:
+#   $1   - format: "plain" or "tsv"
+#   $2   - --only filter: "all", "tag", or "branch"
+#   $3.. - workflow file paths
+#
+# Plain output (one line per unique pin):
+#   <basename>: <action>  current=<ref>  [up-to-date]  (<kind>)
+#   <basename>: <action>  current=<ref>  newer=<t1> <t2> ...  (tag)
+#   <basename>: <action>  current=<ref>  head=<short-sha>  (branch)
+#   <basename>: <action>  current=<ref>  [unknown]
+#
+# TSV output (5 columns, no header):
+#   <file>\t<action>\t<current_ref>\t<available>\t<kind>
+#     where <available> is a space-separated list of newer tags for
+#     tag pins, or the short HEAD SHA for branch pins (empty when
+#     up-to-date in either case).
+#
+# Per-unique-pin API cost:
+#   - Tag ref:    1 call to /repos/.../tags
+#   - Branch ref: 1 call to /repos/.../git/ref/heads/<branch>
+#   - SHA pin with no # comment: no calls, recorded as "unknown"
+cmd_updates() {
+  local format="${1}" only="${2}"
+  shift 2
+
+  check_api_preflight "update check" || return 0
+
+  local file basename line parsed
+  local action ref kind comment effective_ref effective_kind
+  local newer_tags head_full available key
+
+  # Per-invocation dedup: report each unique pin once across all files.
+  seen_in_run=()
+
+  for file in "${@}"; do
+    if [[ ! -f "${file}" ]]; then
+      echo "WARN: ${file} not found, skipping" >&2
+      continue
+    fi
+    basename="${file##*/}"
+
+    while IFS= read -r line; do
+      if ! parsed="$(parse_uses_line "${line}")"; then
+        continue
+      fi
+      IFS=$'\t' read -r action ref kind comment <<< "${parsed}"
+
+      effective_ref="$(_effective_ref "${kind}" "${ref}" "${comment}")"
+      key="${action}@${effective_ref}"
+      _once_per_run "${key}" || continue
+
+      newer_tags=""
+      head_full=""
+      available=""
+
+      # Classify and route: semver-shaped refs fetch tags, everything
+      # else is treated as a branch, empty refs have no hint.
+      if [[ -z "${effective_ref}" ]]; then
+        effective_kind="unknown"
+      elif [[ "${effective_ref}" =~ ${_SEMVER_RE} ]]; then
+        effective_kind="tag"
+        newer_tags="$(list_newer_tags "${action}" "${effective_ref}" || true)"
+        if [[ -n "${newer_tags}" ]]; then
+          available="$(tr '\n' ' ' <<< "${newer_tags}" | sed 's/ *$//')"
+        fi
+      else
+        effective_kind="branch"
+        head_full="$(head_sha "${action}" "${effective_ref}" || true)"
+        if [[ "${kind}" == "sha" && "${ref}" != "${head_full}" && -n "${head_full}" ]]; then
+          available="${head_full:0:12}"
         fi
       fi
 
-      cached="${RESOLVE_CACHE[${cache_key}]}"
+      # Apply --only filter on the classified kind before emitting.
+      _include_pin "${only}" "${effective_kind}" || continue
 
-      if [[ "${cached}" == "!" ]]; then
-        echo "WARN ${basename}: ${action}@${pinned_sha:0:12}... — could not resolve tag ${claimed_tag}"
-      elif [[ "${pinned_sha}" == "${cached}" ]]; then
-        echo "OK   ${basename}: ${action}@${pinned_sha:0:12}... matches ${claimed_tag}"
-      else
-        echo "FAIL ${basename}: ${action}@${pinned_sha:0:12}... does NOT match ${claimed_tag} (expected ${cached:0:12}...)"
-        FAILURES=$((FAILURES + 1))
-      fi
+      # For TSV, column 3 is "current_ref" — the classified ref hint
+      # except for unknown pins, where we fall back to the original
+      # @ref so the row still points at something recognisable.
+      local col_ref="${effective_ref}"
+      [[ "${effective_kind}" == "unknown" ]] && col_ref="${ref}"
+
+      case "${format}" in
+        tsv)
+          printf '%s\t%s\t%s\t%s\t%s\n' \
+            "${file}" "${action}" "${col_ref}" "${available}" "${effective_kind}"
+          ;;
+        *)
+          _emit_update_plain "${basename}" "${action}" \
+            "${effective_kind}" "${col_ref}" "${available}"
+          ;;
+      esac
+    done < "${file}"
+  done
+}
+
+# List pinned actions found in the given workflow files.
+#
+# Offline by default: with --only=all (the default) no API calls
+# are made and every parseable pin is emitted. When --only is
+# set to tag or branch, list consults the GitHub API to
+# authoritatively classify each pin's effective ref (the comment
+# for SHA pins, the ref itself for floating pins) and filters the
+# output accordingly. Unresolvable refs and pins with no ref hint
+# are classified as "unknown" and appear only with --only=all.
+#
+# Arguments:
+#   $1   - format: "plain" or "tsv"
+#   $2   - --only filter: "all", "tag", or "branch"
+#   $3.. - workflow file paths
+#
+# Plain output (one line per occurrence):
+#   <basename>: <action>@<ref>  (# <comment>)
+# TSV output (one line per occurrence, header-less):
+#   <file>\t<action>\t<ref>\t<kind>\t<comment>
+#   (`kind` is the pin format: sha or ref.)
+#
+# Returns 0 always; per-file read errors are reported as WARN on stderr.
+cmd_list() {
+  local format="${1}" only="${2}"
+  shift 2
+  local api_mode=false
+  if [[ "${only}" != "all" ]]; then
+    check_api_preflight "list --only=${only}" || return 0
+    api_mode=true
+  fi
+
+  local -A resolve_cache=()
+  local file line parsed action ref kind comment
+  local effective_ref cache_key cached resolved_kind
+
+  for file in "${@}"; do
+    if [[ ! -f "${file}" ]]; then
+      echo "WARN: ${file} not found, skipping" >&2
+      continue
     fi
-  done < "${file}"
-done
+    while IFS= read -r line; do
+      if ! parsed="$(parse_uses_line "${line}")"; then
+        continue
+      fi
+      IFS=$'\t' read -r action ref kind comment <<< "${parsed}"
 
-if [[ "${FOUND_PINS}" -eq 0 ]]; then
-  echo "No SHA-pinned actions found in the provided files."
-fi
+      if ${api_mode}; then
+        effective_ref="$(_effective_ref "${kind}" "${ref}" "${comment}")"
+        if [[ -z "${effective_ref}" ]]; then
+          resolved_kind="unknown"
+        else
+          cache_key="${action}#${effective_ref}"
+          if [[ -z "${resolve_cache[${cache_key}]+x}" ]]; then
+            if cached="$(resolve_ref "${action}" "${effective_ref}")"; then
+              resolve_cache["${cache_key}"]="${cached}"
+            else
+              resolve_cache["${cache_key}"]="NONE"
+            fi
+          fi
+          cached="${resolve_cache[${cache_key}]}"
+          if [[ "${cached}" == "NONE" ]]; then
+            resolved_kind="unknown"
+          else
+            resolved_kind="${cached#*$'\t'}"
+          fi
+        fi
+        _include_pin "${only}" "${resolved_kind}" || continue
+      fi
 
-if [[ "${FAILURES}" -gt 0 ]]; then
-  echo "FAIL: ${FAILURES} pin(s) did not match"
-  exit 1
+      case "${format}" in
+        tsv)
+          printf '%s\t%s\t%s\t%s\t%s\n' \
+            "${file}" "${action}" "${ref}" "${kind}" "${comment}"
+          ;;
+        *)
+          if [[ -n "${comment}" ]]; then
+            printf '%s: %s@%s  (# %s)\n' \
+              "${file##*/}" "${action}" "${ref}" "${comment}"
+          else
+            printf '%s: %s@%s\n' "${file##*/}" "${action}" "${ref}"
+          fi
+          ;;
+      esac
+    done < "${file}"
+  done
+}
+
+# ── main ─────────────────────────────────────────────────────────────
+
+# Parsed CLI state. Populated by _parse_cli_args during main(); read by
+# main's dispatch. Module-scope so callers can read them without threading
+# output through multiple return values.
+cli_subcmd="check"
+cli_format="plain"
+cli_only="all"
+cli_files=()
+
+# Short-circuit --help / --version at any arg position. Exits 0 after
+# printing usage or the version line; returns normally if neither flag
+# appears before a `--` terminator.
+_short_circuit_help_version() {
+  local arg
+  for arg in "${@}"; do
+    case "${arg}" in
+      --help)
+        usage
+        exit 0
+        ;;
+      --version)
+        echo "${PROGRAM} ${VERSION}"
+        exit 0
+        ;;
+      --) break ;;
+      *) ;;
+    esac
+  done
+}
+
+# Parse remaining args into cli_subcmd + cli_format + cli_only + cli_files.
+# Exits 2 on unknown flag or bad flag value.
+#
+# Subcommand detection is permissive: `check`, `list`, or `updates`
+# is picked up the first time it appears as a positional word,
+# regardless of what flags precede or follow it. All of these
+# invocations route to the list subcommand:
+#
+#     validate-action-pins list --format=tsv workflows/*.yml
+#     validate-action-pins --format=tsv list workflows/*.yml
+#     validate-action-pins --format=tsv workflows/*.yml list
+#
+# Only the first occurrence is consumed as a subcommand; a second
+# `check|list|updates` word, or anything after a `--` terminator,
+# is treated as a filename. Use `--` to disambiguate workflow
+# files whose name matches a subcommand.
+_parse_cli_args() {
+  cli_subcmd="check"
+  cli_format="plain"
+  cli_only="all"
+  cli_files=()
+  local subcmd_seen=false
+
+  while [[ $# -gt 0 ]]; do
+    case "${1}" in
+      --format=*)
+        cli_format="${1#*=}"
+        shift
+        ;;
+      --format)
+        if [[ $# -lt 2 ]]; then
+          echo "${PROGRAM}: --format requires a value" >&2
+          exit 2
+        fi
+        cli_format="${2}"
+        shift 2
+        ;;
+      --only=*)
+        cli_only="${1#*=}"
+        shift
+        ;;
+      --only)
+        if [[ $# -lt 2 ]]; then
+          echo "${PROGRAM}: --only requires a value" >&2
+          exit 2
+        fi
+        cli_only="${2}"
+        shift 2
+        ;;
+      --)
+        shift
+        cli_files+=("${@}")
+        break
+        ;;
+      -*)
+        echo "${PROGRAM}: unknown flag: ${1}" >&2
+        exit 2
+        ;;
+      check | list | updates)
+        if ${subcmd_seen}; then
+          # Already claimed a subcommand; a second matching word is a
+          # filename (rare, but possible for a workflow literally named
+          # `list.yml` without the suffix).
+          cli_files+=("${1}")
+        else
+          cli_subcmd="${1}"
+          subcmd_seen=true
+        fi
+        shift
+        ;;
+      *)
+        cli_files+=("${1}")
+        shift
+        ;;
+    esac
+  done
+
+  case "${cli_format}" in
+    plain | tsv) ;;
+    *)
+      echo "${PROGRAM}: invalid --format: ${cli_format} (expected 'plain' or 'tsv')" >&2
+      exit 2
+      ;;
+  esac
+
+  case "${cli_only}" in
+    all | tag | branch) ;;
+    *)
+      echo "${PROGRAM}: invalid --only: ${cli_only} (expected 'all', 'tag', or 'branch')" >&2
+      exit 2
+      ;;
+  esac
+}
+
+main() {
+  if [[ $# -eq 0 ]]; then
+    usage >&2
+    exit 1
+  fi
+
+  _short_circuit_help_version "$@"
+  _parse_cli_args "$@"
+
+  if [[ "${#cli_files[@]}" -eq 0 ]]; then
+    usage >&2
+    exit 1
+  fi
+
+  case "${cli_subcmd}" in
+    check) cmd_check "${cli_only}" "${cli_files[@]}" ;;
+    list) cmd_list "${cli_format}" "${cli_only}" "${cli_files[@]}" ;;
+    updates) cmd_updates "${cli_format}" "${cli_only}" "${cli_files[@]}" ;;
+  esac
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
 fi

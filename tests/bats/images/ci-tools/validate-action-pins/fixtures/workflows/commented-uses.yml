@@ -1,0 +1,9 @@
+name: commented-uses
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # old revision we're holding back for reference:
+      # - uses: foo/bar@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v0
+      - uses: foo/bar@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v1

@@ -1,37 +1,218 @@
-.Dd February 15, 2026
+.Dd April 18, 2026
 .Dt VALIDATE-ACTION-PINS 1
 .Os
 .Sh NAME
 .Nm validate-action-pins
-.Nd verify GitHub Actions SHA pins match their claimed tags
+.Nd verify GitHub Actions SHA pins and inventory their refs
 .Sh SYNOPSIS
 .Nm
 .Op Fl -help
 .Op Fl -version
 .Ar file ...
+.Nm
+.Cm check
+.Op Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch
+.Ar file ...
+.Nm
+.Cm list
+.Op Fl -format Ar plain Ns | Ns Ar tsv
+.Op Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch
+.Ar file ...
+.Nm
+.Cm updates
+.Op Fl -format Ar plain Ns | Ns Ar tsv
+.Op Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch
+.Ar file ...
 .Sh DESCRIPTION
 .Nm
 scans GitHub Actions workflow files for
 .Ic uses:\&
-lines pinned to a commit SHA with a tag comment, for example:
+lines pinned to a commit SHA with a ref comment, for example:
 .Pp
 .Dl uses: actions/checkout@de0fac2e... # v6
+.Dl uses: Homebrew/actions/setup-homebrew@1234abcd... # main
 .Pp
-For each match it queries the GitHub REST API to verify that the pinned
-SHA resolves to the stated tag.
-Each unique action/tag pair is resolved once; subsequent occurrences
+The comment follows the Dependabot convention \(em the ref may be a tag
+or a branch name, with no prefix to distinguish them.
+.Nm
+probes the GitHub REST API for a matching tag first and falls back to a
+branch of the same name.
+Each unique action/ref pair is resolved once; subsequent occurrences
 within the same file are deduplicated.
+.Pp
+For tag pins, a SHA mismatch is a hard failure
+.Pq Li FAIL , exit 1 .
+For branch pins, a SHA mismatch is informational
+.Pq Li WARN , exit 0
+because branch heads move continuously; the tool reports how many
+commits the pin is behind the branch head
+.Po from
+.Ic /repos/\:{owner}/{repo}/compare/{base}...{head} Pc ,
+or notes that the pin has diverged from the current history.
 .Pp
 Output lines are prefixed with the workflow filename:
 .Pp
 .Dl OK \ \ \ ci.yml: actions/checkout@de0fac2e4500... matches v6
-.Dl FAIL \ publish.yml: actions/checkout@de0fac2e4500... does NOT match v6 (expected abc123456789...)
-.Dl WARN \ ci.yml: actions/checkout@de0fac2e4500... \(em could not resolve tag v6
+.Dl FAIL \ ci.yml: actions/checkout@de0fac2e4500... does NOT match v6 (expected abc123456789...)
+.Dl WARN \ ci.yml: Homebrew/actions/setup-homebrew@de0fac2e4500... is 3 commit(s) behind main HEAD (at abc123456789...)
+.Dl WARN \ ci.yml: org/action@de0fac2e4500... diverges from main HEAD (at abc123456789...)
+.Dl WARN \ ci.yml: org/action@de0fac2e4500... \(em could not resolve ref v6
 .Pp
-If the API is unreachable or a required dependency is missing, the check
-is skipped and the tool exits successfully.
+Validation is skipped with a clear WARN and the tool exits
+successfully if any of these conditions hold: a required dependency
+is missing
+.Po
+.Xr curl 1
+or
+.Xr jq 1
+.Pc ,
+the API host is unreachable, authentication is rejected
+.Pq HTTP 401 or 403 ,
+the secondary rate limit is hit
+.Pq HTTP 429 ,
+the primary rate limit is exhausted
+.Pq remaining == 0 ,
+or an unexpected HTTP status comes back.
+Each cause names itself in the WARN so the operator can act on it.
+Set
+.Ev VALIDATE_ACTION_PINS_VERBOSE
+to surface curl's stderr when the cause is not obvious.
+.Sh SUBCOMMANDS
+The subcommand word may appear anywhere among the positional
+arguments \(em before, between, or after files and flags \(em and
+is consumed on its first occurrence.
+Use
+.Ic --
+to disambiguate a workflow file whose name happens to match a
+subcommand.
+.Bl -tag -width indent
+.It Cm check Oo Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch Oc Ar file ...
+Verify SHA pins in the given workflow files.
+This is the default when no subcommand is given; bare
+.Ic validate-action-pins Ar file ...
+is equivalent to
+.Ic validate-action-pins check Ar file ... .
+Only SHA pins with an explicit
+.Ic "# <ref>"
+comment are validated; floating refs
+.Pq e.g. Ic @main
+and bare SHA pins with no comment are skipped.
+.It Cm list Oo Fl -format Ar plain Ns | Ns Ar tsv Oc Oo Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch Oc Ar file ...
+Print every
+.Ic uses:\&
+pin found in the input files.
+Offline by default
+.Pq Fl -only Ar all :
+no API calls, no authentication.
+When
+.Fl -only
+is set to
+.Em tag
+or
+.Em branch ,
+each unique pin is classified authoritatively via the GitHub API
+and only matching pins are emitted.
+.Pp
+Plain output has the form
+.Dl <basename>: <action>@<ref>  (# <comment>)
+.Pp
+TSV output (one record per line, no header) has the fields:
+.Dl <file>\etab<action>\etab<ref>\etab<kind>\etab<comment>
+where
+.Em kind
+is
+.Em sha
+for 40-hex pins and
+.Em ref
+for symbolic references (tag or branch; not distinguished without an API call).
+.Pp
+Actions pinned to a
+.Ic docker://
+scheme or a local
+.Ic ./
+path are skipped.
+.It Cm updates Oo Fl -format Ar plain Ns | Ns Ar tsv Oc Oo Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch Oc Ar file ...
+Report upgrade inventory for each unique pin.
+For tag pins, every tag strictly newer than the current ref is listed
+\(em across both minor and major bumps, since Dependabot does not open
+major-version pull requests by default.
+For branch pins, the current branch HEAD SHA is reported so
+SHA-to-branch pins that have drifted are visible at a glance.
+Output is informational \(em
+.Cm updates
+exits 0 whether or not upgrades are available.
+.Pp
+Plain output:
+.Dl <basename>: <action>  current=<ref>  [up-to-date]  (<kind>)
+.Dl <basename>: <action>  current=<ref>  newer=<t1> <t2> ...  (tag)
+.Dl <basename>: <action>  current=<ref>  head=<short-sha>  (branch)
+.Dl <basename>: <action>  current=<ref>  [unknown]
+.Pp
+The final shape is emitted when a SHA pin carries no trailing
+.Ic "# <ref>"
+comment, so there's no hint to classify against.
+.Pp
+TSV output (five columns, no header):
+.Dl <file>\etab<action>\etab<ref>\etab<available>\etab<kind>
+where
+.Em available
+is a space-separated list of newer tags for tag pins, the short HEAD
+SHA for stale branch pins, or empty when up-to-date.
+.Pp
+Tag refs are parsed as
+.Em v?X[.Y[.Z]]
+with missing components treated as zero, so
+.Em v6 ,
+.Em v6.0 ,
+and
+.Em v6.0.0
+compare equal.
+Pre-release (e.g.
+.Em -rc1 ,
+.Em -beta )
+and non-semver tag names are skipped.
+.Pp
+Each unique action/ref pair costs at most one GitHub API call.
+Setting
+.Ev GITHUB_TOKEN
+is effectively required for any workflow with more than a handful of
+pins because the unauthenticated rate limit is 60 requests per hour.
+The first page of
+.Ic /tags
+is consulted (30 entries); repos with many tags across majors may need
+pagination, which is not implemented in this iteration.
+.El
 .Sh OPTIONS
 .Bl -tag -width indent
+.It Fl -format Ar plain Ns | Ns Ar tsv
+Output format for
+.Cm list
+and
+.Cm updates .
+Default is
+.Em plain .
+.It Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch
+Restrict output to a single classified kind.
+For
+.Cm check ,
+the classification is the authoritative kind returned by the API
+(tag vs branch); unresolvable refs are reported only with
+.Em all .
+For
+.Cm updates ,
+the classification is the routing kind (which API endpoint was
+consulted).
+For
+.Cm list ,
+.Em all
+is offline and lists every parseable pin; passing
+.Em tag
+or
+.Em branch
+taps the GitHub API per unique pin to classify authoritatively
+before filtering.
+Default is
+.Em all .
 .It Fl -help
 Show a usage summary and exit.
 .It Fl -version
@@ -43,6 +224,11 @@ Print the program name and version, then exit.
 Optional GitHub personal access token or fine-grained token.
 When set, API requests use the token for authentication, raising the
 rate limit from 60 to 5\|000 requests per hour.
+.It Ev VALIDATE_ACTION_PINS_VERBOSE
+When set to any non-empty value, passes curl's stderr through
+instead of silencing it.
+Useful for diagnosing transport errors, HTTP status bodies, or
+authentication failures in CI logs.
 .El
 .Sh EXIT STATUS
 .Bl -tag -width indent
@@ -53,6 +239,8 @@ the GitHub API is unreachable.
 .It 1
 One or more pins do not match their claimed tag, or no files were
 provided.
+.It 2
+Usage error \(em an unknown flag was supplied.
 .El
 .Sh EXAMPLES
 Validate all workflows in a repository:
@@ -62,6 +250,25 @@ Validate all workflows in a repository:
 Validate a single file:
 .Pp
 .Dl validate-action-pins .github/workflows/ci.yml
+.Pp
+Inventory every pin across the workflows:
+.Pp
+.Dl validate-action-pins list .github/workflows/*.yml
+.Pp
+Export a machine-readable pin list:
+.Pp
+.Dl validate-action-pins list --format=tsv .github/workflows/*.yml
+.Pp
+Report available upgrades for every pin (authenticated to avoid rate limits):
+.Pp
+.Dl GITHUB_TOKEN=... validate-action-pins updates .github/workflows/*.yml
+.Pp
+Pipe the upgrade report into
+.Xr awk 1
+for scripted processing \(em e.g. list every action that has at least
+one newer tag available:
+.Pp
+.Dl GITHUB_TOKEN=... validate-action-pins updates --format=tsv .github/workflows/*.yml | awk -F\et '$4 != "" { print $2, "->", $4 }'
 .Sh DEPENDENCIES
 .Nm
 requires

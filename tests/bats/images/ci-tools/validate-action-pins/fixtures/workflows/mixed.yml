@@ -1,0 +1,12 @@
+name: mixed
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: foo/bar@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v1
+      - uses: actions/checkout@v6.0.2
+      - uses: ./local-action
+      - uses: docker://alpine:3.19
+      - uses: org/repo@main
+      - uses: org/no-comment@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb

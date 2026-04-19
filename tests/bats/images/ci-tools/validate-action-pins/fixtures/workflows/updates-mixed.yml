@@ -1,0 +1,9 @@
+name: updates-mixed
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: foo/bar@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v6.0.0
+      - uses: foo/br-ok@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # main
+      - uses: foo/br-behind@cccccccccccccccccccccccccccccccccccccccc # main
