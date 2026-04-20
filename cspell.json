@@ -9,6 +9,7 @@
     "cosign",
     "dedup",
     "devops",
+    "ERRFD",
     "extglob",
     "hadolint",
     "ltrimstr",

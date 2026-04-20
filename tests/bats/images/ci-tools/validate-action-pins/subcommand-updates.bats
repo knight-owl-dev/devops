@@ -114,3 +114,36 @@ setup() {
   assert_output --partial "(tag)"
   refute_output --partial "(branch)"
 }
+
+# ── sub-path actions (owner/repo/path@ref) ──────────────────────────
+
+@test "updates reports short HEAD for a stale sub-path branch pin" {
+  run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/subpath-branch-behind.yml"
+  assert_success
+  assert_output --partial "foo/br-behind/some-subdir"
+  assert_output --partial "current=main"
+  assert_output --partial "head=bbbbbbbbbbbb"
+  assert_output --partial "(branch)"
+  refute_output --partial "[up-to-date]"
+}
+
+@test "updates lists newer tags for a sub-path tag pin" {
+  run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/subpath-tag.yml"
+  assert_success
+  assert_output --partial "foo/bar/some-subdir"
+  assert_output --partial "current=v1"
+  assert_output --partial "newer=v6.0.0 v6.0.1 v6.0.2 v7.0.0"
+  assert_output --partial "(tag)"
+  refute_output --partial "[up-to-date]"
+}
+
+# ── per-file dedup across multiple workflow files ───────────────────
+
+@test "updates emits one record per file when the same pin appears in multiple files" {
+  run "${SCRIPT}" updates \
+    "${FIXTURES_DIR}/workflows/updates-dup-a.yml" \
+    "${FIXTURES_DIR}/workflows/updates-dup-b.yml"
+  assert_success
+  assert_output --partial "updates-dup-a.yml: foo/br-ok"
+  assert_output --partial "updates-dup-b.yml: foo/br-ok"
+}

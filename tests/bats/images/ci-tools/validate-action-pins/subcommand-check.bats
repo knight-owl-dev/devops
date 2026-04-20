@@ -151,3 +151,19 @@ setup() {
   assert_output --partial "FAIL tag-mismatch.yml:"
   assert_output --partial "does NOT match v1"
 }
+
+# ── sub-path actions (owner/repo/path@ref) ──────────────────────────
+
+@test "sub-path tag pin resolves against the containing repo and prints OK" {
+  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/subpath-tag.yml"
+  assert_success
+  assert_output --partial "OK   subpath-tag.yml: foo/bar/some-subdir@aaaaaaaaaaaa..."
+  assert_output --partial "matches v1"
+}
+
+@test "sub-path branch pin resolves against the containing repo and prints OK" {
+  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/subpath-branch.yml"
+  assert_success
+  assert_output --partial "OK   subpath-branch.yml: foo/br-ok/some-subdir@aaaaaaaaaaaa..."
+  assert_output --partial "matches main"
+}

@@ -1,0 +1,7 @@
+name: subpath-branch
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: foo/br-ok/some-subdir@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # main

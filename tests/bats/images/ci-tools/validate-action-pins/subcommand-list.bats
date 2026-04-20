@@ -135,3 +135,17 @@ setup() {
   assert_success
   assert_output --partial "WARN: cannot reach GitHub API"
 }
+
+# ── sub-path actions (owner/repo/path@ref) ──────────────────────────
+
+@test "list --only=tag classifies a sub-path tag pin via the containing repo" {
+  run "${SCRIPT}" list --only=tag "${FIXTURES_DIR}/workflows/subpath-tag.yml"
+  assert_success
+  assert_output --partial "subpath-tag.yml: foo/bar/some-subdir@"
+}
+
+@test "list --only=branch classifies a sub-path branch pin via the containing repo" {
+  run "${SCRIPT}" list --only=branch "${FIXTURES_DIR}/workflows/subpath-branch.yml"
+  assert_success
+  assert_output --partial "subpath-branch.yml: foo/br-ok/some-subdir@"
+}
