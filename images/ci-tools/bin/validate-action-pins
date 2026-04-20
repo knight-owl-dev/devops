@@ -368,7 +368,7 @@ parse_uses_line() {
 #   $2 - operation name used in the WARN message
 #
 # Output:
-#   WARN line(s) to stdout for every non-200 code
+#   WARN line(s) to stderr for every non-200 code
 #
 # Returns:
 #   0 - status is benign; caller may proceed
@@ -377,21 +377,21 @@ _preflight_classify_status() {
   case "${1}" in
     200) return 0 ;;
     401 | 403)
-      echo "WARN: GitHub API authentication failed (HTTP ${1}) — skipping ${2}"
-      echo "      check GITHUB_TOKEN; an unset or expired token produces this response"
+      echo "WARN: GitHub API authentication failed (HTTP ${1}) — skipping ${2}" >&2
+      echo "      check GITHUB_TOKEN; an unset or expired token produces this response" >&2
       return 1
       ;;
     429)
-      echo "WARN: GitHub API secondary rate limit hit (HTTP 429) — skipping ${2}"
-      echo "      slow down, set GITHUB_TOKEN, or retry after the Retry-After interval"
+      echo "WARN: GitHub API secondary rate limit hit (HTTP 429) — skipping ${2}" >&2
+      echo "      slow down, set GITHUB_TOKEN, or retry after the Retry-After interval" >&2
       return 1
       ;;
     000)
-      echo "WARN: cannot reach GitHub API — skipping ${2}"
+      echo "WARN: cannot reach GitHub API — skipping ${2}" >&2
       return 1
       ;;
     *)
-      echo "WARN: GitHub API returned unexpected HTTP ${1} — skipping ${2}"
+      echo "WARN: GitHub API returned unexpected HTTP ${1} — skipping ${2}" >&2
       return 1
       ;;
   esac
@@ -414,7 +414,7 @@ _preflight_probe_file() {
   if ! curl "${_CURL_FLAGS[@]}" "${auth_header[@]+"${auth_header[@]}"}" \
     -H "Accept: application/vnd.github+json" \
     "${GITHUB_API_BASE}/rate_limit" > "${body_file}" 2> "${_CURL_ERRFD}"; then
-    echo "WARN: cannot reach GitHub API — skipping ${op}"
+    echo "WARN: cannot reach GitHub API — skipping ${op}" >&2
     return 1
   fi
 }
@@ -471,7 +471,7 @@ check_api_preflight() {
   local cmd
   for cmd in curl jq; do
     if ! command -v "${cmd}" > /dev/null 2>&1; then
-      echo "WARN: ${cmd} not found — skipping ${op}"
+      echo "WARN: ${cmd} not found — skipping ${op}" >&2
       return 1
     fi
   done
@@ -504,12 +504,12 @@ check_api_preflight() {
   remaining="$(jq -r '.resources.core.remaining // empty' < "${body_file}" 2> "${_CURL_ERRFD}" || true)"
   if [[ -n "${remaining}" ]]; then
     if [[ "${remaining}" -le 0 ]]; then
-      echo "WARN: GitHub API rate limit exhausted — skipping ${op}"
-      echo "      set GITHUB_TOKEN to raise the limit from 60 to 5,000 per hour"
+      echo "WARN: GitHub API rate limit exhausted — skipping ${op}" >&2
+      echo "      set GITHUB_TOKEN to raise the limit from 60 to 5,000 per hour" >&2
       return 1
     fi
     if [[ "${remaining}" -lt 20 ]]; then
-      echo "WARN: GitHub API rate limit is low (${remaining} remaining); set GITHUB_TOKEN if ${op} stalls mid-run"
+      echo "WARN: GitHub API rate limit is low (${remaining} remaining); set GITHUB_TOKEN if ${op} stalls mid-run" >&2
     fi
   fi
   return 0
@@ -687,7 +687,7 @@ cmd_check() {
 
   for file in "${@}"; do
     if [[ ! -f "${file}" ]]; then
-      echo "WARN: ${file} not found, skipping"
+      echo "WARN: ${file} not found, skipping" >&2
       continue
     fi
     basename="${file##*/}"
