@@ -1,4 +1,4 @@
-.Dd April 18, 2026
+.Dd April 19, 2026
 .Dt VALIDATE-ACTION-PINS 1
 .Os
 .Sh NAME
@@ -132,7 +132,10 @@ scheme or a local
 .Ic ./
 path are skipped.
 .It Cm updates Oo Fl -format Ar plain Ns | Ns Ar tsv Oc Oo Fl -only Ar all Ns | Ns Ar tag Ns | Ns Ar branch Oc Ar file ...
-Report upgrade inventory for each unique pin.
+Report upgrade inventory for each pin, once per file.
+Duplicates within a single file collapse to one record; a pin that
+appears in several files is reported for every file, so operators can
+see each file that needs editing to take an upgrade.
 For tag pins, every tag strictly newer than the current ref is listed
 \(em across both minor and major bumps, since Dependabot does not open
 major-version pull requests by default.

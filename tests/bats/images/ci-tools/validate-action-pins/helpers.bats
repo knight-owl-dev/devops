@@ -211,3 +211,29 @@ v7.0.0"
   assert_failure 1
   assert_output --partial "unexpected HTTP 503"
 }
+
+# ── _action_repo ────────────────────────────────────────────────────
+
+@test "_action_repo leaves a two-segment action unchanged" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run _action_repo "foo/bar"
+  assert_success
+  assert_output "foo/bar"
+}
+
+@test "_action_repo trims a single sub-path segment" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run _action_repo "foo/bar/some-subdir"
+  assert_success
+  assert_output "foo/bar"
+}
+
+@test "_action_repo trims nested sub-path segments" {
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run _action_repo "Homebrew/actions/setup-homebrew/extra"
+  assert_success
+  assert_output "Homebrew/actions"
+}

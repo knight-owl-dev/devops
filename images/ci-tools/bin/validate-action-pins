@@ -250,6 +250,26 @@ _effective_ref() {
   fi
 }
 
+# Return the owner/repo portion of an action reference, stripping any
+# sub-path segments. GitHub Actions allow path references of the form
+# `owner/repo/path@ref`, where the real repository is `owner/repo` and
+# `path` is a directory within it. API calls (git/ref/tags,
+# git/ref/heads, tags, compare) must target `owner/repo`, not the full
+# action string — otherwise the request 404s.
+#
+# Arguments:
+#   $1 - action string, e.g. `actions/checkout`,
+#        `Homebrew/actions/setup-homebrew`
+#
+# Output:
+#   The first two path segments joined with `/`; the input unchanged
+#   if it already has only two segments.
+_action_repo() {
+  local first="${1%%/*}" rest
+  rest="${1#*/}"
+  echo "${first}/${rest%%/*}"
+}
+
 # Decide whether a pin should be included given the --only filter.
 #
 # Arguments:
@@ -265,32 +285,18 @@ _include_pin() {
   [[ "${1}" == "all" || "${1}" == "${2}" ]]
 }
 
-# Module-scope dedup sets, one per scope boundary that the
-# subcommands care about. The arrays are reset at their respective
-# boundaries (per-file loop in cmd_check, per-invocation entry in
-# cmd_updates) so sourced tests that call a subcommand twice start
-# from a clean state.
-#
-# Scope conventions:
-#   seen_in_file - cmd_check resets inside the per-file loop; one
-#                  OK/FAIL/WARN line per unique pin per file.
-#   seen_in_run  - cmd_updates resets on entry; one record per
-#                  unique pin across the whole invocation.
-#   (cmd_list uses no dedup — every occurrence is listed.)
+# Module-scope dedup set shared by cmd_check and cmd_updates. Reset
+# inside each subcommand's per-file loop so sourced tests that call a
+# subcommand twice start from a clean state. cmd_list uses no dedup —
+# every occurrence is listed.
 declare -A seen_in_file=()
-declare -A seen_in_run=()
 
-# First-occurrence gates. Return 0 the first time a key is seen in
-# the corresponding scope, 1 thereafter. Callers idiomatically chain
-# as `_once_per_X "${key}" || continue`.
+# First-occurrence gate. Returns 0 the first time a key is seen since
+# the last reset, 1 thereafter. Callers idiomatically chain as
+# `_once_per_file "${key}" || continue`.
 _once_per_file() {
   [[ -n "${seen_in_file[${1}]+x}" ]] && return 1
   seen_in_file["${1}"]=1
-  return 0
-}
-_once_per_run() {
-  [[ -n "${seen_in_run[${1}]+x}" ]] && return 1
-  seen_in_run["${1}"]=1
   return 0
 }
 
@@ -362,7 +368,7 @@ parse_uses_line() {
 #   $2 - operation name used in the WARN message
 #
 # Output:
-#   WARN line(s) to stdout for every non-200 code
+#   WARN line(s) to stderr for every non-200 code
 #
 # Returns:
 #   0 - status is benign; caller may proceed
@@ -371,21 +377,21 @@ _preflight_classify_status() {
   case "${1}" in
     200) return 0 ;;
     401 | 403)
-      echo "WARN: GitHub API authentication failed (HTTP ${1}) — skipping ${2}"
-      echo "      check GITHUB_TOKEN; an unset or expired token produces this response"
+      echo "WARN: GitHub API authentication failed (HTTP ${1}) — skipping ${2}" >&2
+      echo "      check GITHUB_TOKEN; an unset or expired token produces this response" >&2
       return 1
       ;;
     429)
-      echo "WARN: GitHub API secondary rate limit hit (HTTP 429) — skipping ${2}"
-      echo "      slow down, set GITHUB_TOKEN, or retry after the Retry-After interval"
+      echo "WARN: GitHub API secondary rate limit hit (HTTP 429) — skipping ${2}" >&2
+      echo "      slow down, set GITHUB_TOKEN, or retry after the Retry-After interval" >&2
       return 1
       ;;
     000)
-      echo "WARN: cannot reach GitHub API — skipping ${2}"
+      echo "WARN: cannot reach GitHub API — skipping ${2}" >&2
       return 1
       ;;
     *)
-      echo "WARN: GitHub API returned unexpected HTTP ${1} — skipping ${2}"
+      echo "WARN: GitHub API returned unexpected HTTP ${1} — skipping ${2}" >&2
       return 1
       ;;
   esac
@@ -408,7 +414,7 @@ _preflight_probe_file() {
   if ! curl "${_CURL_FLAGS[@]}" "${auth_header[@]+"${auth_header[@]}"}" \
     -H "Accept: application/vnd.github+json" \
     "${GITHUB_API_BASE}/rate_limit" > "${body_file}" 2> "${_CURL_ERRFD}"; then
-    echo "WARN: cannot reach GitHub API — skipping ${op}"
+    echo "WARN: cannot reach GitHub API — skipping ${op}" >&2
     return 1
   fi
 }
@@ -465,7 +471,7 @@ check_api_preflight() {
   local cmd
   for cmd in curl jq; do
     if ! command -v "${cmd}" > /dev/null 2>&1; then
-      echo "WARN: ${cmd} not found — skipping ${op}"
+      echo "WARN: ${cmd} not found — skipping ${op}" >&2
       return 1
     fi
   done
@@ -498,12 +504,12 @@ check_api_preflight() {
   remaining="$(jq -r '.resources.core.remaining // empty' < "${body_file}" 2> "${_CURL_ERRFD}" || true)"
   if [[ -n "${remaining}" ]]; then
     if [[ "${remaining}" -le 0 ]]; then
-      echo "WARN: GitHub API rate limit exhausted — skipping ${op}"
-      echo "      set GITHUB_TOKEN to raise the limit from 60 to 5,000 per hour"
+      echo "WARN: GitHub API rate limit exhausted — skipping ${op}" >&2
+      echo "      set GITHUB_TOKEN to raise the limit from 60 to 5,000 per hour" >&2
       return 1
     fi
     if [[ "${remaining}" -lt 20 ]]; then
-      echo "WARN: GitHub API rate limit is low (${remaining} remaining); set GITHUB_TOKEN if ${op} stalls mid-run"
+      echo "WARN: GitHub API rate limit is low (${remaining} remaining); set GITHUB_TOKEN if ${op} stalls mid-run" >&2
     fi
   fi
   return 0
@@ -673,7 +679,7 @@ cmd_check() {
   local -A resolve_cache=()
   local -A compare_cache=()
   local file basename line parsed
-  local action ref kind comment cache_key cached resolved resolved_kind
+  local action ref kind comment repo cache_key cached resolved resolved_kind
   local compare_key behind
 
   # Clean slate in case a sourced test re-enters the subcommand.
@@ -681,7 +687,7 @@ cmd_check() {
 
   for file in "${@}"; do
     if [[ ! -f "${file}" ]]; then
-      echo "WARN: ${file} not found, skipping"
+      echo "WARN: ${file} not found, skipping" >&2
       continue
     fi
     basename="${file##*/}"
@@ -704,8 +710,9 @@ cmd_check() {
       cache_key="${action}#${comment}"
       _once_per_file "${cache_key}" || continue
 
+      repo="$(_action_repo "${action}")"
       if [[ -z "${resolve_cache[${cache_key}]+x}" ]]; then
-        if cached="$(resolve_ref "${action}" "${comment}")"; then
+        if cached="$(resolve_ref "${repo}" "${comment}")"; then
           resolve_cache["${cache_key}"]="${cached}"
         else
           resolve_cache["${cache_key}"]="NONE"
@@ -736,7 +743,7 @@ cmd_check() {
       if [[ "${resolved_kind}" == "branch" ]]; then
         compare_key="${action}#${ref}#${resolved}"
         if [[ -z "${compare_cache[${compare_key}]+x}" ]]; then
-          behind="$(compare_behind "${action}" "${ref}" "${resolved}" || true)"
+          behind="$(compare_behind "${repo}" "${ref}" "${resolved}" || true)"
           compare_cache["${compare_key}"]="${behind}"
         fi
         behind="${compare_cache[${compare_key}]}"
@@ -769,7 +776,7 @@ cmd_check() {
   return 0
 }
 
-# Report upgrade inventory for each unique pin. Always informational
+# Report upgrade inventory for each pin. Always informational
 # — exit 0 on success regardless of whether upgrades are available.
 #
 # The goal is to save time on periodic audits, not to pick "the" next
@@ -778,12 +785,17 @@ cmd_check() {
 # bumps by default). For branch pins, the current branch HEAD is
 # reported so stale SHA-to-branch pins are visible at a glance.
 #
+# Dedup is per-file (matching cmd_check), so a pin that appears in
+# multiple workflow files is reported once per file — operators can
+# see every file that needs editing to take an upgrade. API results
+# are cached per invocation, so repeat pins don't multiply API cost.
+#
 # Arguments:
 #   $1   - format: "plain" or "tsv"
 #   $2   - --only filter: "all", "tag", or "branch"
 #   $3.. - workflow file paths
 #
-# Plain output (one line per unique pin):
+# Plain output (one line per unique pin per file):
 #   <basename>: <action>  current=<ref>  [up-to-date]  (<kind>)
 #   <basename>: <action>  current=<ref>  newer=<t1> <t2> ...  (tag)
 #   <basename>: <action>  current=<ref>  head=<short-sha>  (branch)
@@ -795,7 +807,7 @@ cmd_check() {
 #     tag pins, or the short HEAD SHA for branch pins (empty when
 #     up-to-date in either case).
 #
-# Per-unique-pin API cost:
+# Per-invocation API cost (deduped across files by repo+ref):
 #   - Tag ref:    1 call to /repos/.../tags
 #   - Branch ref: 1 call to /repos/.../git/ref/heads/<branch>
 #   - SHA pin with no # comment: no calls, recorded as "unknown"
@@ -806,11 +818,13 @@ cmd_updates() {
   check_api_preflight "update check" || return 0
 
   local file basename line parsed
-  local action ref kind comment effective_ref effective_kind
-  local newer_tags head_full available key
+  local action ref kind comment effective_ref effective_kind repo
+  local newer_tags head_full available cache_key
 
-  # Per-invocation dedup: report each unique pin once across all files.
-  seen_in_run=()
+  # Per-invocation result caches: keep API calls to one per unique
+  # (repo, ref) pair even when the same pin appears in many files.
+  local -A updates_newer_cache=()
+  local -A updates_head_cache=()
 
   for file in "${@}"; do
     if [[ ! -f "${file}" ]]; then
@@ -818,6 +832,7 @@ cmd_updates() {
       continue
     fi
     basename="${file##*/}"
+    seen_in_file=() # per-file dedup scope
 
     while IFS= read -r line; do
       if ! parsed="$(parse_uses_line "${line}")"; then
@@ -826,9 +841,10 @@ cmd_updates() {
       IFS=$'\t' read -r action ref kind comment <<< "${parsed}"
 
       effective_ref="$(_effective_ref "${kind}" "${ref}" "${comment}")"
-      key="${action}@${effective_ref}"
-      _once_per_run "${key}" || continue
+      _once_per_file "${action}@${effective_ref}" || continue
 
+      repo="$(_action_repo "${action}")"
+      cache_key="${repo}@${effective_ref}"
       newer_tags=""
       head_full=""
       available=""
@@ -839,13 +855,19 @@ cmd_updates() {
         effective_kind="unknown"
       elif [[ "${effective_ref}" =~ ${_SEMVER_RE} ]]; then
         effective_kind="tag"
-        newer_tags="$(list_newer_tags "${action}" "${effective_ref}" || true)"
+        if [[ -z "${updates_newer_cache[${cache_key}]+x}" ]]; then
+          updates_newer_cache["${cache_key}"]="$(list_newer_tags "${repo}" "${effective_ref}" || true)"
+        fi
+        newer_tags="${updates_newer_cache[${cache_key}]}"
         if [[ -n "${newer_tags}" ]]; then
           available="$(tr '\n' ' ' <<< "${newer_tags}" | sed 's/ *$//')"
         fi
       else
         effective_kind="branch"
-        head_full="$(head_sha "${action}" "${effective_ref}" || true)"
+        if [[ -z "${updates_head_cache[${cache_key}]+x}" ]]; then
+          updates_head_cache["${cache_key}"]="$(head_sha "${repo}" "${effective_ref}" || true)"
+        fi
+        head_full="${updates_head_cache[${cache_key}]}"
         if [[ "${kind}" == "sha" && "${ref}" != "${head_full}" && -n "${head_full}" ]]; then
           available="${head_full:0:12}"
         fi
@@ -856,7 +878,7 @@ cmd_updates() {
 
       # For TSV, column 3 is "current_ref" — the classified ref hint
       # except for unknown pins, where we fall back to the original
-      # @ref so the row still points at something recognisable.
+      # @ref so the row still points at something recognizable.
       local col_ref="${effective_ref}"
       [[ "${effective_kind}" == "unknown" ]] && col_ref="${ref}"
 
@@ -907,7 +929,7 @@ cmd_list() {
 
   local -A resolve_cache=()
   local file line parsed action ref kind comment
-  local effective_ref cache_key cached resolved_kind
+  local effective_ref repo cache_key cached resolved_kind
 
   for file in "${@}"; do
     if [[ ! -f "${file}" ]]; then
@@ -927,7 +949,8 @@ cmd_list() {
         else
           cache_key="${action}#${effective_ref}"
           if [[ -z "${resolve_cache[${cache_key}]+x}" ]]; then
-            if cached="$(resolve_ref "${action}" "${effective_ref}")"; then
+            repo="$(_action_repo "${action}")"
+            if cached="$(resolve_ref "${repo}" "${effective_ref}")"; then
               resolve_cache["${cache_key}"]="${cached}"
             else
               resolve_cache["${cache_key}"]="NONE"
