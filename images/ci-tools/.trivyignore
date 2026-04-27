@@ -3,48 +3,38 @@
 # Tracking issue: #NN
 # CVE-YYYY-NNNNN
 
-# actionlint v1.7.12 (Go 1.25.7 for CVE-2026-25679; Go 1.26.1 for CVE-2026-32282)
 # Go stdlib CVEs — waiting on upstream releases built with a patched Go toolchain.
 #
-# actionlint is a lint tool that runs offline against local files.
-# It does not parse untrusted URLs with net/url, and it does not use
-# os.Root.Chmod on untrusted filesystem input, so the practical risk
-# for both CVEs is negligible.
+# actionlint v1.7.12 and shfmt v3.13.1 are both built with Go 1.26.1.
+# Both are offline lint/format tools that operate on local files: they do
+# not parse untrusted URLs, build or validate X.509 chains against
+# untrusted input, or open TLS sessions to untrusted peers, so the
+# practical risk for the entries below is negligible.
 
-# net/url: Incorrect parsing of IPv6 host literals (fixed in Go 1.25.8 / 1.26.1)
-# Affects: actionlint (Go 1.25.7)
-# Remove this entry once actionlint ships a build on Go >= 1.25.8 or 1.26.1.
-# Tracking issue: #96
-CVE-2026-25679
-
-# internal/syscall/unix: Root.Chmod can follow symlinks out of the root
+# crypto/x509: chain building does unbounded work
 # (fixed in Go 1.25.9 / 1.26.2)
 # Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1)
 # Remove this entry once both ship builds on Go >= 1.25.9 or 1.26.2.
 # Tracking issue: #96
-CVE-2026-32282
+CVE-2026-32280
 
-# crypto/x509: chain building does unbounded work (fixed in Go 1.25.9 / 1.26.2)
+# crypto/x509: inefficient certificate chain validation (DoS)
+# (fixed in Go 1.25.9 / 1.26.2)
 # Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1)
-# Both are offline tools that do not perform X.509 chain building on
-# untrusted input, so the practical risk is negligible.
 # Remove this entry once both ship builds on Go >= 1.25.9 or 1.26.2.
 # Tracking issue: #96
-CVE-2026-32280
+CVE-2026-32281
+
+# crypto/tls: multiple key update messages cause DoS
+# (fixed in Go 1.25.9 / 1.26.2)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1)
+# Remove this entry once both ship builds on Go >= 1.25.9 or 1.26.2.
+# Tracking issue: #96
+CVE-2026-32283
 
 # crypto/x509: certificate validation bypass via incorrect DNS constraint
 # handling (fixed in Go 1.26.2)
 # Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1)
-# Both are offline tools that do not validate TLS certificates against
-# untrusted input, so the practical risk is negligible.
 # Remove this entry once both ship builds on Go >= 1.26.2.
 # Tracking issue: #96
 CVE-2026-33810
-
-# picomatch: ReDoS via crafted extglob patterns (fixed in 4.0.4 / 3.0.2 / 2.3.2)
-# Affects: npm 11.12.1 bundled tinyglobby → picomatch 4.0.3
-# npm bundles its own dependencies; global install cannot override them.
-# picomatch is only used for glob matching during npm install — no untrusted input in CI.
-# Remove this entry when the base image ships npm with picomatch >= 4.0.4.
-# Tracking issue: #110
-CVE-2026-33671
