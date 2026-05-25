@@ -97,10 +97,13 @@ echo "Release assets:"
 printf '%s\n' "${files[@]}"
 
 # Compute checksums in GNU coreutils format (checksum first, compatible with sha256sum -c)
-# Output uses basenames only for cleaner checksums.txt
+# Output uses basenames only for cleaner checksums.txt. Sort by the
+# filename field (-k2,2) under LC_ALL=C so output is byte-for-byte
+# reproducible across environments; bare `sort` would order lines by
+# the leading sha256 prefix, which isn't meaningful.
 (cd "${DIST_DIR}" && sha256sum "${files[@]}") | while read -r sum file; do
   echo "${sum}  $(basename "${file}")"
-done | sort > "${OUT_DIR}/checksums.txt"
+done | LC_ALL=C sort -k2,2 > "${OUT_DIR}/checksums.txt"
 
 echo ""
 echo "${OUT_DIR}/checksums.txt:"
