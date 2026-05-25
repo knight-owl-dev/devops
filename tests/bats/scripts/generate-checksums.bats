@@ -54,12 +54,11 @@ _make_artifacts() {
   assert_success
 }
 
-@test "checksums.txt records every artifact found in the dist dir" {
-  # Note: the script's final `| sort` sorts lines by the sha256
-  # prefix (the first column on each line), not by filename, so we
-  # assert only the *set* of records — pinning the buggy hash-order
-  # would lock in a quirk that shouldn't be load-bearing.
+@test "checksums.txt is sorted alphabetically by filename" {
   local dist="${FAKE_REPO}/dist"
+  # Stage in non-alphabetical order to prove the sort actually
+  # reorders. The script sorts under LC_ALL=C, so the assertion is
+  # locale-independent.
   _make_artifacts "${dist}" \
     "ci-tools_1.0.0_osx-x64.tar.gz" \
     "ci-tools_1.0.0_amd64.deb" \
@@ -67,10 +66,27 @@ _make_artifacts() {
   run "${SCRIPT}" "${dist}"
   assert_success
   run awk '{print $2}' "${OUT_DIR}/checksums.txt"
-  assert_line "ci-tools_1.0.0_osx-x64.tar.gz"
-  assert_line "ci-tools_1.0.0_amd64.deb"
-  assert_line "ci-tools_1.0.0_linux-x64.tar.gz"
-  assert_equal "${#lines[@]}" 3
+  assert_output "ci-tools_1.0.0_amd64.deb
+ci-tools_1.0.0_linux-x64.tar.gz
+ci-tools_1.0.0_osx-x64.tar.gz"
+}
+
+@test "checksums.txt sort is locale-independent (script pins LC_ALL=C)" {
+  # Filenames where C and en_US.UTF-8 collation differ: under C,
+  # uppercase letters sort before lowercase (byte order); under
+  # en_US.UTF-8, sort is case-insensitive alphabetical. The
+  # ci-tools image generates en_US.UTF-8 for exactly this kind of
+  # check (see images/ci-tools/Dockerfile). If a future refactor
+  # drops the in-script LC_ALL=C, this test fails — output would
+  # come back as A.deb, b.deb, C.deb instead of the C-order below.
+  local dist="${FAKE_REPO}/dist"
+  _make_artifacts "${dist}" "A.deb" "b.deb" "C.deb"
+  run env LC_ALL=en_US.UTF-8 "${SCRIPT}" "${dist}"
+  assert_success
+  run awk '{print $2}' "${OUT_DIR}/checksums.txt"
+  assert_output "A.deb
+C.deb
+b.deb"
 }
 
 @test "checksums.txt records basenames only, even for nested artifacts" {
