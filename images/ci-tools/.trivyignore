@@ -5,11 +5,11 @@
 
 # Go stdlib CVEs — waiting on upstream releases built with a patched Go toolchain.
 #
-# actionlint v1.7.12 and shfmt v3.13.1 are both built with Go 1.26.1.
-# Both are offline lint/format tools that operate on local files: they do
-# not parse untrusted URLs, build or validate X.509 chains against
-# untrusted input, or open TLS sessions to untrusted peers, so the
-# practical risk for the entries below is negligible.
+# actionlint v1.7.12 and shfmt v3.13.1 are built with Go 1.26.1; yq v4.53.2
+# is built with Go 1.26.2. All three are offline lint/format tools that
+# operate on local files: they do not parse untrusted URLs, build or validate
+# X.509 chains against untrusted input, or open TLS sessions to untrusted
+# peers, so the practical risk for the entries below is negligible.
 
 # crypto/x509: chain building does unbounded work
 # (fixed in Go 1.25.9 / 1.26.2)
@@ -38,3 +38,43 @@ CVE-2026-32283
 # Remove this entry once both ship builds on Go >= 1.26.2.
 # Tracking issue: #96
 CVE-2026-33810
+
+# net: LookupCNAME with the cgo DNS resolver crashes on a very long CNAME
+# (fixed in Go 1.25.10 / 1.26.3)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1),
+#          yq v4.53.2 (Go 1.26.2)
+# Remove this entry once all three ship builds on Go >= 1.25.10 or 1.26.3.
+# Tracking issue: #96
+CVE-2026-33811
+
+# net/http2: infinite loop when processing HTTP/2 SETTINGS frames
+# (fixed in Go 1.25.10 / 1.26.3)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1),
+#          yq v4.53.2 (Go 1.26.2)
+# Remove this entry once all three ship builds on Go >= 1.25.10 or 1.26.3.
+# Tracking issue: #96
+CVE-2026-33814
+
+# net/mail: DoS via crafted inputs to ParseAddress / ParseAddressList
+# (fixed in Go 1.25.10 / 1.26.3)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1),
+#          yq v4.53.2 (Go 1.26.2)
+# Remove this entry once all three ship builds on Go >= 1.25.10 or 1.26.3.
+# Tracking issue: #96
+CVE-2026-39820
+
+# net: panic in Dial and LookupPort when handling NUL byte (Windows)
+# (fixed in Go 1.25.10 / 1.26.3)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1),
+#          yq v4.53.2 (Go 1.26.2)
+# Remove this entry once all three ship builds on Go >= 1.25.10 or 1.26.3.
+# Tracking issue: #96
+CVE-2026-39836
+
+# net/mail: DoS through consumePhrase on pathological inputs
+# (fixed in Go 1.25.10 / 1.26.3)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1),
+#          yq v4.53.2 (Go 1.26.2)
+# Remove this entry once all three ship builds on Go >= 1.25.10 or 1.26.3.
+# Tracking issue: #96
+CVE-2026-42499
