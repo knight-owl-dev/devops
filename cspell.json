@@ -12,6 +12,7 @@
     "ERRFD",
     "extglob",
     "hadolint",
+    "libgnutls",
     "ltrimstr",
     "luacheck",
     "luarocks",

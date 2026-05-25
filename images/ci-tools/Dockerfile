@@ -1,13 +1,19 @@
 # ci-tools — shared linting image for Knight Owl CI pipelines
-FROM node:26-bookworm-slim@sha256:d2ec0a1766c01dad04a185c2d5558b0adace167a7f1758ce80f0017698431d06
+FROM node:26-bookworm-slim@sha256:e89172f5e6154ba212269866bf3fbadbca8eb7901e10c0eccf08f2147bfae505
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # ---------- apt ----------
+# libgnutls30 is listed explicitly to force apt to pull the latest deb12u7+
+# revision, fixing CVE-2026-33845, CVE-2026-42010, CVE-2026-33846,
+# CVE-2026-3833, and CVE-2026-42009. Remove once the base image ships
+# libgnutls30 >= 3.7.9-2+deb12u7. Tracking issue: #135.
+#
 # DL3008: apt packages are intentionally unpinned
 # hadolint ignore=DL3008
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
+    libgnutls30 \
     shellcheck \
     chktex \
     mandoc \
