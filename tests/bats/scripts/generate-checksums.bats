@@ -71,6 +71,24 @@ ci-tools_1.0.0_linux-x64.tar.gz
 ci-tools_1.0.0_osx-x64.tar.gz"
 }
 
+@test "checksums.txt sort is locale-independent (script pins LC_ALL=C)" {
+  # Filenames where C and en_US.UTF-8 collation differ: under C,
+  # uppercase letters sort before lowercase (byte order); under
+  # en_US.UTF-8, sort is case-insensitive alphabetical. The
+  # ci-tools image generates en_US.UTF-8 for exactly this kind of
+  # check (see images/ci-tools/Dockerfile). If a future refactor
+  # drops the in-script LC_ALL=C, this test fails — output would
+  # come back as A.deb, b.deb, C.deb instead of the C-order below.
+  local dist="${FAKE_REPO}/dist"
+  _make_artifacts "${dist}" "A.deb" "b.deb" "C.deb"
+  run env LC_ALL=en_US.UTF-8 "${SCRIPT}" "${dist}"
+  assert_success
+  run awk '{print $2}' "${OUT_DIR}/checksums.txt"
+  assert_output "A.deb
+C.deb
+b.deb"
+}
+
 @test "checksums.txt records basenames only, even for nested artifacts" {
   local dist="${FAKE_REPO}/dist"
   _make_artifacts "${dist}" "deb/ci-tools_1.0.0_amd64.deb"
