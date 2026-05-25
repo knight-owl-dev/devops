@@ -85,7 +85,7 @@ mkdir -p "${OUT_DIR}"
 # Find all release files (.tar.gz and .deb)
 raw_files="$(cd "${DIST_DIR}" && find . -maxdepth 3 -type f \( -name '*.tar.gz' -o -name '*.deb' \) -print)"
 cleaned_files="${raw_files//.\//}"
-sorted_files="$(echo "${cleaned_files}" | sort)"
+sorted_files="$(echo "${cleaned_files}" | LC_ALL=C sort)"
 mapfile -t files <<< "${sorted_files}"
 
 if [[ ${#files[@]} -eq 0 ]]; then
