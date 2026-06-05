@@ -143,7 +143,7 @@ clean:
 # Show all commands
 help:
 	@echo ""
-	@echo "Devops Commands (IMAGE=ci-tools):"
+	@echo "Devops Commands (IMAGE=$(IMAGE)):"
 	@echo "  make sync              Resolve*, build, and verify image"
 	@echo "  make resolve           Resolve all tools to latest*"
 	@echo "  make resolve TOOLS=... Pin specific tools (e.g. shfmt:v3.11.0)*"
