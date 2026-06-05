@@ -10,12 +10,16 @@ Every image uses the same layout. Replace `<name>` with your image name:
 images/<name>/
 ├── Dockerfile
 ├── compose.yaml         # local builds: wires versions.lock → build args
-└── versions.lock        # tracked: canonical versions + checksums
+├── version              # tracked: per-image release version (strict semver)
+└── versions.lock        # tracked: canonical tool versions + checksums
 
 scripts/<name>/
 ├── resolve.sh           # resolve versions + checksums → versions.lock
 └── verify.sh            # verify tools in built image
 ```
+
+Distributable images (those that ship `.deb` / Homebrew packages) add a few
+more files — see [step 11](#11-set-up-distributable-packaging-local-tools-only).
 
 ## Steps
 
@@ -116,19 +120,39 @@ make sync IMAGE=<name>
 All image operations (`sync`, `resolve`, `build`, `verify`, `clean`) work
 automatically via the `IMAGE` variable — no Makefile changes needed.
 
-### 8. Add the image to workflow matrices
+### 8. Set the release version
 
-Both `publish.yml` and `cve-monitor.yml` use a matrix strategy to iterate over
-images. Add `<name>` to the `matrix.image` array in **both** workflows so they
-stay in sync:
+Every image needs an in-tree `images/<name>/version` (strict semver) — the
+per-image source of truth a release publishes from. Seed it with `make
+set-version`:
+
+```bash
+make set-version IMAGE=<name> VERSION=0.1.0
+make get-version IMAGE=<name>          # print the current value
+```
+
+A release builds and pushes an image only when its `images/<name>/version` is
+absent from the registry, so **bumping this file is how you ship a change**.
+The PR guard in `ci.yml` enforces that any change to an image's build context
+arrives with a bumped, not-yet-published version.
+
+### 9. Wire up workflows
+
+`publish.yml` and `ci.yml` **auto-discover** images — `publish.yml` from each
+`images/<name>/version` (building only versions absent from the registry) and
+`ci.yml` from the `distributable` marker — so no matrix edit is needed in
+either.
+
+`cve-monitor.yml` still uses a static matrix; add `<name>` to it so the
+published image is scanned on schedule:
 
 ```yaml
-# .github/workflows/publish.yml and .github/workflows/cve-monitor.yml
+# .github/workflows/cve-monitor.yml
 matrix:
   image: [ci-tools, <name>]
 ```
 
-### 9. Add Makefile lint targets (if applicable)
+### 10. Add Makefile lint targets (if applicable)
 
 If the new tool should run as part of `make lint`, add it to the Makefile. For
 repo-local scripts that are also installed in the container image, prefer the
@@ -143,23 +167,28 @@ MY_TOOL := $(shell command -v my-tool 2>/dev/null || echo images/<name>/bin/my-t
 This keeps bare-metal development working while ensuring CI runs the same
 version that shipped in the image.
 
-### 10. Set up distributable packaging (local tools only)
+### 11. Set up distributable packaging (local tools only)
 
-If the local tool should be installable outside Docker (via Homebrew or apt),
-add it to the packaging pipeline:
+If the image's local tools should be installable outside Docker (via Homebrew
+or apt), make the image **distributable**:
 
-1. Add a man page in `docs/man/man1/<name>/<tool>.1` (mdoc(7) format).
-2. Add the binary to `scripts/ci-tools/package-release.sh` staging.
-3. Add entries to `images/ci-tools/nfpm.yaml` for deb packaging.
-4. Add verification checks to `scripts/ci-tools/verify-deb-install.sh` (binary
-   path, symlink, version output, man page).
+1. Add an empty `images/<name>/distributable` marker — its presence opts the
+   image into deb/brew packaging, downstream dispatch, and the CI deb
+   build/test jobs.
+2. Add `images/<name>/nfpm.yaml` describing the deb (package name, contents,
+   symlinks, man page, copyright).
+3. Add `scripts/<name>/package-release.sh` to stage the tools into platform
+   archives, and `scripts/<name>/verify-deb-install.sh` to verify an installed
+   deb (binary path, symlink, version output, man page).
+4. Add a man page in `docs/man/man1/<name>/<tool>.1` (mdoc(7) format).
 
-The `.github/actions/build-deb` composite action handles Go/nfpm toolchain
-setup for both CI and publish workflows. CI runs `build-deb` and `test-deb`
-jobs on every PR to catch packaging issues before release. Use
-`make test-package` to run the same verification locally via Docker.
+The `.github/actions/build-deb` composite action (parametrized by `image`)
+handles the Go/nfpm toolchain. CI auto-discovers every distributable image and
+runs `build-deb` + `test-deb` for each on every PR. Use `make test-package` to
+run the same verification locally via Docker.
 
-At release time the publish workflow packages local tools into platform
-archives (`.tar.gz`) and Debian packages (`.deb`), uploads them as release
-assets, and triggers the downstream `apt` and `homebrew-tap` repos. See
-[Publish an Image](publish-image.md) for the full pipeline.
+At release time the publish workflow packages each distributable image into
+platform archives (`.tar.gz`) and Debian packages (`.deb`), uploads them to the
+GitHub Release, and dispatches the downstream `apt` and `homebrew-tap` repos
+with `<name>:<version>`. See [Publish an Image](publish-image.md) for the full
+pipeline.

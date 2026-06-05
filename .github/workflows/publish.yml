@@ -6,8 +6,41 @@ on:
       - "v*.*.*"
 
 jobs:
+  matrix:
+    name: Compute build matrix
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      images: ${{ steps.compute.outputs.images }}
+      distributable: ${{ steps.compute.outputs.distributable }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Validate release tag
+        # Strict vN.N.N only. The tag anchors the release/changelog; it no longer
+        # drives per-image versions (those live in images/<name>/version).
+        run: ./scripts/validate-version-strict.sh "${{ github.ref_name }}"
+
+      - name: Log in to GHCR
+        # Needed so `docker manifest inspect` can read the registry ledger.
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute build matrix
+        id: compute
+        # Builds only images whose in-tree version is absent from the registry.
+        run: ./scripts/compute-build-matrix.sh
+
   publish:
     name: Publish ${{ matrix.image }}
+    needs: matrix
+    if: ${{ needs.matrix.outputs.images != '[]' }}
     runs-on: ubuntu-latest
     concurrency:
       group: publish-${{ matrix.image }}
@@ -19,26 +52,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ci-tools] # extend when adding images
+        image: ${{ fromJSON(needs.matrix.outputs.images) }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Validate release tag
-        # Strict vN.N.N only — avoids conditional :latest tagging for pre-releases.
-        # Revisit when we actually need RC releases.
-        run: ./scripts/validate-version-strict.sh "${{ github.ref_name }}"
+      - name: Resolve image version
+        id: version
+        # Validated upstream (compute-build-matrix + the PR guard); read it raw.
+        run: echo "version=$(head -n1 "images/${{ matrix.image }}/version")" >> "${GITHUB_OUTPUT}"
 
       - name: Load build args
         id: args
         env:
-          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${TAG#v}"
           {
             echo "build_args<<LOCKFILE_EOF"
             sed "s/=local$/=${VERSION}/" "images/${{ matrix.image }}/versions.lock"
-            echo "IMAGE_VERSION=${TAG}"
+            echo "IMAGE_VERSION=v${VERSION}"
             echo "LOCKFILE_EOF"
             # Extract description from the Dockerfile label so annotations stay in sync
             echo "image-description=$(
@@ -94,7 +126,7 @@ jobs:
           build-args: ${{ steps.args.outputs.build_args }}
           tags: |
             ghcr.io/knight-owl-dev/${{ matrix.image }}:latest
-            ghcr.io/knight-owl-dev/${{ matrix.image }}:${{ github.ref_name }}
+            ghcr.io/knight-owl-dev/${{ matrix.image }}:v${{ steps.version.outputs.version }}
           push: true
           sbom: true
           provenance: true
@@ -115,47 +147,54 @@ jobs:
         run: cosign sign --yes "ghcr.io/knight-owl-dev/${{ matrix.image }}@${DIGEST}"
 
   package:
-    name: Package local tools
-    needs: publish
+    name: Package ${{ matrix.image }}
+    needs: [matrix, publish]
+    if: ${{ needs.matrix.outputs.distributable != '[]' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.matrix.outputs.distributable) }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Extract version from tag
-        id: tag-version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "${GITHUB_OUTPUT}"
+      - name: Resolve image version
+        id: version
+        run: echo "version=$(head -n1 "images/${{ matrix.image }}/version")" >> "${GITHUB_OUTPUT}"
 
       - name: Build release archives
         env:
-          VERSION: ${{ steps.tag-version.outputs.version }}
-        run: ./scripts/ci-tools/package-release.sh "${VERSION}"
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/${{ matrix.image }}/package-release.sh "${VERSION}"
 
       - name: Build deb packages
         uses: ./.github/actions/build-deb
         with:
-          image: ci-tools
-          version: ${{ steps.tag-version.outputs.version }}
-
-      - name: Generate checksums
-        run: ./scripts/generate-checksums.sh
+          image: ${{ matrix.image }}
+          version: ${{ steps.version.outputs.version }}
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: packages
+          name: packages-${{ matrix.image }}
           path: |
             artifacts/release/*.tar.gz
             artifacts/release/*.deb
-            artifacts/release/checksums.txt
-            artifacts/release/release-body.md
           if-no-files-found: error
 
   release:
     name: Create Release
-    needs: [publish, package]
+    needs: [matrix, publish, package]
+    # Always cut a Release for the pushed tag (the changelog anchor). Run even
+    # when publish/package are skipped, but not when a build that did run failed.
+    if: >-
+      !cancelled()
+      && needs.matrix.result == 'success'
+      && needs.publish.result != 'failure'
+      && needs.package.result != 'failure'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -163,13 +202,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Determine packaging set
+        id: pkg
+        env:
+          DISTRIBUTABLE: ${{ needs.matrix.outputs.distributable }}
+        run: |
+          if [[ "${DISTRIBUTABLE}" != "[]" ]]; then
+            echo "has_assets=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "has_assets=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Download package artifacts
+        if: steps.pkg.outputs.has_assets == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: packages
+          pattern: packages-*
+          merge-multiple: true # all images' assets land in one directory
           path: artifacts/release
 
-      - name: Create GitHub release
+      - name: Generate checksums
+        if: steps.pkg.outputs.has_assets == 'true'
+        # One combined checksums.txt + release-body.md over every image's assets.
+        run: ./scripts/generate-checksums.sh
+
+      - name: Create GitHub release (with assets)
+        if: steps.pkg.outputs.has_assets == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
@@ -182,6 +240,34 @@ jobs:
             artifacts/release/*.tar.gz \
             artifacts/release/*.deb \
             artifacts/release/checksums.txt
+
+      - name: Create GitHub release (changelog only)
+        if: steps.pkg.outputs.has_assets != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        # No distributable image changed — publish a changelog-only Release so the
+        # tag still anchors a release entry, with no package assets.
+        run: gh release create "${TAG}" --generate-notes
+
+  dispatch:
+    name: Dispatch ${{ matrix.image }} downstream
+    needs: [matrix, release]
+    if: ${{ needs.matrix.outputs.distributable != '[]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.matrix.outputs.distributable) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Resolve image version
+        id: version
+        run: echo "version=$(head -n1 "images/${{ matrix.image }}/version")" >> "${GITHUB_OUTPUT}"
 
       - name: Generate GitHub App token
         id: app-token
@@ -197,17 +283,19 @@ jobs:
       - name: Trigger apt repository update
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          TAG: ${{ github.ref_name }}
+          IMAGE: ${{ matrix.image }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           gh api repos/knight-owl-dev/apt/dispatches \
             -f event_type=release-published \
-            -f 'client_payload[versions]=ci-tools:'"${TAG#v}"
+            -f 'client_payload[versions]='"${IMAGE}:${VERSION}"
 
       - name: Trigger Homebrew tap update
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          TAG: ${{ github.ref_name }}
+          IMAGE: ${{ matrix.image }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           gh api repos/knight-owl-dev/homebrew-tap/dispatches \
             -f event_type=release-published \
-            -f 'client_payload[formulas]=ci-tools:'"${TAG#v}"
+            -f 'client_payload[formulas]='"${IMAGE}:${VERSION}"

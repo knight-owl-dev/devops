@@ -51,3 +51,40 @@ validate_strict_version() {
 
   echo "${version}"
 }
+
+# Read and validate an image's in-tree version.
+#
+# Reads the first line of <images-dir>/<name>/version and runs it through
+# validate_strict_version, so the bare MAJOR.MINOR.PATCH is echoed on success
+# and any malformed value is rejected.
+#
+# Arguments:
+#   $1 - Image name (e.g. "ci-tools")
+#   $2 - Images directory (optional, default "images" — cwd-relative)
+#
+# Outputs:
+#   The bare version string on success
+#
+# Returns:
+#   0 - Version file present and valid
+#   1 - Missing argument, missing file, or invalid version
+read_image_version() {
+  if [[ $# -lt 1 ]] || [[ -z "$1" ]]; then
+    echo "ERROR: Image name required" >&2
+    return 1
+  fi
+
+  local name="$1"
+  local images_dir="${2:-images}"
+  local file="${images_dir}/${name}/version"
+
+  if [[ ! -f "${file}" ]]; then
+    echo "ERROR: version file not found: ${file}" >&2
+    return 1
+  fi
+
+  local version
+  IFS= read -r version < "${file}" || true
+
+  validate_strict_version "${version}"
+}
