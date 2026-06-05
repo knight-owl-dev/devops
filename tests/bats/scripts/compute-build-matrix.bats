@@ -4,7 +4,8 @@
 # Tests for scripts/compute-build-matrix.sh. The script operates on the current
 # working directory, so each test builds a fake repo of images/<name>/{version,
 # distributable} fixtures under BATS_TEST_TMPDIR and runs the real script from
-# there. `docker` is stubbed on PATH to model which tags are already published.
+# there, passing the release version. An image is built iff its version file
+# equals the release version.
 
 load ../helpers/common
 
@@ -12,10 +13,9 @@ setup() {
   common_setup
   SCRIPT="${REPO_ROOT}/scripts/compute-build-matrix.sh"
   FAKE_REPO="${BATS_TEST_TMPDIR}/repo"
-  STUB_DIR="${BATS_TEST_TMPDIR}/bin"
-  mkdir -p "${FAKE_REPO}" "${STUB_DIR}"
+  mkdir -p "${FAKE_REPO}"
   unset GITHUB_OUTPUT
-  export SCRIPT FAKE_REPO STUB_DIR
+  export SCRIPT FAKE_REPO
 }
 
 # _seed_image <name> <version> [distributable]
@@ -28,60 +28,47 @@ _seed_image() {
   fi
 }
 
-# _stub_docker_published <tag>...   (tags shaped like "ci-tools:v1.2.5")
-_stub_docker_published() {
-  local published="$*"
-  cat > "${STUB_DIR}/docker" << EOF
-#!/usr/bin/env bash
-# Args: manifest inspect <registry>/<name>:v<version>
-ref="\${3}"
-tag="\${ref##*/}"
-for p in ${published}; do
-  [[ "\${tag}" == "\${p}" ]] && exit 0
-done
-exit 1
-EOF
-  chmod +x "${STUB_DIR}/docker"
-  export PATH="${STUB_DIR}:${PATH}"
-}
-
-@test "a published image is excluded from the build set" {
-  _seed_image ci-tools 1.2.5 dist
-  _stub_docker_published "ci-tools:v1.2.5"
+@test "an image stamped to the release version joins both sets" {
+  _seed_image ci-tools 1.3.0 dist
   cd "${FAKE_REPO}"
-  run "${SCRIPT}"
-  assert_success
-  assert_output --partial "images=[]"
-  assert_output --partial "distributable=[]"
-}
-
-@test "an absent distributable image joins both sets" {
-  _seed_image ci-tools 1.2.5 dist
-  _stub_docker_published ""
-  cd "${FAKE_REPO}"
-  run "${SCRIPT}"
+  run "${SCRIPT}" 1.3.0
   assert_success
   assert_output --partial 'images=["ci-tools"]'
   assert_output --partial 'distributable=["ci-tools"]'
 }
 
-@test "an absent non-distributable image builds but does not package" {
-  _seed_image docs 1.0.0
-  _stub_docker_published ""
+@test "an image at a different version is excluded" {
+  _seed_image ci-tools 1.2.5 dist
   cd "${FAKE_REPO}"
-  run "${SCRIPT}"
+  run "${SCRIPT}" 1.3.0
+  assert_success
+  assert_output --partial "images=[]"
+  assert_output --partial "distributable=[]"
+}
+
+@test "a stamped non-distributable image builds but does not package" {
+  _seed_image docs 1.3.0
+  cd "${FAKE_REPO}"
+  run "${SCRIPT}" 1.3.0
   assert_success
   assert_output --partial 'images=["docs"]'
   assert_output --partial "distributable=[]"
 }
 
-@test "only the unpublished image of a pair is built" {
-  _seed_image ci-tools 1.2.5 dist
-  _seed_image docs 1.0.0
-  _stub_docker_published "docs:v1.0.0"
+@test "only the image stamped to the release is built" {
+  _seed_image ci-tools 1.3.0 dist
+  _seed_image docs 1.2.5
   cd "${FAKE_REPO}"
-  run "${SCRIPT}"
+  run "${SCRIPT}" 1.3.0
   assert_success
   assert_output --partial 'images=["ci-tools"]'
   refute_output --partial '"docs"'
+}
+
+@test "accepts a v-prefixed release argument" {
+  _seed_image ci-tools 1.3.0 dist
+  cd "${FAKE_REPO}"
+  run "${SCRIPT}" v1.3.0
+  assert_success
+  assert_output --partial 'images=["ci-tools"]'
 }
