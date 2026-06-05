@@ -92,6 +92,17 @@ for name in "${changed[@]}"; do
   "${SCRIPT_DIR}/set-image-version.sh" "${name}" "${VERSION}"
 done
 
+# In CI, set the bot identity and token remote BEFORE committing/pushing: the
+# commit needs an author, and the push + PR must run as the App (whose token
+# triggers PR CI). Locally, the caller's own git identity, remote, and gh auth
+# are used.
+if [[ -n "${GH_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
+  git config user.name "github-actions[bot]"
+  git config user.email "github-actions[bot]@users.noreply.github.com"
+  git remote set-url origin \
+    "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+fi
+
 # Open the release PR. The branch name encodes the version; tag-release.yml
 # parses it and promotes the tag on merge.
 BRANCH="release/v${VERSION}"
@@ -101,15 +112,6 @@ for name in "${changed[@]}"; do
   git add "images/${name}/version"
 done
 git commit -m "Release v${VERSION}"
-
-# In CI, push and create the PR as the App so the PR triggers CI; locally, use
-# the caller's existing git remote and gh auth.
-if [[ -n "${GH_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
-  git config user.name "github-actions[bot]"
-  git config user.email "github-actions[bot]@users.noreply.github.com"
-  git remote set-url origin \
-    "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-fi
 
 git push -u origin "${BRANCH}"
 
