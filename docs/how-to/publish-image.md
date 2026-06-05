@@ -1,85 +1,110 @@
 # Publish an Image
 
-Images are published to GHCR automatically via GitHub Actions when a version
-tag is pushed. All images in the matrix are built and pushed in parallel.
-Org-developed local tools are also packaged and uploaded as release assets.
+Images publish to GHCR automatically when a `vN.N.N` tag is pushed. The tag is
+the repo-level release/changelog anchor — it no longer sets image versions.
+Each image instead carries its own `images/<name>/version`, and a release
+builds and re-tags **only** the images whose version is absent from GHCR (the
+registry is the ledger of what's published). Unchanged images keep their
+existing tags, digests, SBOMs, and signatures untouched.
 
 ## Publish a Release
 
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
+1. In a PR, bump the version of each image you changed:
 
-This triggers the `publish` workflow, which runs three jobs in sequence:
+   ```bash
+   make set-version IMAGE=ci-tools VERSION=1.3.0
+   ```
 
-### 1. Publish (per-image matrix)
+   The PR version guard requires any image whose build context changed to carry
+   a bumped, not-yet-published version (see [Add an Image](add-image.md)).
 
-1. Loads `images/<image>/versions.lock` as build args, substituting any
-   `=local` values with the release version from the tag
+2. After merge, push the release tag:
+
+   ```bash
+   git tag v1.3.0
+   git push origin v1.3.0
+   ```
+
+The tag and the per-image versions are independent: the tag names the
+release/changelog, while each `:v<version>` image tag comes from that image's
+`version` file.
+
+## What the Publish Workflow Does
+
+`publish.yml` runs five jobs:
+
+### matrix — compute the build set
+
+Reads every `images/<name>/version` and adds an image to the build set when
+`ghcr.io/knight-owl-dev/<name>:v<version>` is absent from the registry. The
+subset carrying a `distributable` marker becomes the packaging set. Both are
+emitted as JSON matrices.
+
+### publish — build, scan, sign (per image in the build set)
+
+1. Loads `images/<image>/versions.lock` as build args, substituting `=local`
+   with the image's version
 2. Builds a single-platform image and runs `scripts/<image>/verify.sh`
-3. Scans the image for CRITICAL/HIGH CVEs with Trivy (fails the build on
-   findings)
-4. Builds multi-platform with `docker/build-push-action`, pushes to GHCR
-   with an SBOM attestation
-5. Signs the image digest with cosign (keyless via Sigstore Fulcio)
+3. Scans for CRITICAL/HIGH CVEs with Trivy (fails the build on findings)
+4. Builds multi-platform, pushes to GHCR with an SBOM attestation, tagging
+   `:latest` and `:v<version>`
+5. Signs the pushed digest with cosign (keyless via Sigstore Fulcio)
 
-### 2. Package local tools
+### package — build assets (per image in the packaging set)
 
-1. Stages org-developed scripts from `images/ci-tools/bin/` with the release
-   version baked in (replacing the `${..:-unknown}` default)
-2. Creates platform-specific `.tar.gz` archives (osx-arm64, osx-x64,
-   linux-x64, linux-arm64) in `artifacts/release/`
-3. Builds `.deb` packages for amd64 and arm64 via the
-   `.github/actions/build-deb` composite action (same action used in CI)
-4. Generates `checksums.txt` and `release-body.md`
+1. Stages the image's tools into platform `.tar.gz` archives via
+   `scripts/<image>/package-release.sh`
+2. Builds `.deb` packages for amd64 and arm64 via `.github/actions/build-deb`
+3. Uploads a per-image `packages-<image>` artifact
 
-### 3. Create Release
+### release — create the GitHub Release
 
-1. Downloads the package artifacts
-2. Creates a GitHub Release with auto-generated notes and checksums
-3. Uploads release assets (tarballs, debs, checksums.txt)
-4. Triggers downstream `apt` and `homebrew-tap` repositories via
-   `repository_dispatch` (requires a configured GitHub App)
+1. Downloads all `packages-*` artifacts and generates one combined
+   `checksums.txt` + `release-body.md`
+2. Always creates a GitHub Release for the tag with auto-generated notes — with
+   the package assets attached when something is distributable, or
+   changelog-only otherwise
+
+### dispatch — notify downstream (per image in the packaging set)
+
+Triggers the downstream `apt` and `homebrew-tap` repos via `repository_dispatch`
+with `<image>:<version>` (requires a configured GitHub App).
 
 ## Local Version Substitution
 
-Tools tracked as `=local` in `versions.lock` are org-developed scripts
-shipped from the repo. During a publish, the workflow substitutes the real
-version so the Docker image and release archives ship with the correct
-version string:
+Tools tracked as `=local` in `versions.lock` are org-developed scripts shipped
+from the repo. During a publish the workflow substitutes the image's release
+version (from `images/<image>/version`) so the image and archives ship the
+correct version string:
 
 ```yaml
 sed "s/=local$/=${VERSION}/" "images/${{ matrix.image }}/versions.lock"
 ```
 
-For local builds (`make build`), the value stays `local` and the script
-reports `validate-action-pins local` via `--version`.
+For local builds (`make build`), the value stays `local` and the script reports
+e.g. `validate-action-pins local` via `--version`.
 
 ## Release Artifacts
 
-Each release includes:
+Each distributable image contributes:
 
 | Artifact | Description |
 | --- | --- |
-| `ci-tools_<ver>_<platform>.tar.gz` | Platform archive (bash scripts + man page + LICENSE) |
-| `ci-tools_<ver>_<arch>.deb` | Debian package (amd64, arm64) |
-| `checksums.txt` | SHA256 checksums for all assets |
+| `<image>_<ver>_<platform>.tar.gz` | Platform archive (bash scripts + man page + LICENSE) |
+| `<image>_<ver>_<arch>.deb` | Debian package (amd64, arm64) |
 
-Downstream repos (`homebrew-tap`, `apt`) are notified via `repository_dispatch`
-and pull the assets from the release.
+A single `checksums.txt` covers every asset in the release. Downstream repos
+(`homebrew-tap`, `apt`) are notified via `repository_dispatch` and pull the
+assets from the release.
 
 ## Adding a New Image
 
-To add a new image to the publish pipeline, add it to the matrix in
-`.github/workflows/publish.yml`:
+Images are auto-discovered — there is no publish matrix to edit. A new image
+publishes as soon as it has an `images/<name>/version` absent from the registry;
+making it distributable additionally requires a `distributable` marker and
+packaging files. See [Add an Image](add-image.md).
 
-```yaml
-matrix:
-  image: [ci-tools, new-image]
-```
-
-> The CI workflow does **not** use Docker Compose. Compose is a local
+> The CI/publish workflows do **not** use Docker Compose. Compose is a local
 > convenience only (`make build`). In CI, `build-push-action` receives build
 > args directly from the lockfile content. See
 > [Sync an Image](sync-image.md#how-builds-work) for the full comparison.
@@ -89,16 +114,20 @@ matrix:
 | Tag | Example | Description |
 | --- | --- | --- |
 | `latest` | `ghcr.io/knight-owl-dev/<image>:latest` | Most recent release |
-| version | `ghcr.io/knight-owl-dev/<image>:v1.0.0` | Pinned release |
+| version | `ghcr.io/knight-owl-dev/<image>:v1.0.0` | Pinned to `images/<image>/version` |
 
-## CI Packaging Gate
+## CI Gates
 
-The CI workflow (`ci.yml`) runs `build-deb` and `test-deb` jobs on every PR.
-The `test-deb` job installs the deb in a matrix of Debian and Ubuntu containers
-and verifies that binaries, symlinks, man pages, and version output all work.
-This catches packaging regressions before they reach a release.
+The CI workflow (`ci.yml`) guards releases on every PR:
 
-Run the same test locally with `make test-package`.
+- **Version guard** — any image whose build context (everything under
+  `images/<name>/` except the `version` file) changed must carry a bumped,
+  valid, not-yet-published version.
+- **Packaging gate** — for each distributable image, `build-deb` builds the deb
+  and `test-deb` installs it across a matrix of Debian and Ubuntu containers
+  (amd64 + arm64), verifying binaries, symlinks, man pages, and version output.
+
+Run the packaging test locally with `make test-package`.
 
 ## Verify Before Publishing
 
@@ -135,7 +164,10 @@ If the Trivy scan fails during publish:
      (use `docker buildx imagetools inspect` for the manifest list digest).
    - **Tool CVE** — run `make resolve TOOLS=<tool>` to pull the latest
      version, then rebuild and re-scan.
-4. **Re-tag and push** — after the fix, create a new tag and push.
+4. **Bump and re-release** — commit the fix in a PR and bump the image's
+   version (`make set-version IMAGE=<image> VERSION=...`); the guard requires
+   it. Pushing the next release tag rebuilds the image, since its new
+   `:v<version>` is absent from the registry.
 
 ## Workflow Location
 

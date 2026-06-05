@@ -58,8 +58,8 @@ Tools installed via package managers (npm, luarocks) track versions only —
 the package manager verifies integrity during install.
 
 Org-developed scripts use `local` as their version. At publish time the
-workflow substitutes the real release version (from the git tag) so the
-Docker image and release archives ship with the correct version string.
+workflow substitutes the image's release version (from `images/<image>/version`)
+so the Docker image and release archives ship with the correct version string.
 
 Commit the updated lockfile after resolving.
 
