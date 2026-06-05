@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read
     outputs:
       images: ${{ steps.compute.outputs.images }}
       distributable: ${{ steps.compute.outputs.distributable }}
@@ -20,22 +19,14 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Validate release tag
-        # Strict vN.N.N only. The tag anchors the release/changelog; it no longer
-        # drives per-image versions (those live in images/<name>/version).
+        # Strict vN.N.N only. The tag is the release version; the release PR
+        # stamped each changed image's images/<name>/version to it.
         run: ./scripts/validate-version-strict.sh "${{ github.ref_name }}"
-
-      - name: Log in to GHCR
-        # Needed so `docker manifest inspect` can read the registry ledger.
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Compute build matrix
         id: compute
-        # Builds only images whose in-tree version is absent from the registry.
-        run: ./scripts/compute-build-matrix.sh
+        # Builds only images stamped to this release (version == the tag).
+        run: ./scripts/compute-build-matrix.sh "${{ github.ref_name }}"
 
   publish:
     name: Publish ${{ matrix.image }}
@@ -57,20 +48,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Resolve image version
-        id: version
-        # Validated upstream (compute-build-matrix + the PR guard); read it raw.
-        run: echo "version=$(head -n1 "images/${{ matrix.image }}/version")" >> "${GITHUB_OUTPUT}"
-
       - name: Load build args
         id: args
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ github.ref_name }}
         run: |
+          VERSION="${TAG#v}"
           {
             echo "build_args<<LOCKFILE_EOF"
             sed "s/=local$/=${VERSION}/" "images/${{ matrix.image }}/versions.lock"
-            echo "IMAGE_VERSION=v${VERSION}"
+            echo "IMAGE_VERSION=${TAG}"
             echo "LOCKFILE_EOF"
             # Extract description from the Dockerfile label so annotations stay in sync
             echo "image-description=$(
@@ -126,7 +113,7 @@ jobs:
           build-args: ${{ steps.args.outputs.build_args }}
           tags: |
             ghcr.io/knight-owl-dev/${{ matrix.image }}:latest
-            ghcr.io/knight-owl-dev/${{ matrix.image }}:v${{ steps.version.outputs.version }}
+            ghcr.io/knight-owl-dev/${{ matrix.image }}:${{ github.ref_name }}
           push: true
           sbom: true
           provenance: true
@@ -161,9 +148,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Resolve image version
+      - name: Extract release version
         id: version
-        run: echo "version=$(head -n1 "images/${{ matrix.image }}/version")" >> "${GITHUB_OUTPUT}"
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "${GITHUB_OUTPUT}"
 
       - name: Build release archives
         env:
@@ -262,12 +249,9 @@ jobs:
       matrix:
         image: ${{ fromJSON(needs.matrix.outputs.distributable) }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Resolve image version
+      - name: Extract release version
         id: version
-        run: echo "version=$(head -n1 "images/${{ matrix.image }}/version")" >> "${GITHUB_OUTPUT}"
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "${GITHUB_OUTPUT}"
 
       - name: Generate GitHub App token
         id: app-token

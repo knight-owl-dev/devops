@@ -10,7 +10,7 @@ Every image uses the same layout. Replace `<name>` with your image name:
 images/<name>/
 ├── Dockerfile
 ├── compose.yaml         # local builds: wires versions.lock → build args
-├── version              # tracked: per-image release version (strict semver)
+├── version              # tracked: release stamp, set by `make release` (don't hand-edit)
 └── versions.lock        # tracked: canonical tool versions + checksums
 
 scripts/<name>/
@@ -120,28 +120,27 @@ make sync IMAGE=<name>
 All image operations (`sync`, `resolve`, `build`, `verify`, `clean`) work
 automatically via the `IMAGE` variable — no Makefile changes needed.
 
-### 8. Set the release version
+### 8. Releasing the image
 
-Every image needs an in-tree `images/<name>/version` (strict semver) — the
-per-image source of truth a release publishes from. Seed it with `make
-set-version`:
+You don't hand-edit `images/<name>/version` — it records the release at which the
+image last changed, and the release tooling stamps it for you. A new image (a
+directory with a `Dockerfile` and no prior release) is detected as changed and
+stamped on the next release:
 
 ```bash
-make set-version IMAGE=<name> VERSION=0.1.0
-make get-version IMAGE=<name>          # print the current value
+make release VERSION=0.1.0   # opens a "Release v0.1.0" PR stamping changed images
 ```
 
-A release builds and pushes an image only when its `images/<name>/version` is
-absent from the registry, so **bumping this file is how you ship a change**.
-The PR guard in `ci.yml` enforces that any change to an image's build context
-arrives with a bumped, not-yet-published version.
+Merging that release PR promotes tag `v0.1.0`, which builds and publishes the
+image. `make get-version IMAGE=<name>` prints the current stamp. See
+[Publish an Image](publish-image.md) for the full release flow.
 
 ### 9. Wire up workflows
 
-`publish.yml` and `ci.yml` **auto-discover** images — `publish.yml` from each
-`images/<name>/version` (building only versions absent from the registry) and
-`ci.yml` from the `distributable` marker — so no matrix edit is needed in
-either.
+`publish.yml` and `ci.yml` **auto-discover** images — `publish.yml` builds each
+image stamped to the release version (`images/<name>/version == <tag>`) and
+`ci.yml` builds/tests debs for each image with a `distributable` marker — so no
+matrix edit is needed in either.
 
 `cve-monitor.yml` still uses a static matrix; add `<name>` to it so the
 published image is scanned on schedule:
