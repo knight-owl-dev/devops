@@ -12,7 +12,7 @@ VALIDATE_ACTION_PINS := $(shell \
 # Override with `DOCKER_TTY=` (empty) or `DOCKER_TTY=-t` (force) as needed.
 DOCKER_TTY ?= $(shell test -t 0 && echo -t)
 
-.PHONY: sync resolve build verify scan clean set-version \
+.PHONY: sync resolve build verify scan clean set-version get-version \
 	lint lint-fix lint-lockfile lint-docker lint-sh lint-sh-fmt lint-sh-fmt-fix \
 	lint-actions lint-md lint-md-fix lint-man man test-package test-bats help
 
@@ -26,6 +26,10 @@ resolve:
 # Set an image's release version (images/$(IMAGE)/version)
 set-version:
 	@scripts/set-image-version.sh $(IMAGE) $(VERSION)
+
+# Print an image's release version (images/$(IMAGE)/version)
+get-version:
+	@scripts/get-image-version.sh $(IMAGE)
 
 # Build image locally
 build:
@@ -144,6 +148,7 @@ help:
 	@echo "  make resolve           Resolve all tools to latest*"
 	@echo "  make resolve TOOLS=... Pin specific tools (e.g. shfmt:v3.11.0)*"
 	@echo "  make set-version VERSION=1.3.0  Set images/\$$(IMAGE)/version"
+	@echo "  make get-version       Print images/\$$(IMAGE)/version"
 	@echo "  make build             Build image locally"
 	@echo "  make verify            Verify all tools in the built image"
 	@echo "  make scan              Scan image for vulnerabilities"

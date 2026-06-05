@@ -128,6 +128,7 @@ set-version`:
 
 ```bash
 make set-version IMAGE=<name> VERSION=0.1.0
+make get-version IMAGE=<name>          # print the current value
 ```
 
 A release builds and pushes an image only when its `images/<name>/version` is
