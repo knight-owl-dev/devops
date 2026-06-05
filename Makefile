@@ -107,11 +107,11 @@ lint-md-fix:
 
 # Lint man pages
 lint-man:
-	@echo "Linting man pages..." && mandoc -W warning docs/man/man1/*.1 > /dev/null && echo "OK"
+	@echo "Linting man pages..." && mandoc -W warning docs/man/man1/*/*.1 > /dev/null && echo "OK"
 
 # Preview man pages
 man:
-	@mandoc -a docs/man/man1/*.1
+	@mandoc -a docs/man/man1/*/*.1
 
 # Build and test deb package locally
 test-package:

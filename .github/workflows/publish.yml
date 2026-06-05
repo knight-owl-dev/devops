@@ -131,11 +131,12 @@ jobs:
       - name: Build release archives
         env:
           VERSION: ${{ steps.tag-version.outputs.version }}
-        run: ./scripts/package-release.sh "${VERSION}"
+        run: ./scripts/ci-tools/package-release.sh "${VERSION}"
 
       - name: Build deb packages
         uses: ./.github/actions/build-deb
         with:
+          image: ci-tools
           version: ${{ steps.tag-version.outputs.version }}
 
       - name: Generate checksums

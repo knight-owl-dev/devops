@@ -18,7 +18,7 @@ contents:
   - dst: /usr/local/bin/validate-action-pins
     type: symlink
     src: /opt/ci-tools/bin/validate-action-pins
-  - src: docs/man/man1/validate-action-pins.1
+  - src: docs/man/man1/ci-tools/validate-action-pins.1
     dst: /usr/local/share/man/man1/validate-action-pins.1
   - src: LICENSE
     dst: /usr/share/doc/ci-tools/copyright

@@ -48,11 +48,12 @@ jobs:
       # Version is a placeholder — CI exercises the packaging pipeline,
       # not a real release. The publish workflow uses the git tag.
       - name: Stage release artifacts
-        run: ./scripts/package-release.sh 0.0.0
+        run: ./scripts/ci-tools/package-release.sh 0.0.0
 
       - name: Build .deb package
         uses: ./.github/actions/build-deb
         with:
+          image: ci-tools
           version: 0.0.0
 
       - name: Upload .deb artifact
@@ -103,4 +104,4 @@ jobs:
           path: deb
 
       - name: Verify installation
-        run: ./scripts/verify-deb-install.sh ./deb/ci-tools_*_${{ matrix.arch }}.deb
+        run: ./scripts/ci-tools/verify-deb-install.sh ./deb/ci-tools_*_${{ matrix.arch }}.deb

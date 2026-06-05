@@ -53,11 +53,11 @@ echo "Host architecture: ${HOST_ARCH} (${HOST_DEB_ARCH})"
 # Build all packages
 echo ""
 echo "Staging release artifacts..."
-./scripts/package-release.sh "${VERSION}"
+./scripts/ci-tools/package-release.sh "${VERSION}"
 
 echo ""
 echo "Building deb packages..."
-./scripts/package-deb.sh "${VERSION}"
+./scripts/package-deb.sh ci-tools "${VERSION}"
 
 # Test packages
 FAILED=0
@@ -78,14 +78,14 @@ for arch in "${ARCHS[@]}"; do
     continue
   fi
 
-  for image in "${TEST_IMAGES[@]}"; do
+  for test_image in "${TEST_IMAGES[@]}"; do
     echo ""
-    echo "Testing ${deb_file} on ${image}..."
+    echo "Testing ${deb_file} on ${test_image}..."
 
-    if ./tests/deb/test-package.sh "${deb_file}" "${image}"; then
+    if ./tests/deb/test-package.sh ci-tools "${deb_file}" "${test_image}"; then
       TESTED=$((TESTED + 1))
     else
-      echo "FAILED: ${arch} on ${image}"
+      echo "FAILED: ${arch} on ${test_image}"
       FAILED=1
     fi
   done
