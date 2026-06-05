@@ -1,33 +1,35 @@
 # Publish an Image
 
-Images publish to GHCR automatically when a `vN.N.N` tag is pushed. The tag is
-the repo-level release/changelog anchor — it no longer sets image versions.
-Each image instead carries its own `images/<name>/version`, and a release
-builds and re-tags **only** the images whose version is absent from GHCR (the
-registry is the ledger of what's published). Unchanged images keep their
-existing tags, digests, SBOMs, and signatures untouched.
+Releases are cut as a reviewable PR. `make release` stamps every image whose
+build context changed since its last release with the new version and opens a
+`release/vX.Y.Z` PR; merging it promotes tag `vX.Y.Z`, and `publish.yml` builds
+and re-tags **only** the images stamped to that release. Unchanged images keep
+their existing tags, digests, SBOMs, and signatures untouched. The release
+version is the package version — `images/<name>/version` records the release at
+which each image last changed.
 
-## Publish a Release
+## Cut a Release
 
-1. In a PR, bump the version of each image you changed:
+Releases are maintainer-triggered and reviewed as a PR:
 
-   ```bash
-   make set-version IMAGE=ci-tools VERSION=1.3.0
-   ```
-
-   The PR version guard requires any image whose build context changed to carry
-   a bumped, not-yet-published version (see [Add an Image](add-image.md)).
-
-2. After merge, push the release tag:
+1. Open the release PR — locally, or via the **Release** workflow's
+   `workflow_dispatch`:
 
    ```bash
-   git tag v1.3.0
-   git push origin v1.3.0
+   make release VERSION=1.3.0
    ```
 
-The tag and the per-image versions are independent: the tag names the
-release/changelog, while each `:v<version>` image tag comes from that image's
-`version` file.
+   This stamps `images/<name>/version` to `1.3.0` for every image whose build
+   context changed since its last release, on a `release/v1.3.0` branch, and
+   opens a "Release v1.3.0" PR. It refuses if a release PR is already open —
+   close or merge that one first. Pass `AUTOMERGE=1` (or the workflow's
+   `automerge` input) to merge automatically once checks pass.
+
+2. Review and merge the release PR. Merging promotes tag `v1.3.0`
+   (`tag-release.yml`), which triggers the publish workflow below.
+
+The git tag is the release version, and the image/package versions are the same
+number — there is no separate per-image numbering to manage.
 
 ## What the Publish Workflow Does
 
@@ -35,10 +37,10 @@ release/changelog, while each `:v<version>` image tag comes from that image's
 
 ### matrix — compute the build set
 
-Reads every `images/<name>/version` and adds an image to the build set when
-`ghcr.io/knight-owl-dev/<name>:v<version>` is absent from the registry. The
-subset carrying a `distributable` marker becomes the packaging set. Both are
-emitted as JSON matrices.
+Reads every `images/<name>/version` and adds an image to the build set when it
+equals the release tag — i.e. the release PR stamped it as changed. The subset
+carrying a `distributable` marker becomes the packaging set. Both are emitted as
+JSON matrices.
 
 ### publish — build, scan, sign (per image in the build set)
 
@@ -73,9 +75,8 @@ with `<image>:<version>` (requires a configured GitHub App).
 ## Local Version Substitution
 
 Tools tracked as `=local` in `versions.lock` are org-developed scripts shipped
-from the repo. During a publish the workflow substitutes the image's release
-version (from `images/<image>/version`) so the image and archives ship the
-correct version string:
+from the repo. During a publish the workflow substitutes the release version
+(from the tag) so the image and archives ship the correct version string:
 
 ```yaml
 sed "s/=local$/=${VERSION}/" "images/${{ matrix.image }}/versions.lock"
@@ -100,9 +101,10 @@ assets from the release.
 ## Adding a New Image
 
 Images are auto-discovered — there is no publish matrix to edit. A new image
-publishes as soon as it has an `images/<name>/version` absent from the registry;
-making it distributable additionally requires a `distributable` marker and
-packaging files. See [Add an Image](add-image.md).
+publishes once a release stamps its `images/<name>/version` (`make release`
+detects a new image as changed and stamps it). Making it distributable
+additionally requires a `distributable` marker and packaging files. See
+[Add an Image](add-image.md).
 
 > The CI/publish workflows do **not** use Docker Compose. Compose is a local
 > convenience only (`make build`). In CI, `build-push-action` receives build
@@ -114,18 +116,15 @@ packaging files. See [Add an Image](add-image.md).
 | Tag | Example | Description |
 | --- | --- | --- |
 | `latest` | `ghcr.io/knight-owl-dev/<image>:latest` | Most recent release |
-| version | `ghcr.io/knight-owl-dev/<image>:v1.0.0` | Pinned to `images/<image>/version` |
+| version | `ghcr.io/knight-owl-dev/<image>:v1.0.0` | The release the image last shipped in |
 
-## CI Gates
+## CI Packaging Gate
 
-The CI workflow (`ci.yml`) guards releases on every PR:
-
-- **Version guard** — any image whose build context (everything under
-  `images/<name>/` except the `version` and `distributable` metadata files)
-  changed must carry a bumped, valid, not-yet-published version.
-- **Packaging gate** — for each distributable image, `build-deb` builds the deb
-  and `test-deb` installs it across a matrix of Debian and Ubuntu containers
-  (amd64 + arm64), verifying binaries, symlinks, man pages, and version output.
+On every PR, the CI workflow (`ci.yml`) auto-discovers distributable images and,
+for each, runs `build-deb` to build the deb and `test-deb` to install it across a
+matrix of Debian and Ubuntu containers (amd64 + arm64), verifying binaries,
+symlinks, man pages, and version output. This catches packaging regressions
+before a release.
 
 Run the packaging test locally with `make test-package`.
 
@@ -164,10 +163,9 @@ If the Trivy scan fails during publish:
      (use `docker buildx imagetools inspect` for the manifest list digest).
    - **Tool CVE** — run `make resolve TOOLS=<tool>` to pull the latest
      version, then rebuild and re-scan.
-4. **Bump and re-release** — commit the fix in a PR and bump the image's
-   version (`make set-version IMAGE=<image> VERSION=...`); the guard requires
-   it. Pushing the next release tag rebuilds the image, since its new
-   `:v<version>` is absent from the registry.
+4. **Merge and re-release** — merge the fix, then cut a release
+   (`make release VERSION=...`). The image's build context changed, so it's
+   stamped to the new version and rebuilt when the release tag is promoted.
 
 ## Workflow Location
 
