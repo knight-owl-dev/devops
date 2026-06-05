@@ -45,11 +45,9 @@ RELEASE="${REPO_ROOT}/artifacts/release"
 
 PLATFORMS=(osx-arm64 osx-x64 linux-x64 linux-arm64)
 
-# Clean and create directories.
-# NOTE: this resets the shared release dir, so it assumes a single
-# distributable image per release. Once a second distributable image
-# ships in the same release, this must accumulate into (not wipe) the
-# release dir — scope the clean to this image's own outputs instead.
+# Clean and create directories. Each image is packaged in isolation (a
+# dedicated publish-workflow runner, or a single local run), so resetting the
+# release dir here is safe; the release job aggregates per-image artifacts.
 rm -rf "${STAGING}" "${RELEASE}"
 mkdir -p "${STAGING}" "${RELEASE}"
 
