@@ -12,17 +12,21 @@ images/<name>/
 ├── compose.yaml         # local builds only: wires versions.lock → build args
 ├── versions.lock        # tracked: canonical tool versions + checksums
 ├── version              # tracked: release stamp, set by `make release` (don't hand-edit)
-├── .trivyignore         # optional: CVE suppressions (see below)
-└── bin/                 # optional: repo-local scripts shipped in the image
+├── .trivyignore         # optional: CVE suppressions (see "Vulnerability scanning")
+├── bin/                 # optional: repo-local scripts shipped in the image
+├── distributable        # optional: marks the image for packaging (step 11)
+└── nfpm.yaml            # optional: deb spec — distributable only (step 11)
 
 scripts/<name>/
 ├── resolve.sh           # resolve versions + checksums → versions.lock
-└── verify.sh            # verify tools in the built image
+├── verify.sh            # verify tools in the built image
+├── package-release.sh   # optional: stage tools into archives — distributable only (step 11)
+└── verify-deb-install.sh # optional: verify an installed deb — distributable only (step 11)
 ```
 
-Distributable images (those that ship `.deb` / Homebrew packages) add a few
-more files — see
-[step 11](#11-set-up-distributable-packaging-local-tools-only).
+Optional rows marked **distributable only** apply to images that ship `.deb` /
+Homebrew packages; a man page under `docs/man/man1/<name>/` completes that set.
+See [step 11](#11-set-up-distributable-packaging-local-tools-only) for setup.
 
 ### How the pipeline finds your image
 
