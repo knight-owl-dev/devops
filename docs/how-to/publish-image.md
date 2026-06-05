@@ -121,8 +121,8 @@ packaging files. See [Add an Image](add-image.md).
 The CI workflow (`ci.yml`) guards releases on every PR:
 
 - **Version guard** — any image whose build context (everything under
-  `images/<name>/` except the `version` file) changed must carry a bumped,
-  valid, not-yet-published version.
+  `images/<name>/` except the `version` and `distributable` metadata files)
+  changed must carry a bumped, valid, not-yet-published version.
 - **Packaging gate** — for each distributable image, `build-deb` builds the deb
   and `test-deb` installs it across a matrix of Debian and Ubuntu containers
   (amd64 + arm64), verifying binaries, symlinks, man pages, and version output.

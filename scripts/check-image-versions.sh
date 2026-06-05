@@ -6,15 +6,16 @@ set -euo pipefail
 # bumped, valid, not-yet-published version.
 #
 # An image's build context is everything under images/<name>/ EXCEPT the
-# `version` file itself. When that context changed vs the base ref, the in-tree
-# version must be:
+# release-metadata files (`version` and `distributable`), which don't affect the
+# built image. When that context changed vs the base ref, the in-tree version
+# must be:
 #   - valid strict semver,
 #   - bumped (differ from the base ref's value, when one exists), and
 #   - absent from the registry (not yet published).
 #
-# Excluding the version file from the trigger lets a version-only bump pass and
-# lets the seed commit (version set to an already-published value, with no
-# build-context change) land cleanly.
+# Excluding the metadata files lets a version-only bump pass, and lets the seed
+# commit (version set to an already-published value, alongside a new
+# `distributable` marker, with no build-context change) land cleanly.
 #
 # Assumes the current working directory is the repo root with full history
 # (actions/checkout fetch-depth: 0).
@@ -49,9 +50,11 @@ for version_file in images/*/version; do
   [[ -f "${version_file}" ]] || continue
   name="$(basename "$(dirname "${version_file}")")"
 
-  # Did the build context (everything but the version file) change?
+  # Did the build context (everything but the release-metadata files) change?
   changed="$(git diff --name-only "${BASE_REF}...HEAD" -- \
-    "images/${name}/" ":(exclude)images/${name}/version")"
+    "images/${name}/" \
+    ":(exclude)images/${name}/version" \
+    ":(exclude)images/${name}/distributable")"
 
   if [[ -z "${changed}" ]]; then
     continue

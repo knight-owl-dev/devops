@@ -85,6 +85,18 @@ EOF
   refute_output --partial "ci-tools"
 }
 
+@test "passes for a distributable-marker-only change" {
+  # Adding the metadata marker is not a build-context change, so the guard must
+  # not fire even though the (unbumped) version is already published.
+  touch "${REPO}/images/ci-tools/distributable"
+  _commit add-marker
+  _stub_docker 0 # published — would fail if the marker triggered the guard
+  cd "${REPO}"
+  run "${SCRIPT}" "${BASE}"
+  assert_success
+  refute_output --partial "ci-tools"
+}
+
 @test "passes when no image build context changed" {
   printf 'updated\n' > "${REPO}/README.md"
   _commit docs-only
