@@ -9,7 +9,7 @@ set -euo pipefail
 # homebrew-tap manifest SHA256 compatibility.
 #
 # Usage:
-#   ./scripts/package-release.sh <version>
+#   ./scripts/ci-tools/package-release.sh <version>
 #
 # Arguments:
 #   version  Release version string (e.g. 1.0.0)
@@ -26,7 +26,7 @@ set -euo pipefail
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 VERSION="${1:-}"
 if [[ -z "${VERSION}" ]]; then
@@ -35,17 +35,21 @@ if [[ -z "${VERSION}" ]]; then
 fi
 
 # Validate version format for safe use in filenames
-VERSION="$("${SCRIPT_DIR}/validate-version.sh" "${VERSION}")"
+VERSION="$("${SCRIPT_DIR}/../validate-version.sh" "${VERSION}")"
 
 BIN_DIR="${REPO_ROOT}/images/ci-tools/bin"
-MAN_DIR="${REPO_ROOT}/docs/man/man1"
+MAN_DIR="${REPO_ROOT}/docs/man/man1/ci-tools"
 LICENSE="${REPO_ROOT}/LICENSE"
 STAGING="${REPO_ROOT}/artifacts/staging"
 RELEASE="${REPO_ROOT}/artifacts/release"
 
 PLATFORMS=(osx-arm64 osx-x64 linux-x64 linux-arm64)
 
-# Clean and create directories
+# Clean and create directories.
+# NOTE: this resets the shared release dir, so it assumes a single
+# distributable image per release. Once a second distributable image
+# ships in the same release, this must accumulate into (not wipe) the
+# release dir — scope the clean to this image's own outputs instead.
 rm -rf "${STAGING}" "${RELEASE}"
 mkdir -p "${STAGING}" "${RELEASE}"
 

@@ -2,38 +2,47 @@
 set -euo pipefail
 
 #
-# Build .deb packages for local tools using nfpm.
+# Build .deb packages for an image's local tools using nfpm.
 #
-# Expects staged binaries in artifacts/staging/ (created by
-# package-release.sh) and nfpm.yaml at the repo root. Produces
-# amd64 and arm64 .deb files in artifacts/release/.
+# Image-agnostic mechanism: stages are produced per image by
+# scripts/<image>/package-release.sh; the per-image nfpm config lives
+# at images/<image>/nfpm.yaml. Produces amd64 and arm64 .deb files in
+# artifacts/release/.
 #
 # Usage:
-#   ./scripts/package-deb.sh <version>
+#   ./scripts/package-deb.sh <image> <version>
 #
 # Arguments:
+#   image    Image whose local tools to package (e.g. ci-tools)
 #   version  Release version string (e.g. 1.0.0)
 #
-# Outputs (in artifacts/release/):
-#   ci-tools_<version>_amd64.deb
-#   ci-tools_<version>_arm64.deb
+# Outputs (in artifacts/release/, named from the nfpm `name:` field):
+#   <name>_<version>_amd64.deb
+#   <name>_<version>_arm64.deb
 #
 # Exit codes:
 #   0 - Packages created successfully
-#   1 - Missing arguments, staging directory, or nfpm
+#   1 - Missing arguments, missing nfpm config, staging directory, or nfpm
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-VERSION="${1:-}"
-if [[ -z "${VERSION}" ]]; then
-  echo "Usage: $(basename "$0") <version>" >&2
+IMAGE="${1:-}"
+VERSION="${2:-}"
+if [[ -z "${IMAGE}" ]] || [[ -z "${VERSION}" ]]; then
+  echo "Usage: $(basename "$0") <image> <version>" >&2
   exit 1
 fi
 
 # Validate version format for safe use in filenames
 VERSION="$("${SCRIPT_DIR}/validate-version.sh" "${VERSION}")"
+
+NFPM_CONFIG="images/${IMAGE}/nfpm.yaml"
+if [[ ! -f "${REPO_ROOT}/${NFPM_CONFIG}" ]]; then
+  echo "ERROR: nfpm config not found: ${NFPM_CONFIG}" >&2
+  exit 1
+fi
 
 # Bash scripts are arch-agnostic; the deb is identical across architectures.
 # Separate packages exist so apt can resolve the correct one by architecture.
@@ -43,7 +52,7 @@ RELEASE="${REPO_ROOT}/artifacts/release"
 
 if [[ ! -d "${STAGING}" ]]; then
   echo "ERROR: Staging directory not found: ${STAGING}" >&2
-  echo "Run scripts/package-release.sh first." >&2
+  echo "Run scripts/${IMAGE}/package-release.sh first." >&2
   exit 1
 fi
 
@@ -60,7 +69,7 @@ for arch in "${ARCHS[@]}"; do
   echo "Building deb for ${arch}..."
   ARCH="${arch}" VERSION="${VERSION}" nfpm package \
     -p deb \
-    -f nfpm.yaml \
+    -f "${NFPM_CONFIG}" \
     -t "${RELEASE}/"
 done
 

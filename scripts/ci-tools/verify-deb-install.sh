@@ -8,7 +8,7 @@ set -euo pipefail
 # It is called by both CI workflows and the local test-package.sh script.
 #
 # Usage:
-#   ./scripts/verify-deb-install.sh <path-to-deb>
+#   ./scripts/ci-tools/verify-deb-install.sh <path-to-deb>
 #
 # Exit codes:
 #   0 - Verification passed

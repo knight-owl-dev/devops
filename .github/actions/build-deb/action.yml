@@ -1,19 +1,22 @@
 name: "Build .deb Package"
 description: |
-  Builds Debian packages for ci-tools local scripts using nfpm.
+  Builds Debian packages for an image's local scripts using nfpm.
 
   Prerequisites:
-    - Staged artifacts must exist (run scripts/package-release.sh first)
-    - nfpm.yaml must exist at repo root
+    - Staged artifacts must exist (run scripts/<image>/package-release.sh first)
+    - images/<image>/nfpm.yaml must exist
 
   Produces artifacts at:
-    artifacts/release/ci-tools_<version>_<arch>.deb
+    artifacts/release/<name>_<version>_<arch>.deb
 
   Callers are responsible for uploading artifacts if needed.
 
   See scripts/package-deb.sh for implementation details.
 
 inputs:
+  image:
+    description: "Image whose local tools to package (e.g. ci-tools)"
+    required: true
   version:
     description: "Package version (e.g. 1.0.0)"
     required: true
@@ -40,5 +43,6 @@ runs:
     - name: Build deb packages
       shell: bash
       env:
+        IMAGE: ${{ inputs.image }}
         VERSION: ${{ inputs.version }}
-      run: ./scripts/package-deb.sh "${VERSION}"
+      run: ./scripts/package-deb.sh "${IMAGE}" "${VERSION}"

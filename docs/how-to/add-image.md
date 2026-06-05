@@ -148,11 +148,11 @@ version that shipped in the image.
 If the local tool should be installable outside Docker (via Homebrew or apt),
 add it to the packaging pipeline:
 
-1. Add a man page in `docs/man/man1/<tool>.1` (mdoc(7) format).
-2. Add the binary to `scripts/package-release.sh` staging.
-3. Add entries to `nfpm.yaml` for deb packaging.
-4. Add verification checks to `scripts/verify-deb-install.sh` (binary path,
-   symlink, version output, man page).
+1. Add a man page in `docs/man/man1/<name>/<tool>.1` (mdoc(7) format).
+2. Add the binary to `scripts/ci-tools/package-release.sh` staging.
+3. Add entries to `images/ci-tools/nfpm.yaml` for deb packaging.
+4. Add verification checks to `scripts/ci-tools/verify-deb-install.sh` (binary
+   path, symlink, version output, man page).
 
 The `.github/actions/build-deb` composite action handles Go/nfpm toolchain
 setup for both CI and publish workflows. CI runs `build-deb` and `test-deb`
