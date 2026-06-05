@@ -29,17 +29,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/version.sh"
 # shellcheck source=scripts/lib/registry.sh
 source "${SCRIPT_DIR}/lib/registry.sh"
-
-# Render a JSON string array from the given arguments: a b -> ["a","b"].
-json_array() {
-  local json="[]"
-  if [[ $# -gt 0 ]]; then
-    local joined
-    joined="$(printf '"%s",' "$@")"
-    json="[${joined%,}]"
-  fi
-  echo "${json}"
-}
+# shellcheck source=scripts/lib/json.sh
+source "${SCRIPT_DIR}/lib/json.sh"
 
 build=()
 distributable=()
