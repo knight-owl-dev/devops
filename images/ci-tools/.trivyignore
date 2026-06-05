@@ -78,3 +78,35 @@ CVE-2026-39836
 # Remove this entry once all three ship builds on Go >= 1.25.10 or 1.26.3.
 # Tracking issue: #96
 CVE-2026-42499
+
+# net/url: incomplete fix for CVE-2026-27142 (URLs not parsed/escaped safely)
+# (fixed in Go 1.25.10 / 1.26.3)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1),
+#          yq v4.53.2 (Go 1.26.2)
+# Remove this entry once all three ship builds on Go >= 1.25.10 or 1.26.3.
+# Tracking issue: #96
+CVE-2026-39823
+
+# net/http/httputil: ReverseProxy forwards unsanitized query parameters
+# (fixed in Go 1.25.10 / 1.26.3)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1),
+#          yq v4.53.2 (Go 1.26.2)
+# Remove this entry once all three ship builds on Go >= 1.25.10 or 1.26.3.
+# Tracking issue: #96
+CVE-2026-39825
+
+# html/template: script-context escaping flaw for crafted template input
+# (fixed in Go 1.25.10 / 1.26.3)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1),
+#          yq v4.53.2 (Go 1.26.2)
+# Remove this entry once all three ship builds on Go >= 1.25.10 or 1.26.3.
+# Tracking issue: #96
+CVE-2026-39826
+
+# net/textproto: DoS decoding a maliciously-crafted MIME header
+# (fixed in Go 1.25.11 / 1.26.4)
+# Affects: actionlint v1.7.12 (Go 1.26.1), shfmt v3.13.1 (Go 1.26.1),
+#          yq v4.53.2 (Go 1.26.2)
+# Remove this entry once all three ship builds on Go >= 1.25.11 or 1.26.4.
+# Tracking issue: #96
+CVE-2026-42504
