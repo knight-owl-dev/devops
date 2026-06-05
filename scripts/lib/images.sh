@@ -40,3 +40,19 @@ image_build_context_changed() {
 
   return 0 # diff => changed
 }
+
+# Echo the names of images carrying a `distributable` marker, one per line, in
+# directory order. The marker's presence is the only signal — its contents are
+# ignored. This is the single opt-in source for everything package-related: the
+# CI deb build/test jobs (via list-distributable-images.sh) and the local
+# aggregator (tests/deb/test-all.sh) both discover the set through here.
+#
+# Assumes the current working directory is the repo root.
+distributable_images() {
+  local marker name
+  for marker in images/*/distributable; do
+    [[ -f "${marker}" ]] || continue
+    name="$(basename "$(dirname "${marker}")")"
+    printf '%s\n' "${name}"
+  done
+}
