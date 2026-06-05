@@ -1,0 +1,4 @@
+# Presence of this file marks the image as distributable: when it is in a
+# release's build set, the publish workflow packages .deb + tarball assets,
+# uploads them to the GitHub Release, and dispatches the apt / homebrew-tap
+# repositories. Only the file's presence is checked, never its contents.

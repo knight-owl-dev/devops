@@ -114,3 +114,55 @@ setup() {
   assert_failure 1
   assert_output --partial "Version argument required"
 }
+
+# ── read_image_version ───────────────────────────────────────────────
+
+# Builds <tmp>/images/<name>/version with the given contents.
+_seed_version() {
+  local name="$1" contents="$2"
+  mkdir -p "${BATS_TEST_TMPDIR}/images/${name}"
+  printf '%s\n' "${contents}" > "${BATS_TEST_TMPDIR}/images/${name}/version"
+}
+
+@test "read_image_version reads and echoes a valid bare version" {
+  _seed_version "ci-tools" "1.2.5"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run read_image_version "ci-tools" "${BATS_TEST_TMPDIR}/images"
+  assert_success
+  assert_output "1.2.5"
+}
+
+@test "read_image_version strips a leading v prefix from the file" {
+  _seed_version "ci-tools" "v1.2.5"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run read_image_version "ci-tools" "${BATS_TEST_TMPDIR}/images"
+  assert_success
+  assert_output "1.2.5"
+}
+
+@test "read_image_version fails when the version file is missing" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run read_image_version "ci-tools" "${BATS_TEST_TMPDIR}/images"
+  assert_failure 1
+  assert_output --partial "version file not found"
+}
+
+@test "read_image_version rejects a malformed version" {
+  _seed_version "ci-tools" "1.2"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run read_image_version "ci-tools" "${BATS_TEST_TMPDIR}/images"
+  assert_failure 1
+  assert_output --partial "Invalid strict version"
+}
+
+@test "read_image_version fails when no image name is given" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run read_image_version
+  assert_failure 1
+  assert_output --partial "Image name required"
+}
