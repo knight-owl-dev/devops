@@ -95,7 +95,10 @@ printf '  %s\n' "${changed[@]}"
 if [[ -z "${SKIP_SCAN:-}" ]]; then
   for name in "${changed[@]}"; do
     echo "Scanning ${name} for vulnerabilities..."
-    make scan IMAGE="${name}"
+    if ! make scan IMAGE="${name}"; then
+      echo "ERROR: ${name} has unresolved CRITICAL/HIGH CVEs — fix them (see the scan output above) or re-run with SKIP_SCAN=1." >&2
+      exit 1
+    fi
   done
 fi
 
