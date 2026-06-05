@@ -87,3 +87,39 @@ _commit() {
   run image_build_context_changed ci-tools v9.9.9
   assert_success
 }
+
+@test "distributable_images lists only marked images, in directory order" {
+  # The base repo seeds images/ci-tools without a marker; add a marked image
+  # (docs) and a second unmarked one (tools) to prove the filter + ordering.
+  mkdir -p "${REPO}/images/docs" "${REPO}/images/tools"
+  touch "${REPO}/images/docs/distributable"
+  cd "${REPO}"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run distributable_images
+  assert_success
+  assert_output "docs"
+}
+
+@test "distributable_images lists multiple marked images, sorted" {
+  touch "${REPO}/images/ci-tools/distributable"
+  mkdir -p "${REPO}/images/aaa"
+  touch "${REPO}/images/aaa/distributable"
+  cd "${REPO}"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run distributable_images
+  assert_success
+  # Glob order is lexical: aaa before ci-tools.
+  assert_line --index 0 "aaa"
+  assert_line --index 1 "ci-tools"
+}
+
+@test "distributable_images emits nothing when no image is marked" {
+  cd "${REPO}"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run distributable_images
+  assert_success
+  assert_output ""
+}

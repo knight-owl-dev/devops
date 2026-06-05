@@ -21,12 +21,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=scripts/lib/json.sh
 source "${SCRIPT_DIR}/lib/json.sh"
+# shellcheck source=scripts/lib/images.sh
+source "${SCRIPT_DIR}/lib/images.sh"
 
+# Capture then split (a here-string of "" would yield one empty element, so
+# guard the empty case). Assigning the command substitution preserves its exit
+# status, unlike piping into mapfile.
+discovered="$(distributable_images)"
 images=()
-for marker in images/*/distributable; do
-  [[ -f "${marker}" ]] || continue
-  images+=("$(basename "$(dirname "${marker}")")")
-done
+if [[ -n "${discovered}" ]]; then
+  mapfile -t images <<< "${discovered}"
+fi
 
 if [[ ${#images[@]} -gt 0 ]]; then
   images_json="$(json_array "${images[@]}")"

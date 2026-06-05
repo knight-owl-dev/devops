@@ -127,9 +127,13 @@ lint-man:
 man:
 	@mandoc -a docs/man/man1/*/*.1
 
-# Build and test deb package locally
+# Build and test deb packages locally. Discovers distributable images via their
+# marker (like CI); pass IMAGE=<name> to scope to one. The target-specific empty
+# default overrides the global IMAGE=ci-tools so a bare `make test-package`
+# tests the whole distributable set; a command-line IMAGE=... still wins.
+test-package: IMAGE :=
 test-package:
-	@./tests/deb/test-all.sh
+	@IMAGE='$(IMAGE)' ./tests/deb/test-all.sh
 
 # Run BATS tests. BATS_RUNNER defaults to running inside the ci-tools
 # container via `docker run`, so `make test-bats` works from a stock
@@ -173,7 +177,8 @@ help:
 	@echo "  make lint-sh-fmt-fix   Fix shell script formatting"
 	@echo "  make man               Preview man pages"
 	@echo "  make test-bats         Run BATS tests inside the ci-tools image"
-	@echo "  make test-package      Build and test deb package locally"
+	@echo "  make test-package      Build and test debs for all distributable images"
+	@echo "  make test-package IMAGE=foo  Scope deb build/test to one image"
 	@echo "  make help              Show this message"
 	@echo ""
 	@echo "  * Writes images/\$$(IMAGE)/versions.lock"
