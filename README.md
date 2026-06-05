@@ -78,17 +78,24 @@ jobs:
 > actionlint .github/workflows/*.yml
 > ```
 
-### Publishing
+### Releasing
 
-The image is published automatically when a version tag is pushed. The
-`publish` workflow builds and pushes the image, packages org-developed local
-tools into platform archives and `.deb` packages, creates a GitHub Release
-with checksums, and notifies downstream `apt` and `homebrew-tap` repos.
+A release is a reviewable PR, not a manual tag. `make release VERSION=X.Y.Z`
+stamps every image whose build context changed since its last release and opens
+a `release/vX.Y.Z` PR. Merging that PR promotes tag `vX.Y.Z` automatically,
+which triggers the `publish` workflow.
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+make release VERSION=1.3.0   # opens the release PR (review the stamp diff, then merge)
 ```
+
+Because the per-image `images/<name>/version` is the release at which the image
+last changed, the release tag, package version, and image tag are always one
+number — so only changed images rebuild and downstream `apt`/`homebrew-tap`
+need no per-release coordination. On the promoted tag, `publish` builds and
+pushes the changed images, packages org-developed tools into platform archives
+and `.deb` packages, creates a GitHub Release with checksums, and notifies the
+downstream repos.
 
 See [Publish an Image](docs/how-to/publish-image.md) for the full pipeline.
 
