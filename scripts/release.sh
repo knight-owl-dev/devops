@@ -10,11 +10,12 @@ set -euo pipefail
 # Usage:
 #   ./scripts/release.sh <version>
 #
-# Environment (CI only):
-#   GH_TOKEN           GitHub App token used for push + PR creation, so the
+# Environment:
+#   GH_TOKEN           (CI) GitHub App token used for push + PR creation, so the
 #                      release PR triggers CI. Omit locally to use your own
 #                      git/gh auth.
-#   GITHUB_REPOSITORY  owner/repo, used to set the token push remote in CI.
+#   GITHUB_REPOSITORY  (CI) owner/repo, used to set the token push remote.
+#   SKIP_SCAN          Set to bypass the pre-release CVE scan of changed images.
 #
 # Exit codes:
 #   0 - Release PR opened
@@ -86,6 +87,17 @@ fi
 
 echo "Images to release at v${VERSION}:"
 printf '  %s\n' "${changed[@]}"
+
+# Scan the images about to be released so a fixable CVE fails here — before the
+# release PR and the promoted tag — rather than at publish (which would leave an
+# orphan tag and an ahead stamp). Same trivy policy / .trivyignore as publish.
+# Set SKIP_SCAN=1 to bypass (e.g. re-running after a known-accepted state).
+if [[ -z "${SKIP_SCAN:-}" ]]; then
+  for name in "${changed[@]}"; do
+    echo "Scanning ${name} for vulnerabilities..."
+    make scan IMAGE="${name}"
+  done
+fi
 
 # Stamp each changed image to the release version.
 for name in "${changed[@]}"; do
