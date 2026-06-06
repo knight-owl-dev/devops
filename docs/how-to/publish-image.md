@@ -16,12 +16,16 @@ Releases are maintainer-triggered and reviewed as a PR:
    `workflow_dispatch`:
 
    ```bash
-   make release VERSION=1.3.0
+   make release BUMP=patch      # bump from the latest release tag (minor|major too)
+   make release VERSION=1.3.0   # or set the version explicitly
    ```
 
-   This stamps `images/<name>/version` to `1.3.0` for every image whose build
-   context changed since its last release, on a `release/v1.3.0` branch, and
-   opens a "Release v1.3.0" PR. It refuses if a release PR is already open —
+   `BUMP=` derives the next version from the highest release tag (`patch`,
+   `minor`, or `major`, resetting lower components to zero); `VERSION=` sets it
+   explicitly and wins if both are given. Either way this stamps
+   `images/<name>/version` to the resolved version for every image whose build
+   context changed since its last release, on a `release/vX.Y.Z` branch, and
+   opens a "Release vX.Y.Z" PR. It refuses if a release PR is already open —
    close or merge that one first. Pass `AUTOMERGE=1` (or the workflow's
    `automerge` input) to merge automatically once checks pass.
 

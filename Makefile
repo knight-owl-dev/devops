@@ -31,11 +31,13 @@ set-version:
 get-version:
 	@scripts/get-image-version.sh $(IMAGE)
 
-# Open a release PR: stamp images that changed since their last release to
-# VERSION and open "Release vVERSION" (merging it promotes the tag). Pass
-# AUTOMERGE=1 to enable auto-merge once checks pass.
+# Open a release PR: stamp images that changed since their last release and
+# open "Release vVERSION" (merging it promotes the tag). The version is either
+# bumped from the latest release tag (BUMP=patch|minor|major) or set explicitly
+# (VERSION=X.Y.Z, which wins if both are given). Pass AUTOMERGE=1 to enable
+# auto-merge once checks pass.
 release:
-	@AUTOMERGE='$(AUTOMERGE)' scripts/release.sh $(VERSION)
+	@AUTOMERGE='$(AUTOMERGE)' scripts/release.sh $(if $(VERSION),$(VERSION),$(BUMP))
 
 # Build image locally
 build:
@@ -160,7 +162,8 @@ help:
 	@echo "  make resolve TOOLS=... Pin specific tools (e.g. shfmt:v3.11.0)*"
 	@echo "  make set-version VERSION=1.3.0  Set images/\$$(IMAGE)/version"
 	@echo "  make get-version       Print images/\$$(IMAGE)/version"
-	@echo "  make release VERSION=1.3.0  Open a release PR for changed images"
+	@echo "  make release BUMP=patch    Open a release PR, version bumped from latest tag"
+	@echo "  make release VERSION=1.3.0 Open a release PR at an explicit version"
 	@echo "  make build             Build image locally"
 	@echo "  make verify            Verify all tools in the built image"
 	@echo "  make scan              Scan image for vulnerabilities"
