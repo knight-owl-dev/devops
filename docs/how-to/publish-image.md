@@ -110,6 +110,14 @@ detects a new image as changed and stamps it). Making it distributable
 additionally requires a `distributable` marker and packaging files. See
 [Add an Image](add-image.md).
 
+> **First publish is private — flip it to public.** A brand-new GHCR package is
+> created **private**. After a new image's first release, change its visibility
+> to **public** (GHCR → the package → Package settings → Change visibility).
+> Until you do, downstream repos can't pull it, and the scheduled
+> `cve-monitor.yml` silently skips it — its discovery probe pulls `:latest`
+> **anonymously** and only sees public packages. This applies only to the
+> *first* release of each image; subsequent releases reuse the existing package.
+>
 > The CI/publish workflows do **not** use Docker Compose. Compose is a local
 > convenience only (`make build`). In CI, `build-push-action` receives build
 > args directly from the lockfile content. See
