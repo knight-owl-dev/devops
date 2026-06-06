@@ -123,3 +123,28 @@ _commit() {
   assert_success
   assert_output ""
 }
+
+@test "versioned_images lists only images carrying a version file" {
+  # The base repo seeds images/ci-tools with a version file; add a directory
+  # without one (tools) to prove the filter.
+  mkdir -p "${REPO}/images/tools"
+  cd "${REPO}"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run versioned_images
+  assert_success
+  assert_output "ci-tools"
+}
+
+@test "versioned_images lists multiple images in directory order" {
+  mkdir -p "${REPO}/images/aaa"
+  printf '1.0.0\n' > "${REPO}/images/aaa/version"
+  cd "${REPO}"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run versioned_images
+  assert_success
+  # Glob order is lexical: aaa before ci-tools.
+  assert_line --index 0 "aaa"
+  assert_line --index 1 "ci-tools"
+}
