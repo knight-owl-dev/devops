@@ -12,7 +12,7 @@ images/<name>/
 ├── compose.yaml         # local builds only: wires versions.lock → build args
 ├── versions.lock        # tracked: canonical tool versions + checksums
 ├── version              # tracked: release stamp, set by `make release` (don't hand-edit)
-├── .trivyignore         # optional: CVE suppressions (see "Vulnerability scanning")
+├── .trivyignore.yaml    # optional: CVE suppressions (see "Vulnerability scanning")
 ├── bin/                 # optional: repo-local scripts shipped in the image
 ├── distributable        # optional: marks the image for packaging (step 11)
 └── nfpm.yaml            # optional: deb spec — distributable only (step 11)
@@ -49,10 +49,13 @@ both are auto-discovered:
 ### Vulnerability scanning
 
 `publish.yml` (and the scheduled `cve-monitor.yml`) scan the built image with
-Trivy for fixed `CRITICAL`/`HIGH` CVEs. Add `images/<name>/.trivyignore` only
-when you need to suppress a specific CVE — each entry needs a justification
-comment (see `images/ci-tools/.trivyignore`). A new image with a clean scan
-needs no such file.
+Trivy for fixed `CRITICAL`/`HIGH` CVEs. Add `images/<name>/.trivyignore.yaml`
+only when you need to suppress a specific CVE — each entry needs a `statement`
+(justification) and an `expired_at` date so the suppression re-surfaces for
+re-triage rather than silencing the CVE forever (see
+`images/ci-tools/.trivyignore.yaml` and the
+[suppression workflow](publish-image.md#suppressing-a-cve)). A new image with a
+clean scan needs no such file.
 
 > `cve-monitor.yml` uses a **static** matrix (it scans `:latest`, which has no
 > version stamp to discover). When you add an image, add its name there so the
@@ -63,6 +66,32 @@ needs no such file.
 > matrix:
 >   image: [ci-tools, <name>]
 > ```
+
+Copy this to the new `.trivyignore.yaml` (replace `<name>`):
+
+```yaml
+# Suppressed CVEs for the <name> image.
+#
+# Each entry carries a `statement` (justification) and an `expired_at` date.
+# When the date passes the entry stops suppressing and the CVE reappears in the
+# scan, forcing a re-triage: bump the offending tool if a patched upstream
+# release shipped, or extend the date with a fresh justification.
+#
+# Trivy does NOT auto-detect this file — every invocation passes it explicitly
+# (Makefile `--ignorefile`, the trivy-action `trivyignores:` input). See
+# docs/how-to/publish-image.md for the add/extend/remove workflow.
+#
+# Suppression entry example:
+#
+#  - id: CVE-YYYY-NNNNN
+#    statement: >-
+#      <package>: <short description>, fixed in <version>. Affects <tool>
+#      <version> — <why the practical risk is negligible here>. Tracking:
+#      #NN. Remove once <tool> ships a build on <fixed version>.
+#    expired_at: 2026-07-21  # ~45 days out, matching the dependency's cadence
+#
+vulnerabilities:
+```
 
 ## Steps
 

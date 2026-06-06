@@ -1,0 +1,147 @@
+# Suppressed CVEs for the ci-tools image.
+#
+# Each entry carries a `statement` (justification) and an `expired_at` date.
+# When the date passes the entry stops suppressing and the CVE reappears in the
+# scan, forcing a re-triage: bump the offending tool if a patched upstream
+# release shipped, or extend the date with a fresh justification.
+#
+# Trivy does NOT auto-detect this file — every invocation passes it explicitly
+# (Makefile `--ignorefile`, the trivy-action `trivyignores:` input). See
+# docs/how-to/publish-image.md for the add/extend/remove workflow.
+#
+# Suppression entry example:
+#
+#  - id: CVE-YYYY-NNNNN
+#    statement: >-
+#      <package>: <short description>, fixed in <version>. Affects <tool>
+#      <version> — <why the practical risk is negligible here>. Tracking:
+#      #NN. Remove once <tool> ships a build on <fixed version>.
+#    expired_at: 2026-07-21  # ~45 days out, matching the dependency's cadence
+#
+vulnerabilities:
+  - id: CVE-2026-32280
+    statement: >-
+      crypto/x509 chain building does unbounded work (DoS), fixed in Go
+      1.25.9 / 1.26.2. Affects actionlint v1.7.12 and shfmt v3.13.1 (Go
+      1.26.1) — offline lint/format tools with no untrusted network or
+      certificate input, so practical risk is negligible. Tracking: #96.
+      Remove once both ship builds on Go >= 1.25.9 or 1.26.2.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-32281
+    statement: >-
+      crypto/x509 inefficient certificate chain validation (DoS), fixed in
+      Go 1.25.9 / 1.26.2. Affects actionlint v1.7.12 and shfmt v3.13.1 (Go
+      1.26.1) — offline lint/format tools with no untrusted network or
+      certificate input, so practical risk is negligible. Tracking: #96.
+      Remove once both ship builds on Go >= 1.25.9 or 1.26.2.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-32283
+    statement: >-
+      crypto/tls multiple key update messages cause DoS, fixed in Go
+      1.25.9 / 1.26.2. Affects actionlint v1.7.12 and shfmt v3.13.1 (Go
+      1.26.1) — offline lint/format tools that open no TLS sessions to
+      untrusted peers, so practical risk is negligible. Tracking: #96.
+      Remove once both ship builds on Go >= 1.25.9 or 1.26.2.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-33810
+    statement: >-
+      crypto/x509 certificate validation bypass via incorrect DNS
+      constraint handling, fixed in Go 1.26.2. Affects actionlint v1.7.12
+      and shfmt v3.13.1 (Go 1.26.1) — offline lint/format tools that build
+      no X.509 chains against untrusted input, so practical risk is
+      negligible. Tracking: #96. Remove once both ship builds on Go >=
+      1.26.2.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-33811
+    statement: >-
+      net LookupCNAME with the cgo DNS resolver crashes on a very long
+      CNAME, fixed in Go 1.25.10 / 1.26.3. Affects actionlint v1.7.12 and
+      shfmt v3.13.1 (Go 1.26.1) and yq v4.53.2 (Go 1.26.2) — offline
+      lint/format tools that resolve no untrusted hostnames, so practical
+      risk is negligible. Tracking: #96. Remove once all three ship builds
+      on Go >= 1.25.10 or 1.26.3.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-33814
+    statement: >-
+      net/http2 infinite loop when processing HTTP/2 SETTINGS frames, fixed
+      in Go 1.25.10 / 1.26.3. Affects actionlint v1.7.12 and shfmt v3.13.1
+      (Go 1.26.1) and yq v4.53.2 (Go 1.26.2) — offline lint/format tools
+      that serve no HTTP/2 to untrusted peers, so practical risk is
+      negligible. Tracking: #96. Remove once all three ship builds on Go >=
+      1.25.10 or 1.26.3.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-39820
+    statement: >-
+      net/mail DoS via crafted inputs to ParseAddress / ParseAddressList,
+      fixed in Go 1.25.10 / 1.26.3. Affects actionlint v1.7.12 and shfmt
+      v3.13.1 (Go 1.26.1) and yq v4.53.2 (Go 1.26.2) — offline lint/format
+      tools that parse no untrusted mail addresses, so practical risk is
+      negligible. Tracking: #96. Remove once all three ship builds on Go >=
+      1.25.10 or 1.26.3.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-39836
+    statement: >-
+      net panic in Dial and LookupPort when handling a NUL byte (Windows),
+      fixed in Go 1.25.10 / 1.26.3. Affects actionlint v1.7.12 and shfmt
+      v3.13.1 (Go 1.26.1) and yq v4.53.2 (Go 1.26.2) — offline lint/format
+      tools that dial no untrusted addresses, so practical risk is
+      negligible. Tracking: #96. Remove once all three ship builds on Go >=
+      1.25.10 or 1.26.3.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-42499
+    statement: >-
+      net/mail DoS through consumePhrase on pathological inputs, fixed in
+      Go 1.25.10 / 1.26.3. Affects actionlint v1.7.12 and shfmt v3.13.1 (Go
+      1.26.1) and yq v4.53.2 (Go 1.26.2) — offline lint/format tools that
+      parse no untrusted mail addresses, so practical risk is negligible.
+      Tracking: #96. Remove once all three ship builds on Go >= 1.25.10 or
+      1.26.3.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-39823
+    statement: >-
+      net/url incomplete fix for CVE-2026-27142 (URLs not parsed/escaped
+      safely), fixed in Go 1.25.10 / 1.26.3. Affects actionlint v1.7.12 and
+      shfmt v3.13.1 (Go 1.26.1) and yq v4.53.2 (Go 1.26.2) — offline
+      lint/format tools that parse no untrusted URLs, so practical risk is
+      negligible. Tracking: #96. Remove once all three ship builds on Go >=
+      1.25.10 or 1.26.3.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-39825
+    statement: >-
+      net/http/httputil ReverseProxy forwards unsanitized query parameters,
+      fixed in Go 1.25.10 / 1.26.3. Affects actionlint v1.7.12 and shfmt
+      v3.13.1 (Go 1.26.1) and yq v4.53.2 (Go 1.26.2) — offline lint/format
+      tools that run no reverse proxy, so practical risk is negligible.
+      Tracking: #96. Remove once all three ship builds on Go >= 1.25.10 or
+      1.26.3.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-39826
+    statement: >-
+      html/template script-context escaping flaw for crafted template
+      input, fixed in Go 1.25.10 / 1.26.3. Affects actionlint v1.7.12 and
+      shfmt v3.13.1 (Go 1.26.1) and yq v4.53.2 (Go 1.26.2) — offline
+      lint/format tools that render no untrusted templates, so practical
+      risk is negligible. Tracking: #96. Remove once all three ship builds
+      on Go >= 1.25.10 or 1.26.3.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-42504
+    statement: >-
+      net/textproto DoS decoding a maliciously-crafted MIME header, fixed
+      in Go 1.25.11 / 1.26.4. Affects actionlint v1.7.12 and shfmt v3.13.1
+      (Go 1.26.1) and yq v4.53.2 (Go 1.26.2) — offline lint/format tools
+      that decode no untrusted MIME headers, so practical risk is
+      negligible. Tracking: #96. Remove once all three ship builds on Go >=
+      1.25.11 or 1.26.4.
+    expired_at: 2026-07-21
