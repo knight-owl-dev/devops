@@ -34,6 +34,16 @@ setup() {
   assert_output --partial "FAIL: 1 pin(s) did not match"
 }
 
+@test "tag pin with v-prefix-mismatched comment prints OK, not WARN" {
+  # The comment says `3` but the git tag is `v3`; the SHA pin is
+  # correct. The v-prefix retry resolves it, so no spurious WARN.
+  run "${SCRIPT}" "${FIXTURES_DIR}/workflows/tag-vprefix-mismatch.yml"
+  assert_success
+  assert_output --partial "OK   tag-vprefix-mismatch.yml: foo/vtag-only@333333333333..."
+  assert_output --partial "matches 3"
+  refute_output --partial "WARN"
+}
+
 @test "annotated tag ref is dereferenced to the commit SHA" {
   run "${SCRIPT}" "${FIXTURES_DIR}/workflows/annotated.yml"
   assert_success

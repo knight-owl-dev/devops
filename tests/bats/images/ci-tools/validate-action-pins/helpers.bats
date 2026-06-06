@@ -87,6 +87,27 @@ setup() {
   assert_output ""
 }
 
+@test "resolve_ref tolerates a missing v prefix (comment 3, tag v3)" {
+  # trivy-action case: the git tag carries the leading v but the
+  # Dependabot-written comment does not. The verbatim lookup 404s;
+  # the v-prefixed retry resolves.
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run resolve_ref "foo/vtag-only" "3"
+  assert_success
+  assert_output $'3333333333333333333333333333333333333333\ttag'
+}
+
+@test "resolve_ref tolerates an extra v prefix (comment v4, tag 4)" {
+  # Reverse direction: the comment carries the v but the git tag does
+  # not. The verbatim v4 lookup 404s; the unprefixed retry resolves.
+  # shellcheck disable=SC1090
+  source "${SCRIPT}"
+  run resolve_ref "foo/noprefix-tag" "v4"
+  assert_success
+  assert_output $'4444444444444444444444444444444444444444\ttag'
+}
+
 # ── compare_behind ──────────────────────────────────────────────────
 
 @test "compare_behind returns the .behind_by integer" {

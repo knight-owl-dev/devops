@@ -26,6 +26,7 @@
     "nfpm",
     "nocurl",
     "nojq",
+    "noprefix",
     "nosuch",
     "picomatch",
     "rsync",
@@ -43,6 +44,8 @@
     "tonumber",
     "trivy",
     "unsanitized",
+    "vprefix",
+    "vtag",
     "xmlstarlet"
   ]
 }
