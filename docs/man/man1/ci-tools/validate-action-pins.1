@@ -37,6 +37,15 @@ or a branch name, with no prefix to distinguish them.
 .Nm
 probes the GitHub REST API for a matching tag first and falls back to a
 branch of the same name.
+When the ref is version-shaped and its comment differs from the upstream
+git tag only by a leading
+.Em v
+\(em for example a comment of
+.Em 0.36.0
+against a
+.Em v0.36.0
+tag \(em both forms are tried, so a cosmetic prefix difference is not
+reported as an unresolved ref.
 Each unique action/ref pair is resolved once; subsequent occurrences
 within the same file are deduplicated.
 .Pp

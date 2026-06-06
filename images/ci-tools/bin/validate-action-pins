@@ -142,6 +142,11 @@ gh_api() {
 
 # Resolve a tag ref (lightweight or annotated) to its commit SHA.
 #
+# For semver-shaped refs, tolerates a leading-`v` mismatch between the
+# pin comment and the upstream git tag: if `0.36.0` does not resolve,
+# `v0.36.0` is tried (and vice versa). The first form that resolves
+# wins; which one matched is not reported.
+#
 # Arguments:
 #   $1 - Repository (owner/repo)
 #   $2 - Tag name (e.g. v6)
@@ -154,28 +159,47 @@ gh_api() {
 #   1 - ref is not a known tag
 _resolve_as_tag() {
   local repo="${1}" ref="${2}"
-  local json obj_type obj_sha
-  json="$(gh_api "/repos/${repo}/git/ref/tags/${ref}")"
-  [[ -z "${json}" ]] && return 1
+  local json obj_type obj_sha tag_obj_json commit_sha candidate
 
-  obj_type="$(jq -r '.object.type // empty' <<< "${json}")"
-  obj_sha="$(jq -r '.object.sha // empty' <<< "${json}")"
-  [[ -z "${obj_type}" || -z "${obj_sha}" ]] && return 1
+  # Candidate tag forms to try, in order. Upstreams and Dependabot
+  # sometimes disagree on the leading `v`: aquasecurity/trivy-action
+  # names its git tags `v0.36.0` but its GitHub release (and thus the
+  # Dependabot-written pin comment) `0.36.0`, so the verbatim lookup
+  # 404s even though the SHA pin is correct. For a semver-shaped ref we
+  # also try the alternate prefix form so a cosmetic `v` difference is
+  # not reported as an unresolved ref. Non-version refs (branch names)
+  # are left untouched — the extra lookup would only waste an API call.
+  local -a candidates=("${ref}")
+  if [[ "${ref}" =~ ${_SEMVER_RE} ]]; then
+    if [[ "${ref}" == v* ]]; then
+      candidates+=("${ref#v}")
+    else
+      candidates+=("v${ref}")
+    fi
+  fi
 
-  if [[ "${obj_type}" == "commit" ]]; then
-    echo "${obj_sha}"
-    return 0
-  fi
-  if [[ "${obj_type}" == "tag" ]]; then
-    # Annotated tag — dereference the tag object to its commit.
-    local tag_obj_json commit_sha
-    tag_obj_json="$(gh_api "/repos/${repo}/git/tags/${obj_sha}")"
-    [[ -z "${tag_obj_json}" ]] && return 1
-    commit_sha="$(jq -r '.object.sha // empty' <<< "${tag_obj_json}")"
-    [[ -z "${commit_sha}" ]] && return 1
-    echo "${commit_sha}"
-    return 0
-  fi
+  for candidate in "${candidates[@]}"; do
+    json="$(gh_api "/repos/${repo}/git/ref/tags/${candidate}")"
+    [[ -z "${json}" ]] && continue
+
+    obj_type="$(jq -r '.object.type // empty' <<< "${json}")"
+    obj_sha="$(jq -r '.object.sha // empty' <<< "${json}")"
+    [[ -z "${obj_type}" || -z "${obj_sha}" ]] && continue
+
+    if [[ "${obj_type}" == "commit" ]]; then
+      echo "${obj_sha}"
+      return 0
+    fi
+    if [[ "${obj_type}" == "tag" ]]; then
+      # Annotated tag — dereference the tag object to its commit.
+      tag_obj_json="$(gh_api "/repos/${repo}/git/tags/${obj_sha}")"
+      [[ -z "${tag_obj_json}" ]] && continue
+      commit_sha="$(jq -r '.object.sha // empty' <<< "${tag_obj_json}")"
+      [[ -z "${commit_sha}" ]] && continue
+      echo "${commit_sha}"
+      return 0
+    fi
+  done
   return 1
 }
 

@@ -1,0 +1,9 @@
+name: tag-vprefix-mismatch
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Comment omits the leading v (trivy-action style) while the git
+      # tag is v3. The SHA pin is correct; check should print OK.
+      - uses: foo/vtag-only@3333333333333333333333333333333333333333 # 3
