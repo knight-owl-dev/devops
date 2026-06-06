@@ -133,7 +133,7 @@ git commit -m "Release v${VERSION}"
 git push -u origin "${BRANCH}"
 
 body="$(
-  printf 'Release v%s.\n\nImages stamped to v%s:\n' "${VERSION}" "${VERSION}"
+  printf 'Images stamped to v%s:\n' "${VERSION}"
   printf -- '- %s\n' "${changed[@]}"
   printf '\nMerging this PR promotes tag v%s, which publishes the stamped images.\n' "${VERSION}"
 )"
