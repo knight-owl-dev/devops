@@ -195,12 +195,15 @@ directory with a `Dockerfile` and no prior release) is detected as changed and
 stamped on the next release:
 
 ```bash
-make release VERSION=0.1.0   # opens a "Release v0.1.0" PR stamping changed images
+make release BUMP=patch   # opens the next-version release PR, stamping changed images
 ```
 
-Merging that release PR promotes tag `v0.1.0`, which builds and publishes the
-image. `make get-version IMAGE=<name>` prints the current stamp. See
-[Publish an Image](publish-image.md) for the full release flow.
+The release version is repo-wide (one tag per release), so a new image is
+stamped to that next version alongside any other changed images rather than
+getting an independent number. Merging the release PR promotes the tag, which
+builds and publishes the image. `make get-version IMAGE=<name>` prints the
+current stamp. See [Publish an Image](publish-image.md) for the full release
+flow.
 
 ### 9. Wire up workflows
 

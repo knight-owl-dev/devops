@@ -80,14 +80,19 @@ jobs:
 
 ### Releasing
 
-A release is a reviewable PR, not a manual tag. `make release VERSION=X.Y.Z`
-stamps every image whose build context changed since its last release and opens
-a `release/vX.Y.Z` PR. Merging that PR promotes tag `vX.Y.Z` automatically,
-which triggers the `publish` workflow.
+A release is a reviewable PR, not a manual tag. `make release BUMP=patch`
+derives the next version from the latest release tag, stamps every image whose
+build context changed since its last release, and opens a `release/vX.Y.Z` PR.
+Merging that PR promotes tag `vX.Y.Z` automatically, which triggers the
+`publish` workflow.
 
 ```bash
-make release VERSION=1.3.0   # opens the release PR (review the stamp diff, then merge)
+make release BUMP=patch       # 1.2.7 → 1.2.8 (BUMP=minor → 1.3.0, BUMP=major → 2.0.0)
+make release VERSION=2.0.0    # explicit version, for jumps or corrections
 ```
+
+The bump base is the highest release tag, so there is no separate version file
+to keep in sync. `VERSION=` overrides `BUMP=` when both are given.
 
 Because the per-image `images/<name>/version` is the release at which the image
 last changed, the release tag, package version, and image tag are always one

@@ -8,7 +8,8 @@ set -euo pipefail
 # (.github/workflows/tag-release.yml), which triggers the publish workflow.
 #
 # Usage:
-#   ./scripts/release.sh <version>
+#   ./scripts/release.sh <major|minor|patch>   # bump latest release tag
+#   ./scripts/release.sh <X.Y.Z>               # explicit version (escape hatch)
 #
 # Environment:
 #   GH_TOKEN           (CI) GitHub App token used for push + PR creation, so the
@@ -30,14 +31,33 @@ source "${SCRIPT_DIR}/lib/version.sh"
 source "${SCRIPT_DIR}/lib/images.sh"
 
 if [[ $# -ne 1 ]]; then
-  echo "Usage: $(basename "$0") <version>" >&2
+  echo "Usage: $(basename "$0") <major|minor|patch|X.Y.Z>" >&2
   exit 1
 fi
 
-# Strict semver, leading v stripped.
-VERSION="$(validate_strict_version "$1")"
-
 cd "${REPO_ROOT}"
+
+# Best-effort refresh of tags before any tag-derived work: a bump verb reads
+# them for the next-version base, and the per-image diff below uses them as the
+# build-context baseline. Offline is tolerated (existing local tags are used).
+git fetch --tags --quiet 2> /dev/null || true
+
+# Resolve the target version. A bump verb derives the next version from the
+# latest release tag — the same source publish.yml keys off, so there is no
+# second source of truth to drift. An explicit X.Y.Z is the escape hatch for
+# version jumps or corrections.
+case "$1" in
+  major | minor | patch)
+    tags="$(git tag --list 'v*')"
+    current="$(max_strict_version <<< "${tags}")"
+    VERSION="$(bump_version "${current}" "$1")"
+    echo "Latest release v${current} → bumping $1 → v${VERSION}"
+    ;;
+  *)
+    # Strict semver, leading v stripped.
+    VERSION="$(validate_strict_version "$1")"
+    ;;
+esac
 
 # Require a clean tree: the stamp bumps must be the only changes in the release PR.
 if ! git diff --quiet || ! git diff --staged --quiet; then
@@ -57,9 +77,6 @@ if [[ -n "${existing}" ]]; then
   echo "ERROR: An open release PR already exists (#${existing}) — close or merge it before cutting another." >&2
   exit 1
 fi
-
-# Best-effort refresh of tags so the per-image diff base is current.
-git fetch --tags --quiet 2> /dev/null || true
 
 # Determine which images changed since their last release stamp.
 changed=()
