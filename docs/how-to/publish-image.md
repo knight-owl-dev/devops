@@ -167,6 +167,47 @@ If the Trivy scan fails during publish:
    (`make release VERSION=...`). The image's build context changed, so it's
    stamped to the new version and rebuilt when the release tag is promoted.
 
+If no patched upstream release exists yet (the fix lives in a dependency that
+hasn't shipped a rebuild), suppress the CVE temporarily instead — see below.
+
+### Suppressing a CVE
+
+Suppressions live in `images/<image>/.trivyignore.yaml` in Trivy's structured
+format. Every entry carries a `statement` (the justification) and an
+`expired_at` date, so a suppression re-surfaces for re-triage instead of
+silencing the CVE forever. Trivy does **not** auto-detect this file — it is
+referenced explicitly by the Makefile (`--ignorefile`) and the trivy-action
+(`trivyignores:`), so no extra wiring is needed when you edit it.
+
+**Add an entry** when a fixable CVE has no patched upstream release yet:
+
+```yaml
+vulnerabilities:
+  - id: CVE-YYYY-NNNNN
+    statement: >-
+      <package>: <short description>, fixed in <version>. Affects <tool>
+      <version> — <why the practical risk is negligible here>. Tracking:
+      #NN. Remove once <tool> ships a build on <fixed version>.
+    expired_at: 2026-07-21 # ~45 days out, matching the dependency's cadence
+```
+
+Pick an `expired_at` window that matches the suppressed dependency's release
+cadence (~30–45 days is the default) so the entry expires after a patched
+release is likely to exist, resolving to a real version bump rather than a
+re-suppress. Re-run `make scan` to confirm the entry takes effect.
+
+**When an entry expires**, the CVE reappears in the scan (locally and in the
+scheduled CVE monitor). Re-triage it:
+
+- If a patched upstream release shipped, bump the tool (`make resolve
+  TOOLS=<tool>`), rebuild, and **delete** the entry.
+- If not, **extend** `expired_at` with a fresh justification in the
+  `statement`.
+
+Keep `trivyignores:` pointed at a **single** YAML file per image — the
+trivy-action concatenates a mixed list into an extensionless temp file that
+Trivy parses as plain text, silently dropping the structured entries.
+
 ## Workflow Location
 
 `.github/workflows/publish.yml`

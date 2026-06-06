@@ -10,8 +10,11 @@
     "dedup",
     "devops",
     "ERRFD",
+    "extensionless",
     "extglob",
     "hadolint",
+    "httputil",
+    "ignorefile",
     "libgnutls",
     "ltrimstr",
     "luacheck",
@@ -35,9 +38,11 @@
     "stylelint",
     "subcmd",
     "syscall",
+    "textproto",
     "tinyglobby",
     "tonumber",
     "trivy",
+    "unsanitized",
     "xmlstarlet"
   ]
 }

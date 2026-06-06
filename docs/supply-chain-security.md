@@ -139,10 +139,20 @@ each published image on a schedule (Monday and Thursday at 08:00 UTC) and can
 also be triggered manually from the Actions tab.
 
 The scan uses the same Trivy policy as the publish workflow: CRITICAL and HIGH
-severity, `ignore-unfixed: true`, with the per-image `.trivyignore`. A clean
-scan produces a silent green run. If fixable vulnerabilities are found, the
-workflow opens a GitHub issue labeled `cve-monitor` and `security` with the
+severity, `ignore-unfixed: true`, with the per-image `.trivyignore.yaml`. A
+clean scan produces a silent green run. If fixable vulnerabilities are found,
+the workflow opens a GitHub issue labeled `cve-monitor` and `security` with the
 full scan results.
+
+**Suppressions expire.** Each entry in `.trivyignore.yaml` carries both a
+`statement` (the justification) and an `expired_at` date. A suppression is a
+promise to revisit, not a permanent silence: once the date passes the entry
+stops suppressing and the CVE re-surfaces in the next scan, turning the CVE
+monitor into a forcing function for re-triage. Trivy does **not** auto-detect
+the `.yaml` file — every invocation references it explicitly (the Makefile
+`--ignorefile`, the trivy-action `trivyignores:` input). See
+[publish-image.md](how-to/publish-image.md#vulnerability-scan-failure-runbook)
+for the add/extend/remove workflow.
 
 To avoid duplicate noise, the workflow checks for an existing open issue for
 that image before creating a new one. Once the vulnerability is remediated and
