@@ -11,74 +11,22 @@ Shared CI/CD infrastructure for Knight Owl repositories.
 Third-party GitHub Actions for linting (setup-shfmt, hadolint-action, etc.)
 introduce an unnecessary trust surface — each is a dependency maintained by
 someone outside the org that runs in CI with repo-level permissions. This repo
-replaces all of them with a single org-maintained Docker image. CI jobs run
-`make lint` inside the image, executing the exact same commands developers run
-locally. See [Supply-Chain Security](docs/supply-chain-security.md) for the
-full rationale and guidelines.
+replaces all of them with org-maintained Docker images. CI jobs run their tools
+inside these images, executing the exact same commands developers run locally.
+See [Supply-Chain Security](docs/supply-chain-security.md) for the full
+rationale and guidelines.
 
-## ci-tools Image
+## Images
 
-A Docker image containing linting and formatting tools used across Knight Owl
-CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
+Each image is purpose-built for a specific CI concern and published to GHCR at
+`ghcr.io/knight-owl-dev/<name>`. See each image's README for its tools and usage.
 
-### Tools
+| Image | Purpose | Details |
+| --- | --- | --- |
+| `ci-tools` | Linting, formatting, and testing tools for CI pipelines | [images/ci-tools/README.md](images/ci-tools/README.md) |
+| `docs` | MkDocs + Material for MkDocs documentation builds | [images/docs/README.md](images/docs/README.md) |
 
-| Tool | Purpose |
-| --- | --- |
-| [actionlint](https://github.com/rhysd/actionlint) | GitHub Actions workflow linting |
-| [bats](https://github.com/bats-core/bats-core) | Shell script test framework with bats-support, bats-assert, bats-file helper libraries |
-| [busted](https://github.com/lunarmodules/busted) | Lua testing framework |
-| [biome](https://github.com/biomejs/biome) | JavaScript/TypeScript linting |
-| [chktex](https://www.nongnu.org/chktex/) | LaTeX document linting |
-| [git](https://git-scm.com) | Version control (build-time cloning and runtime use) |
-| [gpg](https://gnupg.org) | GPG signature verification |
-| [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting |
-| [luacheck](https://github.com/lunarmodules/luacheck) | Lua script linting |
-| [make](https://www.gnu.org/software/make/) | Build automation |
-| [parallel](https://www.gnu.org/software/parallel/) | Parallel execution backend for bats --jobs |
-| [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | Markdown linting |
-| [npm](https://github.com/npm/cli) | Package manager (upgraded beyond base image for CVE fixes) |
-| [rsync](https://rsync.samba.org) | File synchronization for build assembly |
-| [shellcheck](https://github.com/koalaman/shellcheck) | Shell script linting |
-| [shfmt](https://github.com/mvdan/sh) | Shell script formatting |
-| [stylelint](https://github.com/stylelint/stylelint) | CSS linting |
-| validate-action-pins | GitHub Actions SHA pin verification |
-| [xmlstarlet](https://xmlstar.sourceforge.net) | XML querying and editing |
-| [yq](https://github.com/mikefarah/yq) | YAML/JSON/XML processing |
-
-Pinned versions and checksums are tracked in
-[`images/ci-tools/versions.lock`](images/ci-tools/versions.lock).
-
-### Locale
-
-The image defaults to `LC_ALL=C` for deterministic sorting and output. The
-`en_US.UTF-8` locale is installed so tests can `export LC_ALL=en_US.UTF-8` to
-verify locale-independent behavior without the setting silently falling back
-to C.
-
-### Usage
-
-Reference the image in a GitHub Actions workflow:
-
-```yaml
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    container: ghcr.io/knight-owl-dev/ci-tools:latest
-    steps:
-      - uses: actions/checkout@v6
-      - run: make lint
-```
-
-> **Caveat:** Pass `.github/workflows/*.yml` explicitly to actionlint instead
-> of relying on auto-discovery. Auto-discovery breaks inside CI containers
-> where the workspace path doesn't match what actionlint expects.
->
-> ```makefile
-> actionlint .github/workflows/*.yml
-> ```
-
-### Releasing
+## Releasing
 
 A release is a reviewable PR, not a manual tag. `make release BUMP=patch`
 derives the next version from the latest release tag, stamps every image whose
@@ -117,6 +65,8 @@ make man       # Preview man pages
 make help      # Show all available commands
 ```
 
+All image operations take an `IMAGE` variable, e.g. `make sync IMAGE=docs`.
+
 > **Note:** `make resolve` and `make sync` write
 > `images/<IMAGE>/versions.lock`. Commit the updated lockfile after resolving.
 
@@ -128,23 +78,8 @@ make help      # Show all available commands
 
 ## Acknowledgments
 
-This project relies on excellent open source tools maintained by their
-respective communities:
-
-- [ShellCheck](https://github.com/koalaman/shellcheck) by Vidar Holen (GPLv3)
-- [shfmt](https://github.com/mvdan/sh) by Daniel Mart&iacute; (BSD-3-Clause)
-- [actionlint](https://github.com/rhysd/actionlint) by rhysd (MIT)
-- [hadolint](https://github.com/hadolint/hadolint) by Hadolint contributors (GPLv3)
-- [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) by David Anson (MIT)
-- [Biome](https://github.com/biomejs/biome) by Biome contributors (MIT/Apache-2.0)
-- [busted](https://github.com/lunarmodules/busted) by Lunar Modules (MIT)
-- [luacheck](https://github.com/lunarmodules/luacheck) by Lunar Modules (MIT)
-- [stylelint](https://github.com/stylelint/stylelint) by stylelint contributors (MIT)
-- [ChkTeX](https://www.nongnu.org/chktex/) by ChkTeX contributors (GPLv2+)
-- [bats-core](https://github.com/bats-core/bats-core) by bats-core contributors (MIT)
-- [GNU Parallel](https://www.gnu.org/software/parallel/) by Ole Tange (GPLv3+)
-- [XMLStarlet](https://xmlstar.sourceforge.net) by Mikhail Grushinskiy (MIT)
-- [yq](https://github.com/mikefarah/yq) by Mike Farah (MIT)
+This project packages open source tools maintained by their respective
+communities. See [NOTICE.md](NOTICE.md) for the full list of tools and licenses.
 
 ## License
 

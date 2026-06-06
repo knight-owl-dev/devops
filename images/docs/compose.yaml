@@ -1,0 +1,10 @@
+services:
+  docs:
+    image: docs:local
+    build:
+      context: .
+      platforms:
+        - linux/amd64
+        - linux/arm64
+      args:
+        MKDOCS_MATERIAL_VERSION: ${MKDOCS_MATERIAL_VERSION}
