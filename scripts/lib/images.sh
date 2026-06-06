@@ -41,6 +41,24 @@ image_build_context_changed() {
   return 0 # diff => changed
 }
 
+# Echo the names of images that carry a given file under images/<name>/, one per
+# line, in directory order. A missing glob match or a non-file is skipped, so
+# callers get exactly the images whose marker/stamp file is present.
+#
+# Assumes the current working directory is the repo root.
+#
+# Arguments:
+#   $1 - File name to look for under each images/<name>/ directory
+_images_with_file() {
+  local file="$1"
+  local match name
+  for match in images/*/"${file}"; do
+    [[ -f "${match}" ]] || continue
+    name="$(basename "$(dirname "${match}")")"
+    printf '%s\n' "${name}"
+  done
+}
+
 # Echo the names of images carrying a `distributable` marker, one per line, in
 # directory order. The marker's presence is the only signal — its contents are
 # ignored. This is the single opt-in source for everything package-related: the
@@ -49,10 +67,17 @@ image_build_context_changed() {
 #
 # Assumes the current working directory is the repo root.
 distributable_images() {
-  local marker name
-  for marker in images/*/distributable; do
-    [[ -f "${marker}" ]] || continue
-    name="$(basename "$(dirname "${marker}")")"
-    printf '%s\n' "${name}"
-  done
+  _images_with_file distributable
+}
+
+# Echo the names of images carrying a `version` file, one per line, in
+# directory order. The version file is the release stamp every image acquires
+# on its first release; its presence (not its value) is what marks a directory
+# as a real image here. This is the enumerate-images discovery pattern shared by
+# the release build matrix (compute-build-matrix.sh) and the CVE monitor's
+# published-image probe (list-published-images.sh).
+#
+# Assumes the current working directory is the repo root.
+versioned_images() {
+  _images_with_file version
 }

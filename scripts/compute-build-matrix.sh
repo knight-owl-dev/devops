@@ -29,6 +29,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/version.sh"
 # shellcheck source=scripts/lib/json.sh
 source "${SCRIPT_DIR}/lib/json.sh"
+# shellcheck source=scripts/lib/images.sh
+source "${SCRIPT_DIR}/lib/images.sh"
 
 if [[ $# -ne 1 ]]; then
   echo "Usage: $(basename "$0") <release-version>" >&2
@@ -38,13 +40,19 @@ fi
 # Strict semver, leading v stripped — matches the bare value in version files.
 RELEASE="$(validate_strict_version "$1")"
 
+# Capture then split (a here-string of "" would yield one empty element, so
+# guard the empty case). Assigning the command substitution preserves its exit
+# status, unlike piping into mapfile.
+discovered="$(versioned_images)"
+names=()
+if [[ -n "${discovered}" ]]; then
+  mapfile -t names <<< "${discovered}"
+fi
+
 build=()
 distributable=()
 
-for version_file in images/*/version; do
-  [[ -f "${version_file}" ]] || continue
-  name="$(basename "$(dirname "${version_file}")")"
-
+for name in "${names[@]}"; do
   version="$(read_image_version "${name}")"
 
   if [[ "${version}" == "${RELEASE}" ]]; then

@@ -57,15 +57,10 @@ re-triage rather than silencing the CVE forever (see
 [suppression workflow](publish-image.md#suppressing-a-cve)). A new image with a
 clean scan needs no such file.
 
-> `cve-monitor.yml` uses a **static** matrix (it scans `:latest`, which has no
-> version stamp to discover). When you add an image, add its name there so the
-> published image is scanned on schedule:
->
-> ```yaml
-> # .github/workflows/cve-monitor.yml
-> matrix:
->   image: [ci-tools, <name>]
-> ```
+> `cve-monitor.yml` **auto-discovers** its scan set: a `discover` job runs
+> `list-published-images.sh`, which enumerates `images/*/version` and keeps the
+> images whose `ghcr.io/knight-owl-dev/<name>:latest` probe succeeds. Once your
+> image has been published, it is scanned on schedule with no workflow edit.
 
 Copy this to the new `.trivyignore.yaml` (replace `<name>`):
 
@@ -209,13 +204,12 @@ image. `make get-version IMAGE=<name>` prints the current stamp. See
 
 ### 9. Wire up workflows
 
-`publish.yml` and `ci.yml` **auto-discover** images — `publish.yml` builds each
-image stamped to the release version (`images/<name>/version == <tag>`) and
-`ci.yml` builds/tests debs for each image with a `distributable` marker — so no
-matrix edit is needed in either.
-
-The one exception is `cve-monitor.yml`, whose static matrix you must extend —
-see [Vulnerability scanning](#vulnerability-scanning) above.
+`publish.yml`, `ci.yml`, and `cve-monitor.yml` all **auto-discover** images —
+`publish.yml` builds each image stamped to the release version
+(`images/<name>/version == <tag>`), `ci.yml` builds/tests debs for each image
+with a `distributable` marker, and `cve-monitor.yml` scans each image whose
+`:latest` is published (see [Vulnerability scanning](#vulnerability-scanning)
+above). No matrix edit is needed in any of them.
 
 ### 10. Add Makefile lint targets (if applicable)
 
