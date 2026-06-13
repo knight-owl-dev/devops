@@ -13,11 +13,18 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # CVE-2026-3833, and CVE-2026-42009. Remove once the base image ships
 # libgnutls30 >= 3.7.9-2+deb12u7. Tracking issue: #135.
 #
+# libssl3 and openssl are listed explicitly to force apt to pull the deb12u2
+# revision, fixing CVE-2026-45447 (heap use-after-free in PKCS7_verify()).
+# Remove once the base image ships openssl >= 3.0.20-1~deb12u2. Tracking
+# issue: #173.
+#
 # DL3008: apt packages are intentionally unpinned
 # hadolint ignore=DL3008
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     libgnutls30 \
+    libssl3 \
+    openssl \
     make \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
