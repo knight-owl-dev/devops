@@ -12,7 +12,7 @@ jobs:
     container: ghcr.io/knight-owl-dev/ci-tools:latest
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Lint
         run: make lint
@@ -23,7 +23,7 @@ jobs:
     container: ghcr.io/knight-owl-dev/ci-tools:latest
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       # The default BATS_RUNNER docker-runs the ci-tools image for local
       # macOS users who may not have bats installed. In CI we're already
@@ -40,7 +40,7 @@ jobs:
       images: ${{ steps.list.outputs.images }}
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: List distributable images
         id: list
@@ -61,7 +61,7 @@ jobs:
         arch: [amd64, arm64]
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       # Version is a placeholder — CI exercises the packaging pipeline,
       # not a real release. The publish workflow uses each image's version.
@@ -109,7 +109,7 @@ jobs:
 
     steps:
       - name: Checkout (for verify script)
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           sparse-checkout: scripts
           sparse-checkout-cone-mode: false
