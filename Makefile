@@ -59,7 +59,7 @@ scan: build
 	@docker run --rm $(DOCKER_TTY) \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v $(CURDIR)/images/$(IMAGE)/.trivyignore.yaml:/.trivyignore.yaml:ro \
-		aquasec/trivy:0.71.0 image \
+		aquasec/trivy:0.71.2 image \
 		--ignorefile /.trivyignore.yaml \
 		--severity CRITICAL,HIGH \
 		--ignore-unfixed \
