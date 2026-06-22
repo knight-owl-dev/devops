@@ -4,24 +4,10 @@ FROM node:26-bookworm-slim@sha256:4e2e85a824f938e41a61e9e819f0c7c11432f7d60f470b
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # ---------- apt ----------
-# libgnutls30 is listed explicitly to force apt to pull the latest deb12u7+
-# revision, fixing CVE-2026-33845, CVE-2026-42010, CVE-2026-33846,
-# CVE-2026-3833, and CVE-2026-42009. Remove once the base image ships
-# libgnutls30 >= 3.7.9-2+deb12u7. Tracking issue: #135.
-#
-# libssl3 and openssl are listed explicitly to force apt to pull the deb12u2
-# revision, fixing CVE-2026-45447 (heap use-after-free in PKCS7_verify()).
-# Both arrive transitively via curl/git/gnupg; naming them forces the patched
-# build. Remove once the base image ships openssl >= 3.0.20-1~deb12u2.
-# Tracking issue: #173.
-#
 # DL3008: apt packages are intentionally unpinned
 # hadolint ignore=DL3008
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    libgnutls30 \
-    libssl3 \
-    openssl \
     shellcheck \
     chktex \
     mandoc \
