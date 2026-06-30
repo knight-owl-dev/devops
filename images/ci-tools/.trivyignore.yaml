@@ -19,17 +19,6 @@
 #    expired_at: 2026-07-21  # ~45 days out, matching the dependency's cadence
 #
 vulnerabilities:
-  - id: CVE-2026-12151
-    statement: >-
-      undici: denial of service via unbounded memory growth in the
-      WebSocket client, fixed in undici 6.27.0 / 7.28.0 / 8.5.0. undici is
-      vendored inside npm; npm 11.17.0 bundles undici 6.26.0 and no released
-      npm yet bundles a fixed build. npm uses undici only for registry HTTP
-      at build time — never WebSockets, never at runtime in this lint image
-      — so practical risk is negligible. Tracking: #180. Remove once npm
-      bundles undici >= 6.27.0.
-    expired_at: 2026-08-06
-
   - id: CVE-2026-32280
     statement: >-
       crypto/x509 chain building does unbounded work (DoS), fixed in Go
@@ -137,4 +126,14 @@ vulnerabilities:
       (Go 1.26.1) — offline lint/format tools that decode no untrusted MIME
       headers, so practical risk is negligible. Tracking: #96. Remove once
       both ship builds on Go >= 1.25.11 or 1.26.4.
+    expired_at: 2026-07-21
+
+  - id: CVE-2026-27145
+    statement: >-
+      crypto/x509 inefficient hostname verification — VerifyHostname scales
+      quadratically with DNS SAN entries (DoS), fixed in Go 1.25.11 / 1.26.4.
+      Affects actionlint v1.7.12 and shfmt v3.13.1 (Go 1.26.1) — offline
+      lint/format tools that verify no certificates against untrusted input,
+      so practical risk is negligible. Tracking: #96. Remove once both ship
+      builds on Go >= 1.25.11 or 1.26.4.
     expired_at: 2026-07-21
