@@ -137,3 +137,21 @@ vulnerabilities:
       so practical risk is negligible. Tracking: #96. Remove once both ship
       builds on Go >= 1.25.11 or 1.26.4.
     expired_at: 2026-07-21
+
+  - id: CVE-2026-32316
+    statement: >-
+      jq: DoS or potential arbitrary code execution via crafted input, fixed
+      in 1.6-2.1+deb12u2. Affects jq 1.6-2.1+deb12u1 — the deb12u2 build is
+      not yet in the Debian mirror, so a rebuild still installs deb12u1. jq
+      runs only on trusted CI inputs here, so practical risk is negligible.
+      Tracking: #96. Remove once deb12u2 reaches the bookworm mirror.
+    expired_at: 2026-08-19
+
+  - id: CVE-2026-40164
+    statement: >-
+      jq: DoS via a crafted JSON object, fixed in 1.6-2.1+deb12u2. Affects jq
+      1.6-2.1+deb12u1 — the deb12u2 build is not yet in the Debian mirror, so
+      a rebuild still installs deb12u1. jq runs only on trusted CI inputs
+      here, so practical risk is negligible. Tracking: #96. Remove once
+      deb12u2 reaches the bookworm mirror.
+    expired_at: 2026-08-19

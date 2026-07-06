@@ -1,4 +1,45 @@
 # ci-tools — shared linting image for Knight Owl CI pipelines
+
+# ---------- lua builder ----------
+# Compiles the Lua 5.4 rocks in a throwaway stage. luarocks, gcc, and the
+# liblua5.4-dev → libc6-dev → linux-libc-dev header chain live only here and are
+# never copied forward, so the final image ships none of their CVEs.
+#
+# The base digest is repeated verbatim in the final stage rather than hoisted
+# into an ARG: Dependabot's Docker parser only bumps digests written directly in
+# FROM, and an `ARG BASE_IMAGE` reference would silence its base-image updates.
+# The two FROM lines must stay identical — the native .so modules built here
+# load under the final stage's interpreter and need the same glibc ABI.
+FROM node:26-bookworm-slim@sha256:b16ca7b4dcfb20184e1c70f9ee30c6a75ed1da669cfafd6d2add4761b123d79f AS lua-builder
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# DL3008: apt packages are intentionally unpinned
+# hadolint ignore=DL3008
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    lua5.4 \
+    liblua5.4-dev \
+    luarocks \
+    gcc \
+    make \
+    unzip \
+    ca-certificates \
+    curl \
+  && rm -rf /var/lib/apt/lists/*
+
+# ---------- luacheck (Lua 5.4) ----------
+ARG LUACHECK_VERSION
+RUN luarocks --lua-version=5.4 install luacheck "${LUACHECK_VERSION}" \
+  && rm -rf /root/.cache/luarocks
+
+# ---------- busted (Lua 5.4; pulls luassert, say, mediator, term, system) ----------
+ARG BUSTED_VERSION
+RUN luarocks --lua-version=5.4 install busted "${BUSTED_VERSION}" \
+  && rm -rf /root/.cache/luarocks
+
+# ---------- final image ----------
+# Base digest duplicated from lua-builder for Dependabot — see the note there.
 FROM node:26-bookworm-slim@sha256:b16ca7b4dcfb20184e1c70f9ee30c6a75ed1da669cfafd6d2add4761b123d79f
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -17,8 +58,7 @@ RUN apt-get update \
     make \
     curl \
     ca-certificates \
-    luarocks \
-    gcc \
+    lua5.4 \
     rsync \
     git \
     gnupg \
@@ -111,19 +151,17 @@ ARG STYLELINT_VERSION
 RUN npm install -g "stylelint@${STYLELINT_VERSION}" \
   && npm cache clean --force
 
-# ---------- luacheck ----------
-ARG LUACHECK_VERSION
-RUN luarocks install luacheck "${LUACHECK_VERSION}" \
-  && rm -rf /root/.cache/luarocks
-
-# ---------- busted ----------
-ARG BUSTED_VERSION
-# gcc is purged here because busted is the last luarocks tool that needs
-# compilation. If another luarocks tool is added after this, move the purge.
-RUN luarocks install busted "${BUSTED_VERSION}" \
-  && rm -rf /root/.cache/luarocks \
-  && apt-get purge -y --auto-remove gcc \
-  && rm -rf /var/lib/apt/lists/*
+# ---------- lua toolchain (luacheck + busted on Lua 5.4) ----------
+# Rocks are compiled against Lua 5.4 in the builder and copied as artifacts, so
+# this image carries no -dev headers, no gcc, and no luarocks. The generated
+# wrappers hardcode /usr/bin/lua5.4 and these absolute rock paths, so the copy
+# targets must match the builder exactly. luassert (and busted's other deps)
+# live under the copied rocks/share/lib trees.
+COPY --from=lua-builder /usr/local/lib/luarocks/rocks-5.4 /usr/local/lib/luarocks/rocks-5.4
+COPY --from=lua-builder /usr/local/share/lua/5.4 /usr/local/share/lua/5.4
+COPY --from=lua-builder /usr/local/lib/lua/5.4 /usr/local/lib/lua/5.4
+COPY --from=lua-builder /usr/local/bin/luacheck /usr/local/bin/luacheck
+COPY --from=lua-builder /usr/local/bin/busted /usr/local/bin/busted
 
 # ---------- bats-core ----------
 ARG BATS_VERSION
