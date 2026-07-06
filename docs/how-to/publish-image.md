@@ -170,12 +170,19 @@ If the Trivy scan fails during publish:
 2. **Identify the source layer** — Trivy output shows which package
    introduced the CVE. Check whether it comes from the base image or a
    tool installed in the Dockerfile.
-3. **Apply the fix**:
+3. **Check for a fresher base image first** — regardless of the source
+   layer, see whether a newer base digest is available (`docker buildx
+   imagetools inspect node:26-bookworm-slim`) and fold it in. Base-layer and
+   apt CVEs usually clear in a batch on a rebuilt base, and Dependabot's
+   weekly bump may not have opened its PR yet — so this is often the cheapest
+   fix and worth checking before hand-patching. A base bump needs no tool
+   refresh — the pinned tools are independent of the base digest.
+4. **Apply the fix**:
    - **Base image CVE** — bump the base image digest in the Dockerfile
      (use `docker buildx imagetools inspect` for the manifest list digest).
    - **Tool CVE** — run `make resolve TOOLS=<tool>` to pull the latest
      version, then rebuild and re-scan.
-4. **Merge and re-release** — merge the fix, then cut a release
+5. **Merge and re-release** — merge the fix, then cut a release
    (`make release VERSION=...`). The image's build context changed, so it's
    stamped to the new version and rebuilt when the release tag is promoted.
 
