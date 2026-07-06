@@ -26,9 +26,11 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [shellcheck](https://github.com/koalaman/shellcheck) | Shell script linting |
 | [shfmt](https://github.com/mvdan/sh) | Shell script formatting |
 | [stylelint](https://github.com/stylelint/stylelint) | CSS linting |
+| [unzip](https://infozip.sourceforge.net) | Archive extraction for archive-format test fixtures (ODT/DOCX/EPUB) |
 | validate-action-pins | GitHub Actions SHA pin verification |
 | [xmlstarlet](https://xmlstar.sourceforge.net) | XML querying and editing |
 | [yq](https://github.com/mikefarah/yq) | YAML/JSON/XML processing |
+| [zip](https://infozip.sourceforge.net) | Archive assembly for archive-format test fixtures (ODT/DOCX/EPUB) |
 
 Pinned versions and checksums are tracked in
 [`versions.lock`](versions.lock).
