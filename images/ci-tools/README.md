@@ -9,13 +9,15 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | --- | --- |
 | [actionlint](https://github.com/rhysd/actionlint) | GitHub Actions workflow linting |
 | [bats](https://github.com/bats-core/bats-core) | Shell script test framework with bats-support, bats-assert, bats-file helper libraries |
-| [busted](https://github.com/lunarmodules/busted) | Lua testing framework |
+| [busted](https://github.com/lunarmodules/busted) | Lua testing framework (runs on Lua 5.4 to match Pandoc's embedded runtime) |
 | [biome](https://github.com/biomejs/biome) | JavaScript/TypeScript linting |
 | [chktex](https://www.nongnu.org/chktex/) | LaTeX document linting |
 | [git](https://git-scm.com) | Version control (build-time cloning and runtime use) |
 | [gpg](https://gnupg.org) | GPG signature verification |
 | [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting |
+| [lua](https://www.lua.org) | Lua 5.4 interpreter (runtime for busted; matches Pandoc's HsLua) |
 | [luacheck](https://github.com/lunarmodules/luacheck) | Lua script linting |
+| [luassert](https://github.com/lunarmodules/luassert) | Lua assertion library (busted dependency) |
 | [make](https://www.gnu.org/software/make/) | Build automation |
 | [parallel](https://www.gnu.org/software/parallel/) | Parallel execution backend for bats --jobs |
 | [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | Markdown linting |

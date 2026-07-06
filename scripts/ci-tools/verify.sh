@@ -35,8 +35,12 @@ check "hadolint" "${HADOLINT_VERSION}" hadolint --version
 check "yq" "${YQ_VERSION}" yq --version
 check "markdownlint-cli2" "${MARKDOWNLINT_CLI2_VERSION}" markdownlint-cli2 --version
 check "biome" "${BIOME_VERSION}" biome --version
+check "lua" "5.4" lua5.4 -v
 check "luacheck" "${LUACHECK_VERSION}" luacheck --version
 check "busted" "${BUSTED_VERSION}" busted --version
+# luassert ships as a busted dependency (no CLI); confirm the 5.4 interpreter
+# can load it — this also exercises the copied rock tree.
+check "luassert" "" lua5.4 -e "require('luassert')"
 check "chktex" "" chktex --version
 check "mandoc" "" command -v mandoc
 check "stylelint" "${STYLELINT_VERSION}" stylelint --version
