@@ -26,7 +26,7 @@ vulnerabilities:
       1.26.1) — offline lint/format tools with no untrusted network or
       certificate input, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.9 or 1.26.2.
-    expired_at: 2026-07-21
+    expired_at: 2026-09-01
 
   - id: CVE-2026-32281
     statement: >-
@@ -35,7 +35,7 @@ vulnerabilities:
       1.26.1) — offline lint/format tools with no untrusted network or
       certificate input, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.9 or 1.26.2.
-    expired_at: 2026-07-21
+    expired_at: 2026-09-01
 
   - id: CVE-2026-32283
     statement: >-
@@ -44,7 +44,7 @@ vulnerabilities:
       1.26.1) — offline lint/format tools that open no TLS sessions to
       untrusted peers, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.9 or 1.26.2.
-    expired_at: 2026-07-21
+    expired_at: 2026-09-01
 
   - id: CVE-2026-33810
     statement: >-
@@ -54,7 +54,7 @@ vulnerabilities:
       no X.509 chains against untrusted input, so practical risk is
       negligible. Tracking: #96. Remove once both ship builds on Go >=
       1.26.2.
-    expired_at: 2026-07-21
+    expired_at: 2026-09-01
 
   - id: CVE-2026-33811
     statement: >-
@@ -63,7 +63,7 @@ vulnerabilities:
       shfmt v3.13.1 (Go 1.26.1) — offline lint/format tools that resolve no
       untrusted hostnames, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-07-21
+    expired_at: 2026-09-01
 
   - id: CVE-2026-33814
     statement: >-
@@ -72,7 +72,7 @@ vulnerabilities:
       (Go 1.26.1) — offline lint/format tools that serve no HTTP/2 to
       untrusted peers, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-07-21
+    expired_at: 2026-09-01
 
   - id: CVE-2026-39820
     statement: >-
@@ -81,7 +81,17 @@ vulnerabilities:
       v3.13.1 (Go 1.26.1) — offline lint/format tools that parse no
       untrusted mail addresses, so practical risk is negligible. Tracking:
       #96. Remove once both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-07-21
+    expired_at: 2026-09-01
+
+  - id: CVE-2026-39822
+    statement: >-
+      os: Go os.Root symlink following allows directory traversal, fixed in
+      Go 1.25.12 / 1.26.5. Affects actionlint v1.7.12 and shfmt v3.13.1 (Go
+      1.26.1) and yq v4.53.3 (Go 1.26.4) — offline lint/format/YAML tools
+      that confine no untrusted filesystem paths via os.Root, so practical
+      risk is negligible. Tracking: #96. Remove once all three ship builds
+      on Go >= 1.25.12 or 1.26.5.
+    expired_at: 2026-09-01
 
   - id: CVE-2026-39836
     statement: >-
@@ -90,7 +100,7 @@ vulnerabilities:
       v3.13.1 (Go 1.26.1) — offline lint/format tools that dial no
       untrusted addresses, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-07-21
+    expired_at: 2026-09-01
 
   - id: CVE-2026-42499
     statement: >-
@@ -99,25 +109,7 @@ vulnerabilities:
       1.26.1) — offline lint/format tools that parse no untrusted mail
       addresses, so practical risk is negligible. Tracking: #96. Remove
       once both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-07-21
-
-  - id: CVE-2026-39823
-    statement: >-
-      net/url incomplete fix for CVE-2026-27142 (URLs not parsed/escaped
-      safely), fixed in Go 1.25.10 / 1.26.3. Affects actionlint v1.7.12 and
-      shfmt v3.13.1 (Go 1.26.1) — offline lint/format tools that parse no
-      untrusted URLs, so practical risk is negligible. Tracking: #96.
-      Remove once both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-07-21
-
-  - id: CVE-2026-39825
-    statement: >-
-      net/http/httputil ReverseProxy forwards unsanitized query parameters,
-      fixed in Go 1.25.10 / 1.26.3. Affects actionlint v1.7.12 and shfmt
-      v3.13.1 (Go 1.26.1) — offline lint/format tools that run no reverse
-      proxy, so practical risk is negligible. Tracking: #96. Remove once
-      both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-07-21
+    expired_at: 2026-09-01
 
   - id: CVE-2026-42504
     statement: >-
@@ -126,7 +118,7 @@ vulnerabilities:
       (Go 1.26.1) — offline lint/format tools that decode no untrusted MIME
       headers, so practical risk is negligible. Tracking: #96. Remove once
       both ship builds on Go >= 1.25.11 or 1.26.4.
-    expired_at: 2026-07-21
+    expired_at: 2026-09-01
 
   - id: CVE-2026-27145
     statement: >-
@@ -136,22 +128,4 @@ vulnerabilities:
       lint/format tools that verify no certificates against untrusted input,
       so practical risk is negligible. Tracking: #96. Remove once both ship
       builds on Go >= 1.25.11 or 1.26.4.
-    expired_at: 2026-07-21
-
-  - id: CVE-2026-32316
-    statement: >-
-      jq: DoS or potential arbitrary code execution via crafted input, fixed
-      in 1.6-2.1+deb12u2. Affects jq 1.6-2.1+deb12u1 — the deb12u2 build is
-      not yet in the Debian mirror, so a rebuild still installs deb12u1. jq
-      runs only on trusted CI inputs here, so practical risk is negligible.
-      Tracking: #96. Remove once deb12u2 reaches the bookworm mirror.
-    expired_at: 2026-08-19
-
-  - id: CVE-2026-40164
-    statement: >-
-      jq: DoS via a crafted JSON object, fixed in 1.6-2.1+deb12u2. Affects jq
-      1.6-2.1+deb12u1 — the deb12u2 build is not yet in the Debian mirror, so
-      a rebuild still installs deb12u1. jq runs only on trusted CI inputs
-      here, so practical risk is negligible. Tracking: #96. Remove once
-      deb12u2 reaches the bookworm mirror.
-    expired_at: 2026-08-19
+    expired_at: 2026-09-01
