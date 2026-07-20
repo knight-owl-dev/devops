@@ -10,7 +10,7 @@
 # FROM, and an `ARG BASE_IMAGE` reference would silence its base-image updates.
 # The two FROM lines must stay identical — the native .so modules built here
 # load under the final stage's interpreter and need the same glibc ABI.
-FROM node:26-bookworm-slim@sha256:e999d087492c7227c85adc70574cf9d3cce774c3e6d7b8dfe473ee6b142c8f2c AS lua-builder
+FROM node:26-bookworm-slim@sha256:2d49d876e96237d76de412761cf05dbfe5aee325cc4406a4d41d5824c5bb8beb AS lua-builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -40,7 +40,7 @@ RUN luarocks --lua-version=5.4 install busted "${BUSTED_VERSION}" \
 
 # ---------- final image ----------
 # Base digest duplicated from lua-builder for Dependabot — see the note there.
-FROM node:26-bookworm-slim@sha256:e999d087492c7227c85adc70574cf9d3cce774c3e6d7b8dfe473ee6b142c8f2c
+FROM node:26-bookworm-slim@sha256:2d49d876e96237d76de412761cf05dbfe5aee325cc4406a4d41d5824c5bb8beb
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
