@@ -66,8 +66,8 @@ scan: build
 		--exit-code 1 \
 		$(IMAGE_TAG)
 
-# Run all linters. SKIP='lint-a lint-b' drops targets from the run — needed
-# when a linter's tool is not yet in the published image CI runs inside.
+# Run all linters. SKIP='lint-a lint-b' drops targets from the run — bootstraps
+# a linter whose tool is not yet in the published image CI runs inside.
 LINT_TARGETS := lint-lockfile lint-docker lint-sh lint-sh-fmt lint-actions \
 	lint-md lint-spell lint-man
 lint: $(filter-out $(SKIP),$(LINT_TARGETS))
