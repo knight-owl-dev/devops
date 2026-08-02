@@ -129,3 +129,21 @@ vulnerabilities:
       so practical risk is negligible. Tracking: #96. Remove once both ship
       builds on Go >= 1.25.11 or 1.26.4.
     expired_at: 2026-09-01
+
+  - id: CVE-2026-14257
+    statement: >-
+      brace-expansion DoS — unbounded expansion length exhausts memory and
+      crashes the Node process, fixed in 5.0.8. Vendored in npm 12.0.2,
+      which still bundles 5.0.7 — npm expands globs over repo-local paths
+      at build time, never attacker-supplied patterns, so practical risk is
+      negligible. Tracking: #203. Remove once npm bundles >= 5.0.8.
+    expired_at: 2026-09-01
+
+  - id: CVE-2026-56852
+    statement: >-
+      golang.org/x/text norm.Iter enters an infinite loop on invalid UTF-8
+      (DoS), fixed in 0.39.0. Affects yq v4.53.3, the latest release, built
+      against v0.37.0 — yq reads only repo-controlled YAML here, so
+      practical risk is negligible. Tracking: #203. Remove once yq ships a
+      build against x/text >= 0.39.0.
+    expired_at: 2026-09-01
