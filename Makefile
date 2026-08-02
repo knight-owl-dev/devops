@@ -14,7 +14,7 @@ DOCKER_TTY ?= $(shell test -t 0 && echo -t)
 
 .PHONY: sync resolve build verify scan clean set-version get-version release \
 	lint lint-fix lint-lockfile lint-docker lint-sh lint-sh-fmt lint-sh-fmt-fix \
-	lint-actions lint-md lint-md-fix lint-man man test-package test-bats help
+	lint-actions lint-md lint-md-fix lint-spell lint-man man test-package test-bats help
 
 # Resolve latest versions, build, and verify image
 sync: resolve build verify
@@ -66,8 +66,11 @@ scan: build
 		--exit-code 1 \
 		$(IMAGE_TAG)
 
-# Run all linters
-lint: lint-lockfile lint-docker lint-sh lint-sh-fmt lint-actions lint-md lint-man
+# Run all linters. SKIP='lint-a lint-b' drops targets from the run — needed
+# when a linter's tool is not yet in the published image CI runs inside.
+LINT_TARGETS := lint-lockfile lint-docker lint-sh lint-sh-fmt lint-actions \
+	lint-md lint-spell lint-man
+lint: $(filter-out $(SKIP),$(LINT_TARGETS))
 
 # Fix all auto-fixable lint issues
 lint-fix: lint-sh-fmt-fix lint-md-fix
@@ -122,6 +125,10 @@ lint-md:
 lint-md-fix:
 	@echo "Fixing Markdown..." && markdownlint-cli2 --fix '**/*.md' && echo "OK"
 
+# Check spelling. --gitignore reuses .gitignore, so ignore paths live in one place.
+lint-spell:
+	@echo "Checking spelling..." && cspell --no-progress --gitignore '**/*' && echo "OK"
+
 # Lint man pages
 lint-man:
 	@echo "Linting man pages..." && mandoc -W warning docs/man/man1/*/*.1 > /dev/null && echo "OK"
@@ -169,6 +176,7 @@ help:
 	@echo "  make scan              Scan image for vulnerabilities"
 	@echo "  make clean             Remove local image"
 	@echo "  make lint              Run all linters"
+	@echo "  make lint SKIP=...     Run all linters except the named targets"
 	@echo "  make lint-actions      Lint GitHub Actions workflows"
 	@echo "  make lint-lockfile     Validate lockfile against Dockerfile"
 	@echo "  make lint-docker       Lint Dockerfiles"
@@ -176,6 +184,7 @@ help:
 	@echo "  make lint-man          Lint man pages"
 	@echo "  make lint-md           Lint Markdown files"
 	@echo "  make lint-md-fix       Fix Markdown files"
+	@echo "  make lint-spell        Check spelling"
 	@echo "  make lint-sh           Lint shell scripts"
 	@echo "  make lint-sh-fmt       Check shell script formatting"
 	@echo "  make lint-sh-fmt-fix   Fix shell script formatting"

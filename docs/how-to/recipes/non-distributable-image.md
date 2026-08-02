@@ -187,9 +187,8 @@ Add `images/docs/README.md` (tools table + usage; published at
 `ghcr.io/knight-owl-dev/docs`) and link it from the **Images** table in the repo
 `README.md`. Tool acknowledgments go in the root `NOTICE.md`.
 
-> **Gotcha — spell check.** The repo's `cspell.json` carries a project word
-> list. New tool/vendor proper nouns (e.g. `mkdocs`, `squidfunk`) must be added
-> there or cSpell flags them.
+> **Gotcha — spell check.** `make lint-spell` will flag the new tool and vendor
+> names; add them to the `cspell.json` word list.
 
 ## 8. Lint everything
 
