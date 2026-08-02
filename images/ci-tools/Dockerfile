@@ -153,6 +153,11 @@ ARG STYLELINT_VERSION
 RUN npm install -g "stylelint@${STYLELINT_VERSION}" \
   && npm cache clean --force
 
+# ---------- cspell ----------
+ARG CSPELL_VERSION
+RUN npm install -g "cspell@${CSPELL_VERSION}" \
+  && npm cache clean --force
+
 # ---------- lua toolchain (luacheck + busted on Lua 5.4) ----------
 # Rocks are compiled against Lua 5.4 in the builder and copied as artifacts, so
 # this image carries no -dev headers, no gcc, and no luarocks. The generated

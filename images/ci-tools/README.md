@@ -12,6 +12,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [busted](https://github.com/lunarmodules/busted) | Lua testing framework (runs on Lua 5.4 to match Pandoc's embedded runtime) |
 | [biome](https://github.com/biomejs/biome) | JavaScript/TypeScript linting |
 | [chktex](https://www.nongnu.org/chktex/) | LaTeX document linting |
+| [cspell](https://github.com/streetsidesoftware/cspell) | Spell checking |
 | [git](https://git-scm.com) | Version control (build-time cloning and runtime use) |
 | [gpg](https://gnupg.org) | GPG signature verification |
 | [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting |
