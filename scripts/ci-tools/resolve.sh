@@ -73,13 +73,12 @@ resolve_hadolint() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag hadolint/hadolint)"
 
+  local digests
+  digests="$(fetch_gh_digests hadolint/hadolint "${tag}")"
+
   local sha256_amd64 sha256_arm64
-  sha256_amd64="$(fetch_gh_asset hadolint/hadolint "${tag}" hadolint-linux-x86_64.sha256)"
-  sha256_amd64="$(echo "${sha256_amd64}" | awk '{print $1}')"
-  sha256_arm64="$(fetch_gh_asset hadolint/hadolint "${tag}" hadolint-linux-arm64.sha256)"
-  sha256_arm64="$(echo "${sha256_arm64}" | awk '{print $1}')"
-  validate_sha256 "${sha256_amd64}" "hadolint (amd64)"
-  validate_sha256 "${sha256_arm64}" "hadolint (arm64)"
+  sha256_amd64="$(pick_gh_digest "${digests}" "hadolint-linux-x86_64")"
+  sha256_arm64="$(pick_gh_digest "${digests}" "hadolint-linux-arm64")"
 
   HADOLINT_VERSION="${tag}"
   HADOLINT_SHA256_AMD64="${sha256_amd64}"
