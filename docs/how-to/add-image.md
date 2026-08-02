@@ -241,9 +241,8 @@ Add `images/<name>/README.md` (a tools table + usage) and link it from the
 **Images** table in the repo `README.md`; list any redistributed tools in the
 root `NOTICE.md`.
 
-> **Spell check:** the repo's `cspell.json` carries a project word list. New
-> tool/vendor proper nouns (e.g. `mkdocs`, `squidfunk`) must be added there or
-> cSpell flags them.
+> **Spell check:** `make lint-spell` checks the repo against `cspell.json`. New
+> tool/vendor proper nouns (e.g. `mkdocs`, `squidfunk`) go in its word list.
 
 ### 8. Releasing the image
 

@@ -39,7 +39,7 @@ setup() {
   run "${SCRIPT}" updates "${FIXTURES_DIR}/workflows/updates-major-alias.yml"
   assert_success
   assert_output --partial "current=v6"
-  # v6 normalises to [6,0,0]; newer three-part tags (v6.0.1, v6.0.2,
+  # v6 normalizes to [6,0,0]; newer three-part tags (v6.0.1, v6.0.2,
   # v7.0.0) are strictly greater and should be listed.
   assert_output --partial "newer=v6.0.1 v6.0.2 v7.0.0"
   assert_output --partial "(tag)"

@@ -18,7 +18,8 @@ source "${REPO_ROOT}/scripts/lib/verify.sh"
 # Load expected versions from the lockfile if mounted.
 NPM_VERSION=""
 SHFMT_VERSION="" ACTIONLINT_VERSION="" HADOLINT_VERSION="" YQ_VERSION=""
-MARKDOWNLINT_CLI2_VERSION="" BIOME_VERSION="" STYLELINT_VERSION="" LUACHECK_VERSION="" BUSTED_VERSION=""
+MARKDOWNLINT_CLI2_VERSION="" BIOME_VERSION="" STYLELINT_VERSION="" CSPELL_VERSION=""
+LUACHECK_VERSION="" BUSTED_VERSION=""
 BATS_VERSION=""
 VALIDATE_ACTION_PINS_VERSION=""
 if [[ -f /versions.lock ]]; then
@@ -44,6 +45,7 @@ check "luassert" "" lua5.4 -e "require('luassert')"
 check "chktex" "" chktex --version
 check "mandoc" "" command -v mandoc
 check "stylelint" "${STYLELINT_VERSION}" stylelint --version
+check "cspell" "${CSPELL_VERSION}" cspell --version
 check "validate-action-pins" "${VALIDATE_ACTION_PINS_VERSION}" \
   validate-action-pins --version
 check "bats" "${BATS_VERSION}" bats --version

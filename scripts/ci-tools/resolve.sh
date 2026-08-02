@@ -129,6 +129,13 @@ resolve_stylelint() {
   STYLELINT_VERSION="${version}"
 }
 
+resolve_cspell() {
+  local version="${1:-}"
+  [[ -z "${version}" ]] && version="$(latest_npm_version cspell)"
+  # No SHA256 — npm verifies package integrity during install.
+  CSPELL_VERSION="${version}"
+}
+
 resolve_luacheck() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_luarocks_version luacheck)"
@@ -175,7 +182,7 @@ resolve_validate_action_pins() {
 # ── argument parsing ─────────────────────────────────────────────────
 
 # Determine which tools to resolve and whether a version is pinned.
-ALL_TOOLS=(npm shfmt actionlint hadolint yq markdownlint-cli2 biome stylelint luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
+ALL_TOOLS=(npm shfmt actionlint hadolint yq markdownlint-cli2 biome stylelint cspell luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
 TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
@@ -185,7 +192,7 @@ else
   for arg in "${@}"; do
     tool="${arg%%:*}"
     case "${tool}" in
-      npm | shfmt | actionlint | hadolint | yq | markdownlint-cli2 | biome | stylelint | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
+      npm | shfmt | actionlint | hadolint | yq | markdownlint-cli2 | biome | stylelint | cspell | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
       *) die "unknown tool: ${tool}. Valid tools: ${ALL_TOOLS[*]}" ;;
     esac
     TOOLS_TO_RESOLVE+=("${tool}")
@@ -205,6 +212,7 @@ YQ_VERSION="" YQ_SHA256_AMD64="" YQ_SHA256_ARM64=""
 MARKDOWNLINT_CLI2_VERSION=""
 BIOME_VERSION=""
 STYLELINT_VERSION=""
+CSPELL_VERSION=""
 LUACHECK_VERSION=""
 BUSTED_VERSION=""
 BATS_VERSION=""
@@ -245,6 +253,7 @@ YQ_SHA256_ARM64=${YQ_SHA256_ARM64}
 MARKDOWNLINT_CLI2_VERSION=${MARKDOWNLINT_CLI2_VERSION}
 BIOME_VERSION=${BIOME_VERSION}
 STYLELINT_VERSION=${STYLELINT_VERSION}
+CSPELL_VERSION=${CSPELL_VERSION}
 LUACHECK_VERSION=${LUACHECK_VERSION}
 BUSTED_VERSION=${BUSTED_VERSION}
 BATS_VERSION=${BATS_VERSION}
