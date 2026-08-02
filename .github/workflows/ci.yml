@@ -15,9 +15,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Lint
-        # cspell ships in the next release; the published image CI runs inside
-        # does not have it yet. Drop SKIP once that release is out — see #207.
-        run: make lint SKIP=lint-spell
+        run: make lint
 
   bats:
     name: BATS
