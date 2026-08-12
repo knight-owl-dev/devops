@@ -49,15 +49,15 @@ build:
 # Verify all tools in the built image
 verify:
 	@docker run --rm $(DOCKER_TTY) \
-		-v $(CURDIR)/scripts:/scripts \
-		-v $(CURDIR)/images/$(IMAGE)/versions.lock:/versions.lock:ro \
+		-v "$(CURDIR)/scripts:/scripts" \
+		-v "$(CURDIR)/images/$(IMAGE)/versions.lock:/versions.lock:ro" \
 		$(IMAGE_TAG) /scripts/$(IMAGE)/verify.sh
 
 # Scan image for vulnerabilities. NO_IGNORE=1 drops the suppression file to
 # report what .trivyignore.yaml hides, and drops --exit-code with it so the
 # report doesn't fail the build.
 ifndef NO_IGNORE
-TRIVY_IGNORE_MOUNT := -v $(CURDIR)/images/$(IMAGE)/.trivyignore.yaml:/.trivyignore.yaml:ro
+TRIVY_IGNORE_MOUNT := -v "$(CURDIR)/images/$(IMAGE)/.trivyignore.yaml:/.trivyignore.yaml:ro"
 TRIVY_IGNORE_FLAG := --ignorefile /.trivyignore.yaml
 TRIVY_EXIT_CODE := --exit-code 1
 endif
@@ -158,7 +158,7 @@ test-package:
 # macOS host without needing bats installed. CI (already inside the
 # container) overrides with `BATS_RUNNER=bats` to avoid
 # docker-in-docker.
-BATS_RUNNER ?= docker run --rm $(DOCKER_TTY) -v $(CURDIR):/work -w /work $(IMAGE_TAG) bats
+BATS_RUNNER ?= docker run --rm $(DOCKER_TTY) -v "$(CURDIR):/work" -w /work $(IMAGE_TAG) bats
 test-bats:
 	@$(BATS_RUNNER) -r tests/bats/
 
