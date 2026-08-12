@@ -223,6 +223,9 @@ scheduled CVE monitor). Re-triage it:
 - If not, **extend** `expired_at` with a fresh justification in the
   `statement`.
 
+An entry can also clear before `expired_at`. `make scan NO_IGNORE=1` reports
+every CVE the file suppresses, surfacing any that upstream has since fixed.
+
 Keep `trivyignores:` pointed at a **single** YAML file per image — the
 trivy-action concatenates a mixed list into an extensionless temp file that
 Trivy parses as plain text, silently dropping the structured entries.
