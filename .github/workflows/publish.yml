@@ -82,11 +82,11 @@ jobs:
         run: make verify IMAGE=${{ matrix.image }} IMAGE_TAG=${{ matrix.image }}:verify
 
       - name: Assert scan policy is present
-        # trivy-config fails open — a missing trivy.yaml scans with defaults and
-        # exits 0, un-gating publish without a trace. Rationale in cve-monitor.yml.
+        # trivy-config fails open: a trivy.yaml Trivy cannot read scans with
+        # defaults and exits 0, un-gating publish. Rationale in cve-monitor.yml.
         run: |
-          if [[ ! -f trivy.yaml ]]; then
-            echo "ERROR: trivy.yaml missing — the scan would pass without enforcing policy" >&2
+          if [[ ! -r trivy.yaml ]]; then
+            echo "ERROR: trivy.yaml unreadable — the scan would pass without enforcing policy" >&2
             exit 1
           fi
 
