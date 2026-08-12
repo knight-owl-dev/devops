@@ -128,6 +128,9 @@ lint-actions:
 	@echo "Validating GitHub Actions pins..." \
 		&& $(VALIDATE_ACTION_PINS) .github/workflows/*.yml .github/actions/*/action.yml \
 		&& echo "OK"
+	@echo "Validating Trivy version pins..." \
+		&& scripts/lib/validate-trivy-pins.sh \
+		&& echo "OK"
 
 # Lint Markdown files
 lint-md:

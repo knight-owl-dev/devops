@@ -8,7 +8,7 @@
 # var for any input it receives, and env beats this file.
 #
 # The scanner version is pinned per call site — a config file cannot select its
-# own binary. Bump together:
+# own binary. Bump together; `make lint-actions` fails if they drift:
 #   Makefile          aquasec/trivy:<ver>       (Docker tag, bare)
 #   publish.yml       trivy-action `version:`   (GitHub tag, v-prefixed)
 #   cve-monitor.yml   trivy-action `version:`

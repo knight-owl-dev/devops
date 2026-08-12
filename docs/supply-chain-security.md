@@ -121,7 +121,8 @@ CRITICAL and HIGH severity vulnerabilities before any registry interaction.
 Scan policy lives in the repo-root `trivy.yaml`, read by `make scan`, the
 publish workflow, and the CVE monitor, so local and CI scans cannot diverge.
 Only the per-image `.trivyignore.yaml` is chosen at the call site. The scanner
-version is pinned at each of those call sites; `trivy.yaml` lists them.
+version is pinned at each of those call sites — `trivy.yaml` lists them, and
+`make lint-actions` fails if they drift.
 
 **Policy: `ignore-unfixed: true`** — CVEs with no available upstream patch are
 excluded from the scan results. This is a deliberate trade-off: blocking releases
