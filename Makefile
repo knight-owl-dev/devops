@@ -53,17 +53,25 @@ verify:
 		-v $(CURDIR)/images/$(IMAGE)/versions.lock:/versions.lock:ro \
 		$(IMAGE_TAG) /scripts/$(IMAGE)/verify.sh
 
-# Scan image for vulnerabilities
+# Scan image for vulnerabilities. NO_IGNORE=1 drops the suppression file to
+# report what .trivyignore.yaml hides, and drops --exit-code with it so the
+# report doesn't fail the build.
+ifndef NO_IGNORE
+TRIVY_IGNORE_MOUNT := -v $(CURDIR)/images/$(IMAGE)/.trivyignore.yaml:/.trivyignore.yaml:ro
+TRIVY_IGNORE_FLAG := --ignorefile /.trivyignore.yaml
+TRIVY_EXIT_CODE := --exit-code 1
+endif
+
 scan: build
-	@echo "Scanning $(IMAGE_TAG) for vulnerabilities..."
+	@echo "Scanning $(IMAGE_TAG) for vulnerabilities$(if $(NO_IGNORE), (suppressions disabled),)..."
 	@docker run --rm $(DOCKER_TTY) \
 		-v /var/run/docker.sock:/var/run/docker.sock \
-		-v $(CURDIR)/images/$(IMAGE)/.trivyignore.yaml:/.trivyignore.yaml:ro \
-		aquasec/trivy:0.72.0 image \
-		--ignorefile /.trivyignore.yaml \
+		$(TRIVY_IGNORE_MOUNT) \
+		aquasec/trivy:0.73.0 image \
+		$(TRIVY_IGNORE_FLAG) \
 		--severity CRITICAL,HIGH \
 		--ignore-unfixed \
-		--exit-code 1 \
+		$(TRIVY_EXIT_CODE) \
 		$(IMAGE_TAG)
 
 # Run all linters. SKIP='lint-a lint-b' drops targets from the run — bootstraps
@@ -174,6 +182,7 @@ help:
 	@echo "  make build             Build image locally"
 	@echo "  make verify            Verify all tools in the built image"
 	@echo "  make scan              Scan image for vulnerabilities"
+	@echo "  make scan NO_IGNORE=1  Scan without .trivyignore.yaml suppressions"
 	@echo "  make clean             Remove local image"
 	@echo "  make lint              Run all linters"
 	@echo "  make lint SKIP=...     Run all linters except the named targets"

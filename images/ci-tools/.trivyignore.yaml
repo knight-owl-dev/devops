@@ -26,7 +26,7 @@ vulnerabilities:
       1.26.1) — offline lint/format tools with no untrusted network or
       certificate input, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.9 or 1.26.2.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-32281
     statement: >-
@@ -35,7 +35,7 @@ vulnerabilities:
       1.26.1) — offline lint/format tools with no untrusted network or
       certificate input, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.9 or 1.26.2.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-32283
     statement: >-
@@ -44,7 +44,7 @@ vulnerabilities:
       1.26.1) — offline lint/format tools that open no TLS sessions to
       untrusted peers, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.9 or 1.26.2.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-33810
     statement: >-
@@ -54,7 +54,7 @@ vulnerabilities:
       no X.509 chains against untrusted input, so practical risk is
       negligible. Tracking: #96. Remove once both ship builds on Go >=
       1.26.2.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-33811
     statement: >-
@@ -63,7 +63,7 @@ vulnerabilities:
       shfmt v3.13.1 (Go 1.26.1) — offline lint/format tools that resolve no
       untrusted hostnames, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-33814
     statement: >-
@@ -72,7 +72,7 @@ vulnerabilities:
       (Go 1.26.1) — offline lint/format tools that serve no HTTP/2 to
       untrusted peers, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-39820
     statement: >-
@@ -81,7 +81,7 @@ vulnerabilities:
       v3.13.1 (Go 1.26.1) — offline lint/format tools that parse no
       untrusted mail addresses, so practical risk is negligible. Tracking:
       #96. Remove once both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-39822
     statement: >-
@@ -91,7 +91,7 @@ vulnerabilities:
       that confine no untrusted filesystem paths via os.Root, so practical
       risk is negligible. Tracking: #96. Remove once all three ship builds
       on Go >= 1.25.12 or 1.26.5.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-39836
     statement: >-
@@ -100,7 +100,7 @@ vulnerabilities:
       v3.13.1 (Go 1.26.1) — offline lint/format tools that dial no
       untrusted addresses, so practical risk is negligible. Tracking: #96.
       Remove once both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-42499
     statement: >-
@@ -109,7 +109,7 @@ vulnerabilities:
       1.26.1) — offline lint/format tools that parse no untrusted mail
       addresses, so practical risk is negligible. Tracking: #96. Remove
       once both ship builds on Go >= 1.25.10 or 1.26.3.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-42504
     statement: >-
@@ -118,7 +118,7 @@ vulnerabilities:
       (Go 1.26.1) — offline lint/format tools that decode no untrusted MIME
       headers, so practical risk is negligible. Tracking: #96. Remove once
       both ship builds on Go >= 1.25.11 or 1.26.4.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-27145
     statement: >-
@@ -128,7 +128,7 @@ vulnerabilities:
       lint/format tools that verify no certificates against untrusted input,
       so practical risk is negligible. Tracking: #96. Remove once both ship
       builds on Go >= 1.25.11 or 1.26.4.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
 
   - id: CVE-2026-14257
     statement: >-
@@ -137,7 +137,27 @@ vulnerabilities:
       which still bundles 5.0.7 — npm expands globs over repo-local paths
       at build time, never attacker-supplied patterns, so practical risk is
       negligible. Tracking: #203. Remove once npm bundles >= 5.0.8.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
+
+  - id: CVE-2026-69152
+    statement: >-
+      brace-expansion DoS — expand() skips maxLength on intermediate arrays
+      and padded sequences, bypassing the CVE-2026-14257 fix. Fixed in 5.0.9.
+      Reaches npm 12.0.2 via minimatch, which still resolves 5.0.7 — npm
+      expands globs over repo-local paths at build time, never
+      attacker-supplied patterns, so practical risk is negligible. Tracking:
+      #203. Remove once npm bundles >= 5.0.9.
+    expired_at: 2026-09-25
+
+  - id: CVE-2026-69192
+    statement: >-
+      ip-address decodes a leading-zero octet as decimal where the network
+      stack reads it as octal, so an SSRF filter built on isPrivate() can be
+      bypassed. Fixed in 10.3.1. Reaches npm 12.0.2 via socks-proxy-agent,
+      which parses an address only when a SOCKS proxy is configured — none is
+      here, so practical risk is negligible. Tracking: #203. Remove once npm
+      bundles >= 10.3.1.
+    expired_at: 2026-09-25
 
   - id: CVE-2026-56852
     statement: >-
@@ -146,4 +166,4 @@ vulnerabilities:
       against v0.37.0 — yq reads only repo-controlled YAML here, so
       practical risk is negligible. Tracking: #203. Remove once yq ships a
       build against x/text >= 0.39.0.
-    expired_at: 2026-09-01
+    expired_at: 2026-09-25
