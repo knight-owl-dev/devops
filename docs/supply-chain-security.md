@@ -118,6 +118,12 @@ they reach consumers:
 The publish workflow scans the single-platform `:verify` image for
 CRITICAL and HIGH severity vulnerabilities before any registry interaction.
 
+Scan policy lives in the repo-root `trivy.yaml`, read by `make scan`, the
+publish workflow, and the CVE monitor, so local and CI scans cannot diverge.
+Only the per-image `.trivyignore.yaml` is chosen at the call site. The scanner
+version is pinned at each of those call sites — `trivy.yaml` lists them, and
+`make lint-actions` fails if they drift.
+
 **Policy: `ignore-unfixed: true`** — CVEs with no available upstream patch are
 excluded from the scan results. This is a deliberate trade-off: blocking releases
 on vulnerabilities that cannot be remediated provides no actionable benefit and
@@ -138,19 +144,19 @@ published images. The `cve-monitor.yml` workflow closes this gap by scanning
 each published image on a schedule (Monday and Thursday at 08:00 UTC) and can
 also be triggered manually from the Actions tab.
 
-The scan uses the same Trivy policy as the publish workflow: CRITICAL and HIGH
-severity, `ignore-unfixed: true`, with the per-image `.trivyignore.yaml`. A
-clean scan produces a silent green run. If fixable vulnerabilities are found,
-the workflow opens a GitHub issue labeled `cve-monitor` and `security` with the
-full scan results.
+The scan reads the same `trivy.yaml` as the publish workflow, with the
+per-image `.trivyignore.yaml`. A clean scan produces a silent green run. If
+fixable vulnerabilities are found, the workflow opens a GitHub issue labeled
+`cve-monitor` and `security` with the full scan results.
 
 **Suppressions expire.** Each entry in `.trivyignore.yaml` carries both a
 `statement` (the justification) and an `expired_at` date. A suppression is a
 promise to revisit, not a permanent silence: once the date passes the entry
 stops suppressing and the CVE re-surfaces in the next scan, turning the CVE
 monitor into a forcing function for re-triage. Trivy does **not** auto-detect
-the `.yaml` file — every invocation references it explicitly (the Makefile
-`--ignorefile`, the trivy-action `trivyignores:` input). See
+the `.yaml` file — every invocation names it explicitly (the Makefile
+`--ignorefile`, the trivy-action `trivyignores:` input), so a missing file
+fails the scan. See
 [publish-image.md](how-to/publish-image.md#vulnerability-scan-failure-runbook)
 for the add/extend/remove workflow.
 
