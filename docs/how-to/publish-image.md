@@ -153,7 +153,8 @@ make sync
 Each published image is protected by three mechanisms:
 
 - **CVE scanning** — Trivy scans the verified image for CRITICAL and HIGH
-  severity vulnerabilities before pushing. Unfixed CVEs are ignored.
+  severity vulnerabilities before pushing. Unfixed CVEs are ignored. Policy
+  lives in the repo-root `trivy.yaml`.
 - **SBOM attestation** — a Software Bill of Materials is generated during
   the multi-platform build and attached to the image in GHCR.
 - **Image signing** — cosign signs the pushed digest using keyless Sigstore
@@ -194,9 +195,10 @@ hasn't shipped a rebuild), suppress the CVE temporarily instead — see below.
 Suppressions live in `images/<image>/.trivyignore.yaml` in Trivy's structured
 format. Every entry carries a `statement` (the justification) and an
 `expired_at` date, so a suppression re-surfaces for re-triage instead of
-silencing the CVE forever. Trivy does **not** auto-detect this file — it is
-referenced explicitly by the Makefile (`--ignorefile`) and the trivy-action
-(`trivyignores:`), so no extra wiring is needed when you edit it.
+silencing the CVE forever. It holds suppressions only; the rest of the scan
+policy lives in the repo-root `trivy.yaml`. Trivy does **not** auto-detect
+this file — it is named explicitly by the Makefile (`--ignorefile`) and the
+trivy-action (`trivyignores:`), so no extra wiring is needed when you edit it.
 
 **Add an entry** when a fixable CVE has no patched upstream release yet:
 

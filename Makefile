@@ -53,25 +53,29 @@ verify:
 		-v "$(CURDIR)/images/$(IMAGE)/versions.lock:/versions.lock:ro" \
 		$(IMAGE_TAG) /scripts/$(IMAGE)/verify.sh
 
-# Scan image for vulnerabilities. NO_IGNORE=1 drops the suppression file to
-# report what .trivyignore.yaml hides, and drops --exit-code with it so the
-# report doesn't fail the build.
-ifndef NO_IGNORE
-TRIVY_IGNORE_MOUNT := -v "$(CURDIR)/images/$(IMAGE)/.trivyignore.yaml:/.trivyignore.yaml:ro"
-TRIVY_IGNORE_FLAG := --ignorefile /.trivyignore.yaml
-TRIVY_EXIT_CODE := --exit-code 1
+# Scan image for vulnerabilities. Policy lives in trivy.yaml; only the
+# per-image suppression file is passed here. NO_IGNORE=1 reports what
+# .trivyignore.yaml hides, overriding trivy.yaml's exit code so the report
+# doesn't fail the build.
+ifdef NO_IGNORE
+TRIVY_FLAGS := --ignorefile /dev/null --exit-code 0
+else
+TRIVY_FLAGS := --ignorefile images/$(IMAGE)/.trivyignore.yaml
 endif
+
+# Keep in sync with the trivy-action `version:` in publish.yml and
+# cve-monitor.yml (see trivy.yaml).
+TRIVY_IMAGE := aquasec/trivy:0.73.0
 
 scan: build
 	@echo "Scanning $(IMAGE_TAG) for vulnerabilities$(if $(NO_IGNORE), (suppressions disabled),)..."
 	@docker run --rm $(DOCKER_TTY) \
 		-v /var/run/docker.sock:/var/run/docker.sock \
-		$(TRIVY_IGNORE_MOUNT) \
-		aquasec/trivy:0.73.0 image \
-		$(TRIVY_IGNORE_FLAG) \
-		--severity CRITICAL,HIGH \
-		--ignore-unfixed \
-		$(TRIVY_EXIT_CODE) \
+		-v "$(CURDIR):/repo:ro" \
+		-w /repo \
+		$(TRIVY_IMAGE) image \
+		--config trivy.yaml \
+		$(TRIVY_FLAGS) \
 		$(IMAGE_TAG)
 
 # Run all linters. SKIP='lint-a lint-b' drops targets from the run — bootstraps

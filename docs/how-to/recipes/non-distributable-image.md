@@ -136,8 +136,8 @@ Create `images/docs/.trivyignore.yaml` with the template header and an empty
 `vulnerabilities:` key (copy the block from
 [Add an Image](../add-image.md#vulnerability-scanning)).
 
-> **Gotcha — it's effectively required, not optional.** `make scan` bind-mounts
-> this file and passes `--ignorefile`, and `publish.yml` / `cve-monitor.yml`
+> **Gotcha — it's effectively required, not optional.** `make scan` names this
+> file via `--ignorefile`, and `publish.yml` / `cve-monitor.yml`
 > pass `trivyignores:` unconditionally. A missing file breaks the scan, even
 > when you have nothing to suppress. An empty `vulnerabilities:` block is the
 > correct "no suppressions" state.
@@ -169,7 +169,7 @@ make resolve IMAGE=docs          # GENERATES images/docs/versions.lock
 make lint-lockfile IMAGE=docs    # lockfile keys == Dockerfile bare ARGs
 make build IMAGE=docs            # builds docs:local (multi-arch)
 make verify IMAGE=docs           # runs scripts/docs/verify.sh in-container
-make scan IMAGE=docs             # Trivy CRITICAL/HIGH, ignore-unfixed
+make scan IMAGE=docs             # Trivy, policy from trivy.yaml
 # make sync IMAGE=docs           # = resolve + build + verify in one
 ```
 

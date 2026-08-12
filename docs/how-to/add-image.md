@@ -61,9 +61,11 @@ both are auto-discovered:
 ### Vulnerability scanning
 
 `publish.yml` (and the scheduled `cve-monitor.yml`) scan the built image with
-Trivy for fixed `CRITICAL`/`HIGH` CVEs. **Always add
+Trivy for fixed `CRITICAL`/`HIGH` CVEs. Scan policy is shared across images by
+the repo-root `trivy.yaml`, so a new image needs no policy wiring — only its own
+suppression file. **Always add
 `images/<name>/.trivyignore.yaml`, even with nothing to suppress** — `make scan`
-bind-mounts it and passes `--ignorefile`, and both workflows pass `trivyignores:`
+passes `--ignorefile` and both workflows pass `trivyignores:`
 unconditionally, so a missing file breaks the scan. Seed it with the template
 below; an empty `vulnerabilities:` block is the correct "nothing suppressed"
 state. Add an entry only when you need to suppress a specific CVE — each entry
@@ -93,8 +95,10 @@ Copy this to the new `.trivyignore.yaml` (replace `<name>`):
 # scan, forcing a re-triage: bump the offending tool if a patched upstream
 # release shipped, or extend the date with a fresh justification.
 #
-# Trivy does NOT auto-detect this file — every invocation passes it explicitly
-# (Makefile `--ignorefile`, the trivy-action `trivyignores:` input). See
+# Suppressions only — the rest of the scan policy is shared across images in
+# the repo-root trivy.yaml. Trivy does NOT auto-detect this file: every
+# invocation names it explicitly (Makefile `--ignorefile`, the trivy-action
+# `trivyignores:` input), so a missing file fails the scan. See
 # docs/how-to/publish-image.md for the add/extend/remove workflow.
 #
 # Suppression entry example:

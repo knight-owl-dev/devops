@@ -85,14 +85,17 @@ jobs:
         # Scans the single-platform :verify image (amd64 on GitHub-hosted runners).
         # arm64 is not scanned separately — CVEs are tracked by source package, so
         # the amd64 scan covers the same package set for both architectures.
+        #
+        # Policy comes from trivy.yaml. Do not add severity/exit-code/
+        # ignore-unfixed inputs here — the action turns any input it receives
+        # into a TRIVY_* env var, which overrides the config file.
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
           image-ref: ${{ matrix.image }}:verify
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH'
-          ignore-unfixed: true # skip upstream CVEs with no available patch
+          trivy-config: trivy.yaml
           trivyignores: images/${{ matrix.image }}/.trivyignore.yaml
-          format: 'table'
+          # Keep in sync with the Makefile and cve-monitor.yml (see trivy.yaml).
+          version: v0.73.0
 
       - name: Log in to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
