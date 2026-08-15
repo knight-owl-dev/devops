@@ -103,12 +103,17 @@ LINT_IMAGE ?= ci-tools:local
 LINT_RUNNER ?= docker run --rm $(DOCKER_TTY) \
 	-v "$(CURDIR):/work" -w /work $(LINT_IMAGE) make
 
-lint:
+# Building keeps $(LINT_IMAGE) from going missing or stale — a no-op build is
+# ~1s once cached, cheaper than the container start it precedes. Only the
+# containerized path needs it: CI overrides LINT_RUNNER and has no Docker.
+LINT_IMAGE_DEP := $(if $(filter-out make,$(LINT_RUNNER)),build)
+
+lint: $(LINT_IMAGE_DEP)
 	@$(LINT_RUNNER) IMAGE=$(IMAGE) $(filter-out $(SKIP),$(LINT_TARGETS))
 
 # Fix all auto-fixable lint issues. Containerized alongside lint: a host
 # shfmt that formats differently would write what the image then rejects.
-lint-fix:
+lint-fix: $(LINT_IMAGE_DEP)
 	@$(LINT_RUNNER) IMAGE=$(IMAGE) lint-sh-fmt-fix lint-md-fix
 
 # Validate lockfile keys match Dockerfile ARGs
