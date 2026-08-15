@@ -7,10 +7,14 @@ IMAGE_TAG ?= $(IMAGE):local
 VALIDATE_ACTION_PINS := $(shell \
 	command -v validate-action-pins 2>/dev/null \
 	|| echo images/ci-tools/bin/validate-action-pins)
-# Pass `-t` to `docker run` when stdin is a terminal, so TTY-aware tools
-# (bats pretty output, etc.) see a real terminal inside the container.
+# Whether a human is watching. Probed once; both the container TTY and the
+# bats formatter key off it.
+IS_TTY := $(shell test -t 0 && echo 1)
+
+# Pass `-t` to `docker run` when stdin is a terminal, so TTY-aware tools see a
+# real terminal inside the container.
 # Override with `DOCKER_TTY=` (empty) or `DOCKER_TTY=-t` (force) as needed.
-DOCKER_TTY ?= $(shell test -t 0 && echo -t)
+DOCKER_TTY ?= $(if $(IS_TTY),-t)
 
 # ci-tools carries the lint and test toolchain, so recipes re-enter it
 # regardless of IMAGE — IMAGE selects what a target acts on, never where it
@@ -215,8 +219,14 @@ BATS_RUNNER ?= docker run --rm $(DOCKER_TTY) \
 	-v "$(CURDIR):/work" -w /work $(TOOLS_IMAGE) bats
 BATS_IMAGE_DEP := $(call image_dep,$(BATS_RUNNER))
 
+# bats defaults to TAP whatever it is attached to — its own --help claims
+# otherwise, and the terminal check it does run only decorates a formatter
+# already set to pretty. Ask for pretty when someone is watching, and leave CI
+# on TAP.
+BATS_FORMAT := $(if $(IS_TTY),--pretty)
+
 test-bats: $(BATS_IMAGE_DEP)
-	@$(BATS_RUNNER) -r tests/bats/
+	@$(BATS_RUNNER) $(BATS_FORMAT) -r tests/bats/
 
 # Remove local image
 clean:
