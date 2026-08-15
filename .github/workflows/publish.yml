@@ -104,7 +104,7 @@ jobs:
           trivy-config: trivy.yaml
           trivyignores: images/${{ matrix.image }}/.trivyignore.yaml
           # Keep in sync with the Makefile and cve-monitor.yml (see trivy.yaml).
-          version: v0.73.0
+          version: v0.74.0
 
       - name: Log in to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
