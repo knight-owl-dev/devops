@@ -59,6 +59,7 @@
     "subshell",
     "Tange",
     "tonumber",
+    "tostring",
     "trivyignores",
     "vprefix",
     "vtag",

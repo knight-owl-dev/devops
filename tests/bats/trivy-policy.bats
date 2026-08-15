@@ -23,3 +23,21 @@ setup() {
   assert_line --index 1 'CRITICAL+HIGH'
   assert_line --index 2 'true'
 }
+
+@test "every suppression statement cites its tracking issue" {
+  # A suppression is a promise to revisit, so it names where that promise is
+  # tracked. Reading the parsed value makes this a truncation guard as well:
+  # the file header owns the unquoted-scalar trap, and nothing else catches
+  # it, since suppression keys on the id alone.
+  #
+  # An empty list passes: zero suppressions is the goal state.
+  local file stmt
+  for file in "${REPO_ROOT}"/images/*/.trivyignore.yaml; do
+    run yq -r '.vulnerabilities[].statement' "${file}"
+    assert_success
+    for stmt in "${lines[@]}"; do
+      assert_regex "${stmt}" 'Tracking: (#[0-9]+, )*#[0-9]+\.'
+      assert_regex "${stmt}" '\.$'
+    done
+  done
+}

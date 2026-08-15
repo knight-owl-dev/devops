@@ -138,24 +138,34 @@ ARG NPM_VERSION
 RUN npm install -g "npm@${NPM_VERSION}" \
   && npm cache clean --force
 
+# ---------- npm tools ----------
+# No ARG carries the version: package-lock.json pins it, along with the whole
+# dependency tree. One directory per tool keeps these layers independently
+# cacheable and scopes a bump to a single lockfile.
+
 # ---------- markdownlint-cli2 ----------
-ARG MARKDOWNLINT_CLI2_VERSION
-RUN npm install -g "markdownlint-cli2@${MARKDOWNLINT_CLI2_VERSION}" \
+COPY npm/markdownlint-cli2/ /opt/npm/markdownlint-cli2/
+RUN npm ci --prefix /opt/npm/markdownlint-cli2 --omit=dev \
+  && ln -s /opt/npm/markdownlint-cli2/node_modules/.bin/markdownlint-cli2 \
+      /usr/local/bin/markdownlint-cli2 \
   && npm cache clean --force
 
 # ---------- biome ----------
-ARG BIOME_VERSION
-RUN npm install -g "@biomejs/biome@${BIOME_VERSION}" \
+COPY npm/biome/ /opt/npm/biome/
+RUN npm ci --prefix /opt/npm/biome --omit=dev \
+  && ln -s /opt/npm/biome/node_modules/.bin/biome /usr/local/bin/biome \
   && npm cache clean --force
 
 # ---------- stylelint ----------
-ARG STYLELINT_VERSION
-RUN npm install -g "stylelint@${STYLELINT_VERSION}" \
+COPY npm/stylelint/ /opt/npm/stylelint/
+RUN npm ci --prefix /opt/npm/stylelint --omit=dev \
+  && ln -s /opt/npm/stylelint/node_modules/.bin/stylelint /usr/local/bin/stylelint \
   && npm cache clean --force
 
 # ---------- cspell ----------
-ARG CSPELL_VERSION
-RUN npm install -g "cspell@${CSPELL_VERSION}" \
+COPY npm/cspell/ /opt/npm/cspell/
+RUN npm ci --prefix /opt/npm/cspell --omit=dev \
+  && ln -s /opt/npm/cspell/node_modules/.bin/cspell /usr/local/bin/cspell \
   && npm cache clean --force
 
 # ---------- lua toolchain (luacheck + busted on Lua 5.4) ----------
@@ -171,22 +181,33 @@ COPY --from=lua-builder /usr/local/bin/luacheck /usr/local/bin/luacheck
 COPY --from=lua-builder /usr/local/bin/busted /usr/local/bin/busted
 
 # ---------- bats-core ----------
+# bats and its helpers publish no release assets, so there is no tarball to
+# checksum. The tag selects the clone; the commit assert is the actual pin,
+# failing the build if a tag ever moves — before install.sh runs.
 ARG BATS_VERSION
+ARG BATS_COMMIT
 RUN git clone --depth 1 --branch "${BATS_VERSION}" \
       https://github.com/bats-core/bats-core /tmp/bats-core \
+  && test "$(git -C /tmp/bats-core rev-parse HEAD)" = "${BATS_COMMIT}" \
   && /tmp/bats-core/install.sh /usr/local \
   && rm -rf /tmp/bats-core
 
 # ---------- bats helpers ----------
 ARG BATS_SUPPORT_VERSION
+ARG BATS_SUPPORT_COMMIT
 ARG BATS_ASSERT_VERSION
+ARG BATS_ASSERT_COMMIT
 ARG BATS_FILE_VERSION
+ARG BATS_FILE_COMMIT
 RUN git clone --depth 1 --branch "${BATS_SUPPORT_VERSION}" \
       https://github.com/bats-core/bats-support /usr/lib/bats/bats-support \
+  && test "$(git -C /usr/lib/bats/bats-support rev-parse HEAD)" = "${BATS_SUPPORT_COMMIT}" \
   && git clone --depth 1 --branch "${BATS_ASSERT_VERSION}" \
       https://github.com/bats-core/bats-assert /usr/lib/bats/bats-assert \
+  && test "$(git -C /usr/lib/bats/bats-assert rev-parse HEAD)" = "${BATS_ASSERT_COMMIT}" \
   && git clone --depth 1 --branch "${BATS_FILE_VERSION}" \
       https://github.com/bats-core/bats-file /usr/lib/bats/bats-file \
+  && test "$(git -C /usr/lib/bats/bats-file rev-parse HEAD)" = "${BATS_FILE_COMMIT}" \
   && rm -rf /usr/lib/bats/*/.git
 ENV BATS_LIB_PATH=/usr/lib/bats
 

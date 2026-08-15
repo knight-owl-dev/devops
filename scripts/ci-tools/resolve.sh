@@ -8,6 +8,9 @@ set -euo pipefail
 # images/ci-tools/versions.lock.
 # Partial resolves preserve existing lockfile values for unresolved tools.
 #
+# npm-installed tools are written to images/ci-tools/npm/<tool>/ instead —
+# package-lock.json is their lockfile, so they hold no versions.lock key.
+#
 # Usage:
 #   ./scripts/ci-tools/resolve.sh                      # All tools → latest
 #   ./scripts/ci-tools/resolve.sh shfmt:v3.12.0        # Pin shfmt, resolve others to latest
@@ -108,32 +111,43 @@ resolve_npm() {
   NPM_VERSION="${version}"
 }
 
+# The tree is rebuilt on every resolve, so `make resolve` picks up transitive
+# fixes even when nothing released — see npm_lock.
+#
+# Each resolver still sets <TOOL>_VERSION for the report loop, which reads it
+# by indirect expansion shellcheck cannot follow — hence the SC2034 directives.
+NPM_DIR="${REPO_ROOT}/images/ci-tools/npm"
+
+# shellcheck disable=SC2034
 resolve_markdownlint_cli2() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version markdownlint-cli2)"
-  # No SHA256 — npm verifies package integrity during install.
   MARKDOWNLINT_CLI2_VERSION="${version}"
+  npm_lock "${NPM_DIR}/markdownlint-cli2" markdownlint-cli2 "${version}"
 }
 
+# shellcheck disable=SC2034
 resolve_biome() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version @biomejs/biome)"
-  # No SHA256 — npm verifies package integrity during install.
   BIOME_VERSION="${version}"
+  npm_lock "${NPM_DIR}/biome" @biomejs/biome "${version}"
 }
 
+# shellcheck disable=SC2034
 resolve_stylelint() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version stylelint)"
-  # No SHA256 — npm verifies package integrity during install.
   STYLELINT_VERSION="${version}"
+  npm_lock "${NPM_DIR}/stylelint" stylelint "${version}"
 }
 
+# shellcheck disable=SC2034
 resolve_cspell() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version cspell)"
-  # No SHA256 — npm verifies package integrity during install.
   CSPELL_VERSION="${version}"
+  npm_lock "${NPM_DIR}/cspell" cspell "${version}"
 }
 
 resolve_luacheck() {
@@ -150,28 +164,35 @@ resolve_busted() {
   BUSTED_VERSION="${version}"
 }
 
+# bats and its helpers ship no release assets, so there is nothing to
+# checksum. The commit each tag points at is recorded instead — see the
+# Dockerfile for how it is enforced.
 resolve_bats() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-core)"
   BATS_VERSION="${tag}"
+  BATS_COMMIT="$(gh_tag_commit bats-core/bats-core "${tag}")"
 }
 
 resolve_bats_support() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-support)"
   BATS_SUPPORT_VERSION="${tag}"
+  BATS_SUPPORT_COMMIT="$(gh_tag_commit bats-core/bats-support "${tag}")"
 }
 
 resolve_bats_assert() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-assert)"
   BATS_ASSERT_VERSION="${tag}"
+  BATS_ASSERT_COMMIT="$(gh_tag_commit bats-core/bats-assert "${tag}")"
 }
 
 resolve_bats_file() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-file)"
   BATS_FILE_VERSION="${tag}"
+  BATS_FILE_COMMIT="$(gh_tag_commit bats-core/bats-file "${tag}")"
 }
 
 resolve_validate_action_pins() {
@@ -209,20 +230,21 @@ SHFMT_VERSION="" SHFMT_SHA256_AMD64="" SHFMT_SHA256_ARM64=""
 ACTIONLINT_VERSION="" ACTIONLINT_SHA256_AMD64="" ACTIONLINT_SHA256_ARM64=""
 HADOLINT_VERSION="" HADOLINT_SHA256_AMD64="" HADOLINT_SHA256_ARM64=""
 YQ_VERSION="" YQ_SHA256_AMD64="" YQ_SHA256_ARM64=""
-MARKDOWNLINT_CLI2_VERSION=""
-BIOME_VERSION=""
-STYLELINT_VERSION=""
-CSPELL_VERSION=""
 LUACHECK_VERSION=""
 BUSTED_VERSION=""
-BATS_VERSION=""
-BATS_SUPPORT_VERSION="" BATS_ASSERT_VERSION="" BATS_FILE_VERSION=""
+BATS_VERSION="" BATS_COMMIT=""
+BATS_SUPPORT_VERSION="" BATS_SUPPORT_COMMIT=""
+BATS_ASSERT_VERSION="" BATS_ASSERT_COMMIT=""
+BATS_FILE_VERSION="" BATS_FILE_COMMIT=""
 VALIDATE_ACTION_PINS_VERSION=""
 
 if [[ -f "${LOCKFILE}" ]]; then
   # shellcheck source=/dev/null
   source "${LOCKFILE}"
 fi
+
+# npm tools need no seed value: their resolver sets the variable the report
+# loop reads.
 
 # ── resolve requested tools ──────────────────────────────────────────
 
@@ -250,16 +272,16 @@ HADOLINT_SHA256_ARM64=${HADOLINT_SHA256_ARM64}
 YQ_VERSION=${YQ_VERSION}
 YQ_SHA256_AMD64=${YQ_SHA256_AMD64}
 YQ_SHA256_ARM64=${YQ_SHA256_ARM64}
-MARKDOWNLINT_CLI2_VERSION=${MARKDOWNLINT_CLI2_VERSION}
-BIOME_VERSION=${BIOME_VERSION}
-STYLELINT_VERSION=${STYLELINT_VERSION}
-CSPELL_VERSION=${CSPELL_VERSION}
 LUACHECK_VERSION=${LUACHECK_VERSION}
 BUSTED_VERSION=${BUSTED_VERSION}
 BATS_VERSION=${BATS_VERSION}
+BATS_COMMIT=${BATS_COMMIT}
 BATS_SUPPORT_VERSION=${BATS_SUPPORT_VERSION}
+BATS_SUPPORT_COMMIT=${BATS_SUPPORT_COMMIT}
 BATS_ASSERT_VERSION=${BATS_ASSERT_VERSION}
+BATS_ASSERT_COMMIT=${BATS_ASSERT_COMMIT}
 BATS_FILE_VERSION=${BATS_FILE_VERSION}
+BATS_FILE_COMMIT=${BATS_FILE_COMMIT}
 VALIDATE_ACTION_PINS_VERSION=${VALIDATE_ACTION_PINS_VERSION}
 EOF
 mv "${LOCKFILE_TMP}" "${LOCKFILE}"

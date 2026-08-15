@@ -18,7 +18,6 @@ source "${REPO_ROOT}/scripts/lib/verify.sh"
 # Load expected versions from the lockfile if mounted.
 NPM_VERSION=""
 SHFMT_VERSION="" ACTIONLINT_VERSION="" HADOLINT_VERSION="" YQ_VERSION=""
-MARKDOWNLINT_CLI2_VERSION="" BIOME_VERSION="" STYLELINT_VERSION="" CSPELL_VERSION=""
 LUACHECK_VERSION="" BUSTED_VERSION=""
 BATS_VERSION=""
 VALIDATE_ACTION_PINS_VERSION=""
@@ -26,6 +25,20 @@ if [[ -f /versions.lock ]]; then
   # shellcheck source=/dev/null
   source /versions.lock
 fi
+
+# Expected versions for npm tools come from their generated package.json,
+# which carries exactly one dependency. Empty when /npm is unmounted, which
+# `check` treats as presence-only.
+npm_expected() {
+  local manifest="/npm/${1}/package.json"
+  [[ -f "${manifest}" ]] || return 0
+  yq -r '.dependencies | to_entries | .[0].value' "${manifest}"
+}
+
+MARKDOWNLINT_CLI2_VERSION="$(npm_expected markdownlint-cli2)"
+BIOME_VERSION="$(npm_expected biome)"
+STYLELINT_VERSION="$(npm_expected stylelint)"
+CSPELL_VERSION="$(npm_expected cspell)"
 
 echo "Verifying ci-tools ..."
 check "npm" "${NPM_VERSION}" npm --version
