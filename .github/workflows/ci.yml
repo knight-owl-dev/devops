@@ -14,8 +14,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # `make lint` re-enters the ci-tools image by default for host/image
+      # toolchain parity. This job already runs inside it, so run the linters
+      # directly rather than nesting a container.
       - name: Lint
-        run: make lint
+        run: make lint LINT_RUNNER=make
 
   bats:
     name: BATS

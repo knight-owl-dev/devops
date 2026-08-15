@@ -90,10 +90,26 @@ scan: build
 # a linter whose tool is not yet in the published image CI runs inside.
 LINT_TARGETS := lint-lockfile lint-docker lint-sh lint-sh-fmt lint-actions \
 	lint-md lint-spell lint-man
-lint: $(filter-out $(SKIP),$(LINT_TARGETS))
 
-# Fix all auto-fixable lint issues
-lint-fix: lint-sh-fmt-fix lint-md-fix
+# The lint targets invoke their tools bare, so the toolchain comes from
+# wherever make runs. Host tools drift from the image's (shfmt formats
+# differently across minor versions), so the aggregate targets re-enter
+# ci-tools and CI — already inside that image — overrides with
+# `LINT_RUNNER=make`.
+#
+# Always ci-tools, never $(IMAGE_TAG): that image is the lint toolchain,
+# while IMAGE selects which lockfile lint-lockfile validates.
+LINT_IMAGE ?= ci-tools:local
+LINT_RUNNER ?= docker run --rm $(DOCKER_TTY) \
+	-v "$(CURDIR):/work" -w /work $(LINT_IMAGE) make
+
+lint:
+	@$(LINT_RUNNER) IMAGE=$(IMAGE) $(filter-out $(SKIP),$(LINT_TARGETS))
+
+# Fix all auto-fixable lint issues. Containerized alongside lint: a host
+# shfmt that formats differently would write what the image then rejects.
+lint-fix:
+	@$(LINT_RUNNER) IMAGE=$(IMAGE) lint-sh-fmt-fix lint-md-fix
 
 # Validate lockfile keys match Dockerfile ARGs
 lint-lockfile:
