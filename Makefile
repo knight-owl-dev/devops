@@ -7,10 +7,14 @@ IMAGE_TAG ?= $(IMAGE):local
 VALIDATE_ACTION_PINS := $(shell \
 	command -v validate-action-pins 2>/dev/null \
 	|| echo images/ci-tools/bin/validate-action-pins)
-# Pass `-t` to `docker run` when stdin is a terminal, so TTY-aware tools
-# (bats pretty output, etc.) see a real terminal inside the container.
+# Whether a human is watching. Probed once; both the container TTY and the
+# bats formatter key off it.
+IS_TTY := $(shell test -t 0 && echo 1)
+
+# Pass `-t` to `docker run` when stdin is a terminal, so TTY-aware tools see a
+# real terminal inside the container.
 # Override with `DOCKER_TTY=` (empty) or `DOCKER_TTY=-t` (force) as needed.
-DOCKER_TTY ?= $(shell test -t 0 && echo -t)
+DOCKER_TTY ?= $(if $(IS_TTY),-t)
 
 # ci-tools carries the lint and test toolchain, so recipes re-enter it
 # regardless of IMAGE — IMAGE selects what a target acts on, never where it
@@ -25,9 +29,8 @@ TOOLS_IMAGE ?= ci-tools:local
 # (CI, already inside the image) get no dependency — there is no Docker there.
 image_dep = $(if $(filter docker,$(firstword $(1))),tools-image)
 
-# Depends on ci-tools, so it cannot be `build`: that honors IMAGE, which
-# selects what a target acts on. `lint IMAGE=docs` needs the docs lockfile
-# checked by the ci-tools toolchain, not the docs image built.
+# Builds $(TOOLS_IMAGE) specifically. `build` honors IMAGE and would build
+# whichever image the caller is acting on.
 tools-image:
 	@$(MAKE) --no-print-directory build IMAGE=ci-tools
 
@@ -112,26 +115,29 @@ LINT_TARGETS := lint-lockfile lint-docker lint-sh lint-sh-fmt lint-actions \
 	lint-md lint-spell lint-man
 
 # The lint targets invoke their tools bare, so the toolchain comes from
-# wherever make runs. Host tools drift from the image's (shfmt formats
-# differently across minor versions), so the aggregate targets re-enter
-# ci-tools and CI — already inside that image — overrides with
-# `LINT_RUNNER=make`.
-#
-# Always ci-tools, never $(IMAGE_TAG): that image is the lint toolchain,
-# while IMAGE selects which lockfile lint-lockfile validates.
+# wherever make runs, and host tools drift from the image's — shfmt formats
+# differently across minor versions. The aggregate targets therefore re-enter
+# the image. CI, already inside it, overrides with `LINT_RUNNER=make`.
 LINT_RUNNER ?= docker run --rm $(DOCKER_TTY) \
 	-v "$(CURDIR):/work" -w /work $(TOOLS_IMAGE) make
 LINT_IMAGE_DEP := $(call image_dep,$(LINT_RUNNER))
 
+# The empty default rides through to the inner make, so scoping survives the
+# container hop: a command-line assignment beats the target-specific one at
+# both boundaries.
+lint: IMAGE :=
 lint: $(LINT_IMAGE_DEP)
 	@$(LINT_RUNNER) IMAGE=$(IMAGE) $(filter-out $(SKIP),$(LINT_TARGETS))
 
 # Fix all auto-fixable lint issues. Containerized alongside lint: a host
 # shfmt that formats differently would write what the image then rejects.
 lint-fix: $(LINT_IMAGE_DEP)
-	@$(LINT_RUNNER) IMAGE=$(IMAGE) lint-sh-fmt-fix lint-md-fix
+	@$(LINT_RUNNER) lint-sh-fmt-fix lint-md-fix
 
-# Validate lockfile keys match Dockerfile ARGs
+# Validate lockfile keys against Dockerfile ARGs and compose build args.
+# Target-specific empty default, as in test-package: it beats the global
+# IMAGE=ci-tools so a bare run sweeps, and loses to a command-line IMAGE=<name>.
+lint-lockfile: IMAGE :=
 lint-lockfile:
 	@echo "Validating lockfile..." && scripts/lib/validate-lockfile.sh $(IMAGE) && echo "OK"
 
@@ -213,8 +219,14 @@ BATS_RUNNER ?= docker run --rm $(DOCKER_TTY) \
 	-v "$(CURDIR):/work" -w /work $(TOOLS_IMAGE) bats
 BATS_IMAGE_DEP := $(call image_dep,$(BATS_RUNNER))
 
+# bats defaults to TAP whatever it is attached to — its own --help claims
+# otherwise, and the terminal check it does run only decorates a formatter
+# already set to pretty. Ask for pretty when someone is watching, and leave CI
+# on TAP.
+BATS_FORMAT := $(if $(IS_TTY),--pretty)
+
 test-bats: $(BATS_IMAGE_DEP)
-	@$(BATS_RUNNER) -r tests/bats/
+	@$(BATS_RUNNER) $(BATS_FORMAT) -r tests/bats/
 
 # Remove local image
 clean:

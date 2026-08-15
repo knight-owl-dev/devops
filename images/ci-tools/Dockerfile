@@ -181,9 +181,8 @@ COPY --from=lua-builder /usr/local/bin/luacheck /usr/local/bin/luacheck
 COPY --from=lua-builder /usr/local/bin/busted /usr/local/bin/busted
 
 # ---------- bats-core ----------
-# bats and its helpers publish no release assets, so there is no tarball to
-# checksum. The tag selects the clone; the commit assert is the actual pin,
-# failing the build if a tag ever moves — before install.sh runs.
+# With no release assets to checksum, the commit assert is the pin: the tag
+# selects the clone, and a moved tag fails the build before install.sh runs.
 ARG BATS_VERSION
 ARG BATS_COMMIT
 RUN git clone --depth 1 --branch "${BATS_VERSION}" \
