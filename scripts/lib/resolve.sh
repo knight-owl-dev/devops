@@ -25,6 +25,28 @@ latest_gh_tag() {
     || die "failed to fetch latest release for ${repo}"
 }
 
+# Resolve a GitHub tag to the commit SHA it points at.
+#
+# Annotated tags are dereferenced by the API, so the result is always a
+# commit. Tags are mutable; recording the commit is what makes a clone
+# reproducible.
+#
+# Arguments:
+#   $1 - GitHub repository in "owner/repo" format
+#   $2 - Tag name (e.g. "v1.14.0")
+#
+# Outputs:
+#   The 40-character lowercase hex commit SHA
+gh_tag_commit() {
+  local repo="${1}" tag="${2}"
+  local sha
+  sha="$(gh api "repos/${repo}/commits/${tag}" --jq '.sha')" \
+    || die "failed to resolve ${repo}@${tag} to a commit"
+  [[ "${sha}" =~ ^[a-f0-9]{40}$ ]] \
+    || die "invalid commit SHA for ${repo}@${tag}: ${sha}"
+  echo "${sha}"
+}
+
 # Download a GitHub release asset to stdout.
 #
 # Uses the `gh` CLI to download the asset. Output is written to stdout

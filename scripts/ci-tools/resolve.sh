@@ -150,28 +150,35 @@ resolve_busted() {
   BUSTED_VERSION="${version}"
 }
 
+# bats and its helpers ship no release assets, so there is nothing to
+# checksum. The commit each tag points at is recorded instead — see the
+# Dockerfile for how it is enforced.
 resolve_bats() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-core)"
   BATS_VERSION="${tag}"
+  BATS_COMMIT="$(gh_tag_commit bats-core/bats-core "${tag}")"
 }
 
 resolve_bats_support() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-support)"
   BATS_SUPPORT_VERSION="${tag}"
+  BATS_SUPPORT_COMMIT="$(gh_tag_commit bats-core/bats-support "${tag}")"
 }
 
 resolve_bats_assert() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-assert)"
   BATS_ASSERT_VERSION="${tag}"
+  BATS_ASSERT_COMMIT="$(gh_tag_commit bats-core/bats-assert "${tag}")"
 }
 
 resolve_bats_file() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag bats-core/bats-file)"
   BATS_FILE_VERSION="${tag}"
+  BATS_FILE_COMMIT="$(gh_tag_commit bats-core/bats-file "${tag}")"
 }
 
 resolve_validate_action_pins() {
@@ -215,8 +222,10 @@ STYLELINT_VERSION=""
 CSPELL_VERSION=""
 LUACHECK_VERSION=""
 BUSTED_VERSION=""
-BATS_VERSION=""
-BATS_SUPPORT_VERSION="" BATS_ASSERT_VERSION="" BATS_FILE_VERSION=""
+BATS_VERSION="" BATS_COMMIT=""
+BATS_SUPPORT_VERSION="" BATS_SUPPORT_COMMIT=""
+BATS_ASSERT_VERSION="" BATS_ASSERT_COMMIT=""
+BATS_FILE_VERSION="" BATS_FILE_COMMIT=""
 VALIDATE_ACTION_PINS_VERSION=""
 
 if [[ -f "${LOCKFILE}" ]]; then
@@ -257,9 +266,13 @@ CSPELL_VERSION=${CSPELL_VERSION}
 LUACHECK_VERSION=${LUACHECK_VERSION}
 BUSTED_VERSION=${BUSTED_VERSION}
 BATS_VERSION=${BATS_VERSION}
+BATS_COMMIT=${BATS_COMMIT}
 BATS_SUPPORT_VERSION=${BATS_SUPPORT_VERSION}
+BATS_SUPPORT_COMMIT=${BATS_SUPPORT_COMMIT}
 BATS_ASSERT_VERSION=${BATS_ASSERT_VERSION}
+BATS_ASSERT_COMMIT=${BATS_ASSERT_COMMIT}
 BATS_FILE_VERSION=${BATS_FILE_VERSION}
+BATS_FILE_COMMIT=${BATS_FILE_COMMIT}
 VALIDATE_ACTION_PINS_VERSION=${VALIDATE_ACTION_PINS_VERSION}
 EOF
 mv "${LOCKFILE_TMP}" "${LOCKFILE}"
