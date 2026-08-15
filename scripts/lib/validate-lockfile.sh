@@ -11,9 +11,8 @@ set -euo pipefail
 # forwards reaches the build empty, and `npm install -g "pkg@"` installs
 # latest — a pin that silently resolves to whatever upstream ships.
 #
-# Every image is checked unless one is named. Scoping to a single image is the
-# exception: a sweep that quietly covered one image is the defect this guards
-# against, so the safe set is the default.
+# Every image is checked unless one is named, so omitting the argument widens
+# the check rather than narrowing it.
 #
 # Usage:
 #   scripts/lib/validate-lockfile.sh            # every image
