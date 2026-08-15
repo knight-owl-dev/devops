@@ -44,6 +44,21 @@ _make_compose() {
   } > "${IMAGE_DIR}/compose.yaml"
 }
 
+# Add a second image so a bare run has more than one to sweep. `broken` omits
+# the compose arg, which only a sweep can surface when the first image is clean.
+_make_second_image() {
+  local dir="${FAKE_REPO}/images/other-image"
+  mkdir -p "${dir}"
+  printf '%s\n' "FROM scratch" "ARG BAR" > "${dir}/Dockerfile"
+  printf '%s\n' "BAR=2.0.0" > "${dir}/versions.lock"
+  {
+    printf 'services:\n  other-image:\n    build:\n      context: .\n      args:\n'
+    if [[ "${1}" == "good" ]]; then
+      printf '        BAR: ${BAR}\n'
+    fi
+  } > "${dir}/compose.yaml"
+}
+
 # Build a compose.yaml from literal "NAME: value" arg lines, for cases
 # where the forwarded value is deliberately not ${NAME}.
 _make_compose_raw() {
@@ -165,10 +180,50 @@ _make_compose_raw() {
 
 # ── input errors ─────────────────────────────────────────────────────
 
-@test "exits 1 with usage message when the image arg is missing" {
+# ── sweep ────────────────────────────────────────────────────────────
+
+# A bare run covers every image. Scoping is the exception, so these lock down
+# that omitting the argument widens the check rather than narrowing it — the
+# defect being that `make lint` validated only the default image.
+
+@test "validates every image when no image is named" {
+  _make_dockerfile "FROM scratch" "ARG FOO"
+  _make_lockfile "FOO=1.0.0"
+  _make_compose FOO
+  _make_second_image good
+  run "${SCRIPT}"
+  assert_success
+}
+
+@test "a second image's mismatch fails a bare run" {
+  # The first image is clean, so only the sweep can surface this.
+  _make_dockerfile "FROM scratch" "ARG FOO"
+  _make_lockfile "FOO=1.0.0"
+  _make_compose FOO
+  _make_second_image broken
   run "${SCRIPT}"
   assert_failure 1
-  assert_output --partial "usage: validate-lockfile.sh <image>"
+  assert_output --partial "not forwarded by compose.yaml"
+  assert_output --partial "BAR"
+}
+
+@test "naming an image scopes the run to it" {
+  # Same broken second image, skipped because the first is named.
+  _make_dockerfile "FROM scratch" "ARG FOO"
+  _make_lockfile "FOO=1.0.0"
+  _make_compose FOO
+  _make_second_image broken
+  run "${SCRIPT}" test-image
+  assert_success
+}
+
+# ── input errors ─────────────────────────────────────────────────────
+
+@test "exits 1 when no image directory exists at all" {
+  rm -rf "${IMAGE_DIR}"
+  run "${SCRIPT}"
+  assert_failure 1
+  assert_output --partial "no images found"
 }
 
 @test "exits 1 when the Dockerfile is missing" {

@@ -123,15 +123,23 @@ LINT_RUNNER ?= docker run --rm $(DOCKER_TTY) \
 	-v "$(CURDIR):/work" -w /work $(TOOLS_IMAGE) make
 LINT_IMAGE_DEP := $(call image_dep,$(LINT_RUNNER))
 
+# The empty default rides through to the inner make, so a bare `make lint`
+# sweeps every image while `make lint IMAGE=docs` still scopes: a command-line
+# assignment beats the target-specific one at both boundaries.
+lint: IMAGE :=
 lint: $(LINT_IMAGE_DEP)
 	@$(LINT_RUNNER) IMAGE=$(IMAGE) $(filter-out $(SKIP),$(LINT_TARGETS))
 
 # Fix all auto-fixable lint issues. Containerized alongside lint: a host
 # shfmt that formats differently would write what the image then rejects.
 lint-fix: $(LINT_IMAGE_DEP)
-	@$(LINT_RUNNER) IMAGE=$(IMAGE) lint-sh-fmt-fix lint-md-fix
+	@$(LINT_RUNNER) lint-sh-fmt-fix lint-md-fix
 
-# Validate lockfile keys match Dockerfile ARGs
+# Validate lockfile keys match Dockerfile ARGs and compose build args. The
+# target-specific empty default overrides the global IMAGE=ci-tools, the same
+# way test-package does, so a bare `make lint` sweeps every image; a
+# command-line IMAGE=<name> still wins and scopes to one.
+lint-lockfile: IMAGE :=
 lint-lockfile:
 	@echo "Validating lockfile..." && scripts/lib/validate-lockfile.sh $(IMAGE) && echo "OK"
 

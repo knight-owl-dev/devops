@@ -70,6 +70,17 @@ distributable_images() {
   _images_with_file distributable
 }
 
+# Echo the names of images carrying a `Dockerfile`, one per line, in directory
+# order. This is the widest of the three sets: an image has a Dockerfile from
+# the moment it exists, before it earns a `version` stamp or a `distributable`
+# marker. Use it for checks that must cover an image from day one rather than
+# from its first release.
+#
+# Assumes the current working directory is the repo root.
+buildable_images() {
+  _images_with_file Dockerfile
+}
+
 # Echo the names of images carrying a `version` file, one per line, in
 # directory order. The version file is the release stamp every image acquires
 # on its first release; its presence (not its value) is what marks a directory
