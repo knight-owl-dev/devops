@@ -8,6 +8,9 @@ set -euo pipefail
 # images/ci-tools/versions.lock.
 # Partial resolves preserve existing lockfile values for unresolved tools.
 #
+# npm-installed tools are written to images/ci-tools/npm/<tool>/ instead —
+# package-lock.json is their lockfile, so they hold no versions.lock key.
+#
 # Usage:
 #   ./scripts/ci-tools/resolve.sh                      # All tools → latest
 #   ./scripts/ci-tools/resolve.sh shfmt:v3.12.0        # Pin shfmt, resolve others to latest
@@ -108,32 +111,45 @@ resolve_npm() {
   NPM_VERSION="${version}"
 }
 
+# npm tools carry no lockfile entry: package-lock.json is their lockfile,
+# and it pins the top-level version alongside every transitive dependency
+# with an integrity hash. The tree is rebuilt on every resolve, so a plain
+# `make resolve` picks up transitive fixes even when nothing released.
+#
+# Each still sets <TOOL>_VERSION, read by the report loop through indirect
+# expansion that shellcheck cannot follow — hence the SC2034 directives.
+NPM_DIR="${REPO_ROOT}/images/ci-tools/npm"
+
+# shellcheck disable=SC2034
 resolve_markdownlint_cli2() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version markdownlint-cli2)"
-  # No SHA256 — npm verifies package integrity during install.
   MARKDOWNLINT_CLI2_VERSION="${version}"
+  npm_lock "${NPM_DIR}/markdownlint-cli2" markdownlint-cli2 "${version}"
 }
 
+# shellcheck disable=SC2034
 resolve_biome() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version @biomejs/biome)"
-  # No SHA256 — npm verifies package integrity during install.
   BIOME_VERSION="${version}"
+  npm_lock "${NPM_DIR}/biome" @biomejs/biome "${version}"
 }
 
+# shellcheck disable=SC2034
 resolve_stylelint() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version stylelint)"
-  # No SHA256 — npm verifies package integrity during install.
   STYLELINT_VERSION="${version}"
+  npm_lock "${NPM_DIR}/stylelint" stylelint "${version}"
 }
 
+# shellcheck disable=SC2034
 resolve_cspell() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version cspell)"
-  # No SHA256 — npm verifies package integrity during install.
   CSPELL_VERSION="${version}"
+  npm_lock "${NPM_DIR}/cspell" cspell "${version}"
 }
 
 resolve_luacheck() {
@@ -216,10 +232,6 @@ SHFMT_VERSION="" SHFMT_SHA256_AMD64="" SHFMT_SHA256_ARM64=""
 ACTIONLINT_VERSION="" ACTIONLINT_SHA256_AMD64="" ACTIONLINT_SHA256_ARM64=""
 HADOLINT_VERSION="" HADOLINT_SHA256_AMD64="" HADOLINT_SHA256_ARM64=""
 YQ_VERSION="" YQ_SHA256_AMD64="" YQ_SHA256_ARM64=""
-MARKDOWNLINT_CLI2_VERSION=""
-BIOME_VERSION=""
-STYLELINT_VERSION=""
-CSPELL_VERSION=""
 LUACHECK_VERSION=""
 BUSTED_VERSION=""
 BATS_VERSION="" BATS_COMMIT=""
@@ -232,6 +244,9 @@ if [[ -f "${LOCKFILE}" ]]; then
   # shellcheck source=/dev/null
   source "${LOCKFILE}"
 fi
+
+# npm tools are absent above: package-lock.json pins them, so they need no
+# seed value here — their resolver sets the variable the report loop reads.
 
 # ── resolve requested tools ──────────────────────────────────────────
 
@@ -259,10 +274,6 @@ HADOLINT_SHA256_ARM64=${HADOLINT_SHA256_ARM64}
 YQ_VERSION=${YQ_VERSION}
 YQ_SHA256_AMD64=${YQ_SHA256_AMD64}
 YQ_SHA256_ARM64=${YQ_SHA256_ARM64}
-MARKDOWNLINT_CLI2_VERSION=${MARKDOWNLINT_CLI2_VERSION}
-BIOME_VERSION=${BIOME_VERSION}
-STYLELINT_VERSION=${STYLELINT_VERSION}
-CSPELL_VERSION=${CSPELL_VERSION}
 LUACHECK_VERSION=${LUACHECK_VERSION}
 BUSTED_VERSION=${BUSTED_VERSION}
 BATS_VERSION=${BATS_VERSION}

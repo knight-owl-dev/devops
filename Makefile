@@ -46,11 +46,19 @@ build:
 		-f images/$(IMAGE)/compose.yaml \
 		build
 
-# Verify all tools in the built image
+# Verify all tools in the built image.
+#
+# npm tools keep their expected version in images/$(IMAGE)/npm/<tool>, not
+# the lockfile. Mounted only where that directory exists — a bind mount would
+# otherwise create it on the host for images that have no npm tools.
+NPM_DIR := $(CURDIR)/images/$(IMAGE)/npm
+NPM_MOUNT := $(if $(wildcard $(NPM_DIR)),-v "$(NPM_DIR):/npm:ro",)
+
 verify:
 	@docker run --rm $(DOCKER_TTY) \
 		-v "$(CURDIR)/scripts:/scripts" \
 		-v "$(CURDIR)/images/$(IMAGE)/versions.lock:/versions.lock:ro" \
+		$(NPM_MOUNT) \
 		$(IMAGE_TAG) /scripts/$(IMAGE)/verify.sh
 
 # Scan image for vulnerabilities. Policy lives in trivy.yaml; only the

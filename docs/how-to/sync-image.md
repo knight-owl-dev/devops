@@ -37,6 +37,15 @@ make resolve TOOLS="shfmt:v3.12.0 luacheck"  # mix pinned and latest
 
 ## What Gets Written
 
+`images/<IMAGE>/npm/<tool>/` — for tools installed from npm, a generated
+`package.json` and `package-lock.json` tracked in git. The lock pins the tool
+and every transitive dependency with an integrity hash, and the Dockerfile
+installs from it with `npm ci`, so these tools carry no `versions.lock` entry
+and no build arg — the lock is the version.
+
+Each resolve rebuilds these trees from scratch, so a plain `make resolve`
+picks up a transitive fix even when no tool released.
+
 `images/<IMAGE>/versions.lock` — a key=value file tracked in git:
 
 ```text

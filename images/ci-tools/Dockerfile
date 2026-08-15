@@ -138,24 +138,40 @@ ARG NPM_VERSION
 RUN npm install -g "npm@${NPM_VERSION}" \
   && npm cache clean --force
 
+# ---------- npm tools ----------
+# Installed from a committed package-lock.json rather than `npm install -g`,
+# which pins only the named package and re-resolves its tree on every build.
+# The lockfile pins every transitive dependency with an integrity hash, so
+# the tree is reproducible and moves only when the lockfile diff says so.
+# No ARG carries the version — package-lock.json is the version.
+#
+# One directory per tool keeps these layers independently cacheable and
+# scopes a bump's diff to the tool being bumped. `npm install -g` already
+# gave each tool its own dependency tree, so nothing is duplicated here.
+
 # ---------- markdownlint-cli2 ----------
-ARG MARKDOWNLINT_CLI2_VERSION
-RUN npm install -g "markdownlint-cli2@${MARKDOWNLINT_CLI2_VERSION}" \
+COPY npm/markdownlint-cli2/ /opt/npm/markdownlint-cli2/
+RUN npm ci --prefix /opt/npm/markdownlint-cli2 --omit=dev \
+  && ln -s /opt/npm/markdownlint-cli2/node_modules/.bin/markdownlint-cli2 \
+      /usr/local/bin/markdownlint-cli2 \
   && npm cache clean --force
 
 # ---------- biome ----------
-ARG BIOME_VERSION
-RUN npm install -g "@biomejs/biome@${BIOME_VERSION}" \
+COPY npm/biome/ /opt/npm/biome/
+RUN npm ci --prefix /opt/npm/biome --omit=dev \
+  && ln -s /opt/npm/biome/node_modules/.bin/biome /usr/local/bin/biome \
   && npm cache clean --force
 
 # ---------- stylelint ----------
-ARG STYLELINT_VERSION
-RUN npm install -g "stylelint@${STYLELINT_VERSION}" \
+COPY npm/stylelint/ /opt/npm/stylelint/
+RUN npm ci --prefix /opt/npm/stylelint --omit=dev \
+  && ln -s /opt/npm/stylelint/node_modules/.bin/stylelint /usr/local/bin/stylelint \
   && npm cache clean --force
 
 # ---------- cspell ----------
-ARG CSPELL_VERSION
-RUN npm install -g "cspell@${CSPELL_VERSION}" \
+COPY npm/cspell/ /opt/npm/cspell/
+RUN npm ci --prefix /opt/npm/cspell --omit=dev \
+  && ln -s /opt/npm/cspell/node_modules/.bin/cspell /usr/local/bin/cspell \
   && npm cache clean --force
 
 # ---------- lua toolchain (luacheck + busted on Lua 5.4) ----------
