@@ -39,9 +39,9 @@ locally.
   author's GitHub releases, verified with SHA256 checksums where available.
 - **Established package registries** — npm and luarocks for tools that are
   distributed through them. These registries handle integrity verification.
-  npm tools go further: a committed `package-lock.json` per tool pins every
-  transitive dependency with an integrity hash, so the tree is reproducible
-  and changes only through a reviewable diff.
+  npm tools add a committed `package-lock.json` pinning the full tree by
+  integrity hash, so the resolved tree is reproducible and moves only through
+  a reviewable diff.
 - **GitHub-maintained Actions** — `actions/checkout`, `docker/build-push-action`,
   `docker/login-action`, `docker/setup-buildx-action`, `actions/upload-artifact`,
   `actions/download-artifact`, `actions/setup-go`,

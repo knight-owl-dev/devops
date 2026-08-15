@@ -26,9 +26,8 @@ if [[ -f /versions.lock ]]; then
   source /versions.lock
 fi
 
-# npm tools are absent from the lockfile — package-lock.json pins them. Read
-# the expected version from the generated package.json mounted alongside it,
-# which carries exactly one dependency. Empty when /npm is not mounted, which
+# Expected versions for npm tools come from their generated package.json,
+# which carries exactly one dependency. Empty when /npm is unmounted, which
 # `check` treats as presence-only.
 npm_expected() {
   local manifest="/npm/${1}/package.json"

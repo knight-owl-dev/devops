@@ -139,15 +139,9 @@ RUN npm install -g "npm@${NPM_VERSION}" \
   && npm cache clean --force
 
 # ---------- npm tools ----------
-# Installed from a committed package-lock.json rather than `npm install -g`,
-# which pins only the named package and re-resolves its tree on every build.
-# The lockfile pins every transitive dependency with an integrity hash, so
-# the tree is reproducible and moves only when the lockfile diff says so.
-# No ARG carries the version — package-lock.json is the version.
-#
-# One directory per tool keeps these layers independently cacheable and
-# scopes a bump's diff to the tool being bumped. `npm install -g` already
-# gave each tool its own dependency tree, so nothing is duplicated here.
+# No ARG carries the version: package-lock.json pins it, along with the whole
+# dependency tree. One directory per tool keeps these layers independently
+# cacheable and scopes a bump to a single lockfile.
 
 # ---------- markdownlint-cli2 ----------
 COPY npm/markdownlint-cli2/ /opt/npm/markdownlint-cli2/

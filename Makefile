@@ -48,9 +48,9 @@ build:
 
 # Verify all tools in the built image.
 #
-# npm tools keep their expected version in images/$(IMAGE)/npm/<tool>, not
-# the lockfile. Mounted only where that directory exists — a bind mount would
-# otherwise create it on the host for images that have no npm tools.
+# The npm directory carries the expected versions for npm-installed tools.
+# Mounted only where it exists: a bind mount would otherwise create it on the
+# host for images that have none.
 NPM_DIR := $(CURDIR)/images/$(IMAGE)/npm
 NPM_MOUNT := $(if $(wildcard $(NPM_DIR)),-v "$(NPM_DIR):/npm:ro",)
 

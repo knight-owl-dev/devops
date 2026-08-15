@@ -137,9 +137,9 @@ latest_npm_version() {
 #
 # Writes package.json at the resolved version, then rebuilds
 # package-lock.json from scratch. The stale lock is deleted rather than
-# refreshed in place: `npm install --package-lock-only` keeps any pin that
-# is still in range, so an incremental regenerate would freeze the tree on
-# its first generation and silently stop absorbing transitive fixes.
+# refreshed in place. `npm install --package-lock-only` keeps any pin still
+# in range, so an incremental regenerate would freeze the tree at its first
+# generation and stop absorbing transitive fixes.
 #
 # --package-lock-only resolves against the registry without installing, so
 # this stays a metadata operation like every other resolver.

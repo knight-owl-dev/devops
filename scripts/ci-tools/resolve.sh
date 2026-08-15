@@ -111,13 +111,11 @@ resolve_npm() {
   NPM_VERSION="${version}"
 }
 
-# npm tools carry no lockfile entry: package-lock.json is their lockfile,
-# and it pins the top-level version alongside every transitive dependency
-# with an integrity hash. The tree is rebuilt on every resolve, so a plain
-# `make resolve` picks up transitive fixes even when nothing released.
+# The tree is rebuilt on every resolve, so `make resolve` picks up transitive
+# fixes even when nothing released — see npm_lock.
 #
-# Each still sets <TOOL>_VERSION, read by the report loop through indirect
-# expansion that shellcheck cannot follow — hence the SC2034 directives.
+# Each resolver still sets <TOOL>_VERSION for the report loop, which reads it
+# by indirect expansion shellcheck cannot follow — hence the SC2034 directives.
 NPM_DIR="${REPO_ROOT}/images/ci-tools/npm"
 
 # shellcheck disable=SC2034
@@ -245,8 +243,8 @@ if [[ -f "${LOCKFILE}" ]]; then
   source "${LOCKFILE}"
 fi
 
-# npm tools are absent above: package-lock.json pins them, so they need no
-# seed value here — their resolver sets the variable the report loop reads.
+# npm tools need no seed value: their resolver sets the variable the report
+# loop reads.
 
 # ── resolve requested tools ──────────────────────────────────────────
 
