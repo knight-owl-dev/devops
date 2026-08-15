@@ -12,9 +12,29 @@ VALIDATE_ACTION_PINS := $(shell \
 # Override with `DOCKER_TTY=` (empty) or `DOCKER_TTY=-t` (force) as needed.
 DOCKER_TTY ?= $(shell test -t 0 && echo -t)
 
+# ci-tools carries the lint and test toolchain, so recipes re-enter it
+# regardless of IMAGE — IMAGE selects what a target acts on, never where it
+# runs. Deliberately not $(IMAGE_TAG): `IMAGE=docs` would look for these
+# tools in the docs image.
+TOOLS_IMAGE ?= ci-tools:local
+
+# A runner that re-enters the image needs it built and current; a missing tag
+# otherwise sends Docker to a registry for an image that only exists locally,
+# and a stale one silently tests the wrong toolchain. A no-op build is ~1s
+# once cached, cheaper than the container start it precedes. Bare overrides
+# (CI, already inside the image) get no dependency — there is no Docker there.
+image_dep = $(if $(filter docker,$(firstword $(1))),tools-image)
+
+# Depends on ci-tools, so it cannot be `build`: that honors IMAGE, which
+# selects what a target acts on. `lint IMAGE=docs` needs the docs lockfile
+# checked by the ci-tools toolchain, not the docs image built.
+tools-image:
+	@$(MAKE) --no-print-directory build IMAGE=ci-tools
+
 .PHONY: sync resolve build verify scan clean set-version get-version release \
 	lint lint-fix lint-lockfile lint-docker lint-sh lint-sh-fmt lint-sh-fmt-fix \
-	lint-actions lint-md lint-md-fix lint-spell lint-man man test-package test-bats help
+	lint-actions lint-md lint-md-fix lint-spell lint-man man test-package test-bats \
+	tools-image help
 
 # Resolve latest versions, build, and verify image
 sync: resolve build verify
@@ -99,14 +119,9 @@ LINT_TARGETS := lint-lockfile lint-docker lint-sh lint-sh-fmt lint-actions \
 #
 # Always ci-tools, never $(IMAGE_TAG): that image is the lint toolchain,
 # while IMAGE selects which lockfile lint-lockfile validates.
-LINT_IMAGE ?= ci-tools:local
 LINT_RUNNER ?= docker run --rm $(DOCKER_TTY) \
-	-v "$(CURDIR):/work" -w /work $(LINT_IMAGE) make
-
-# Building keeps $(LINT_IMAGE) from going missing or stale — a no-op build is
-# ~1s once cached, cheaper than the container start it precedes. Only the
-# containerized path needs it: CI overrides LINT_RUNNER and has no Docker.
-LINT_IMAGE_DEP := $(if $(filter-out make,$(LINT_RUNNER)),build)
+	-v "$(CURDIR):/work" -w /work $(TOOLS_IMAGE) make
+LINT_IMAGE_DEP := $(call image_dep,$(LINT_RUNNER))
 
 lint: $(LINT_IMAGE_DEP)
 	@$(LINT_RUNNER) IMAGE=$(IMAGE) $(filter-out $(SKIP),$(LINT_TARGETS))
@@ -194,8 +209,11 @@ test-package:
 # macOS host without needing bats installed. CI (already inside the
 # container) overrides with `BATS_RUNNER=bats` to avoid
 # docker-in-docker.
-BATS_RUNNER ?= docker run --rm $(DOCKER_TTY) -v "$(CURDIR):/work" -w /work $(IMAGE_TAG) bats
-test-bats:
+BATS_RUNNER ?= docker run --rm $(DOCKER_TTY) \
+	-v "$(CURDIR):/work" -w /work $(TOOLS_IMAGE) bats
+BATS_IMAGE_DEP := $(call image_dep,$(BATS_RUNNER))
+
+test-bats: $(BATS_IMAGE_DEP)
 	@$(BATS_RUNNER) -r tests/bats/
 
 # Remove local image
