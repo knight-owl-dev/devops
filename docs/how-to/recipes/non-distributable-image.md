@@ -2,8 +2,8 @@
 
 A worked, start-to-finish walkthrough for adding a **non-distributable** image —
 one that builds, scans, signs, and publishes to GHCR but ships **no** `.deb` /
-Homebrew packages. The running example is the `docs` image (MkDocs + Material for
-MkDocs), the repo's first image of this kind.
+Homebrew packages. The running example is the `docs` image (Zensical), the repo's
+first image of this kind.
 
 For the conventions reference behind each step, see
 [Add an Image](../add-image.md). This recipe is the happy path with the
@@ -45,7 +45,7 @@ Pin the base by **digest**, install the toolchain from its official channel, and
 take version inputs as `ARG`s with **no defaults** (the lockfile supplies them).
 
 ```dockerfile
-# docs — MkDocs + Material for MkDocs documentation build image for Knight Owl
+# docs — Zensical documentation build image for Knight Owl
 FROM python:3.13-slim-bookworm@sha256:e4fa1f978c...
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -60,8 +60,8 @@ RUN apt-get update \
 
 # Installed from PyPI — pip verifies wheel integrity (same trust model as the
 # npm/luarocks tools in ci-tools). Pinned externally from versions.lock.
-ARG MKDOCS_MATERIAL_VERSION
-RUN pip install --no-cache-dir "mkdocs-material==${MKDOCS_MATERIAL_VERSION}"
+ARG ZENSICAL_VERSION
+RUN pip install --no-cache-dir "zensical==${ZENSICAL_VERSION}"
 
 ARG IMAGE_VERSION=local
 LABEL org.opencontainers.image.source="https://github.com/knight-owl-dev/devops"
@@ -79,7 +79,7 @@ docker buildx imagetools inspect python:3.13-slim-bookworm | grep -i 'digest\|me
 > **Gotcha — `=local` ARGs vs the lockfile.** Only **bare** `ARG`s (no default)
 > are validated against `versions.lock` keys. `ARG IMAGE_VERSION=local` has a
 > default, so it is excluded — the lockfile holds exactly one key here
-> (`MKDOCS_MATERIAL_VERSION`).
+> (`ZENSICAL_VERSION`).
 >
 > **Gotcha — Debian bookworm + `libgnutls30`.** Bookworm-based bases (including
 > `python:*-slim-bookworm`) currently ship an outdated `libgnutls30` that the
@@ -92,14 +92,14 @@ docker buildx imagetools inspect python:3.13-slim-bookworm | grep -i 'digest\|me
 ## 3. Write the resolve and verify scripts
 
 `scripts/docs/resolve.sh` resolves the tool version and **writes**
-`versions.lock`. Reuse the helpers in `scripts/lib/resolve.sh` — mkdocs-material
-is GitHub-hosted, so `latest_gh_tag` is all you need (no pip/curl/jq):
+`versions.lock`. Reuse the helpers in `scripts/lib/resolve.sh` — zensical is
+GitHub-hosted, so `latest_gh_tag` is all you need (no pip/curl/jq):
 
 ```bash
-resolve_mkdocs_material() {
+resolve_zensical() {
   local tag="${1:-}"
-  [[ -z "${tag}" ]] && tag="$(latest_gh_tag squidfunk/mkdocs-material)"
-  MKDOCS_MATERIAL_VERSION="${tag#v}"
+  [[ -z "${tag}" ]] && tag="$(latest_gh_tag zensical/zensical)"
+  ZENSICAL_VERSION="${tag#v}"
 }
 ```
 
@@ -107,19 +107,20 @@ resolve_mkdocs_material() {
 present, sourcing `scripts/lib/verify.sh`:
 
 ```bash
-check "mkdocs-material" "${MKDOCS_MATERIAL_VERSION}" \
-  python -c 'import importlib.metadata as m; print(m.version("mkdocs-material"))'
-check "mkdocs" "" mkdocs --version
-check "material-theme" "" python -c 'import material'
+check "zensical" "${ZENSICAL_VERSION}" zensical --version
 check "make" "" make --version
 verify_exit
 ```
 
 > **Gotcha — version source.** `check()` matches the expected version against the
-> command's **first output line**. `mkdocs --version` reports the *mkdocs*
-> version, not *mkdocs-material*'s, so read the pinned package's version from its
-> distribution metadata (`importlib.metadata`) instead. Apply the same idea to
-> any tool whose `--version` reports a different package than the one you pin.
+> command's **first output line**. When a tool's `--version` reports a different
+> package than the one pinned in `versions.lock`, read the pinned package's
+> version from its own metadata instead — for a pip-installed package:
+>
+> ```bash
+> check "<pkg>" "${<PKG>_VERSION}" \
+>   python -c 'import importlib.metadata as m; print(m.version("<pkg>"))'
+> ```
 >
 > **Gotcha — execute bit.** `make resolve`/`make verify` run
 > `scripts/<name>/*.sh` directly, so make them executable or they won't run:
@@ -155,7 +156,7 @@ services:
       context: .
       platforms: [linux/amd64, linux/arm64]
       args:
-        MKDOCS_MATERIAL_VERSION: ${MKDOCS_MATERIAL_VERSION}
+        ZENSICAL_VERSION: ${ZENSICAL_VERSION}
 ```
 
 ## 6. Generate the lockfile, then build / verify / scan

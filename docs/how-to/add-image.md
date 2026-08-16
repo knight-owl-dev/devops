@@ -188,8 +188,7 @@ make resolve TOOLS="my-script:2.0.0"   # bump version
 `scripts/<name>/verify.sh` runs inside the built container and checks that
 every expected tool is present.
 
-> If a tool's `--version` reports a *different* package than the one you pin
-> (e.g. `mkdocs --version` reports mkdocs, not the pinned `mkdocs-material`),
+> If a tool's `--version` reports a *different* package than the one you pin,
 > read the pinned version from its package metadata instead so the assertion
 > matches. `check()` compares the command's first output line against the
 > expected version.
@@ -247,7 +246,7 @@ Add `images/<name>/README.md` (a tools table + usage) and link it from the
 root `NOTICE.md`.
 
 > **Spell check:** `make lint-spell` checks the repo against `cspell.json`. New
-> tool/vendor proper nouns (e.g. `mkdocs`, `squidfunk`) go in its word list.
+> tool/vendor proper nouns (e.g. `zensical`, `mikefarah`) go in its word list.
 
 ### 8. Releasing the image
 
