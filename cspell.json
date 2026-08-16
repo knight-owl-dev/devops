@@ -52,7 +52,6 @@
     "rhysd",
     "rockspec",
     "Sigstore",
-    "squidfunk",
     "startswith",
     "stubdir",
     "subcmd",
@@ -63,6 +62,7 @@
     "trivyignores",
     "vprefix",
     "vtag",
-    "xmlstarlet"
+    "xmlstarlet",
+    "zensical"
   ]
 }

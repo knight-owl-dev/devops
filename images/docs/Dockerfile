@@ -1,4 +1,4 @@
-# docs — MkDocs + Material for MkDocs documentation build image for Knight Owl
+# docs — Zensical documentation build image for Knight Owl
 FROM python:3.13-slim-bookworm@sha256:e4fa1f978c539608a10cdf74700ac32a3f719dfc6e8b6b6001da82deb36302a2
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -29,13 +29,13 @@ RUN apt-get update \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-# ---------- mkdocs-material ----------
+# ---------- zensical ----------
 # Installed from PyPI — pip verifies wheel integrity, the same trust model as the
 # npm/luarocks tools in ci-tools (see docs/supply-chain-security.md). The version
-# is pinned externally from versions.lock; mkdocs and the Material theme arrive
-# as transitive dependencies.
-ARG MKDOCS_MATERIAL_VERSION
-RUN pip install --no-cache-dir "mkdocs-material==${MKDOCS_MATERIAL_VERSION}"
+# is pinned externally from versions.lock. Zensical ships prebuilt abi3 wheels,
+# so its Rust core needs no compiler here.
+ARG ZENSICAL_VERSION
+RUN pip install --no-cache-dir "zensical==${ZENSICAL_VERSION}"
 
 # ---------- runtime ----------
 # Images run as root because they target CI runners (GitHub Actions) where the
@@ -49,4 +49,4 @@ LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.authors="Knight Owl LLC"
 LABEL org.opencontainers.image.source="https://github.com/knight-owl-dev/devops"
 LABEL org.opencontainers.image.version="${IMAGE_VERSION}"
-LABEL org.opencontainers.image.description="MkDocs + Material for MkDocs documentation build image for Knight Owl"
+LABEL org.opencontainers.image.description="Zensical documentation build image for Knight Owl"

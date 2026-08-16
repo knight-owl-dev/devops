@@ -7,4 +7,4 @@ services:
         - linux/amd64
         - linux/arm64
       args:
-        MKDOCS_MATERIAL_VERSION: ${MKDOCS_MATERIAL_VERSION}
+        ZENSICAL_VERSION: ${ZENSICAL_VERSION}
