@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# resolve.sh — Resolve the latest mkdocs-material version for the docs image
+# resolve.sh — Resolve the latest zensical version for the docs image
 #
-# Fetches the latest GitHub release tag for mkdocs-material and writes
+# Fetches the latest GitHub release tag for zensical and writes
 # images/docs/versions.lock. Partial resolves preserve existing lockfile values
 # for unresolved tools (the docs image currently tracks a single tool).
 #
 # Usage:
-#   ./scripts/docs/resolve.sh                          # mkdocs-material → latest
-#   ./scripts/docs/resolve.sh mkdocs-material:9.6.0    # pin a specific version
+#   ./scripts/docs/resolve.sh                   # zensical → latest
+#   ./scripts/docs/resolve.sh zensical:0.0.54   # pin a specific version
 #
 # Requirements:
 #   - gh CLI authenticated with access to public repos
@@ -28,19 +28,18 @@ source "${REPO_ROOT}/scripts/lib/resolve.sh"
 
 # ── per-tool resolvers ───────────────────────────────────────────────
 
-resolve_mkdocs_material() {
+resolve_zensical() {
   local tag="${1:-}"
-  [[ -z "${tag}" ]] && tag="$(latest_gh_tag squidfunk/mkdocs-material)"
+  [[ -z "${tag}" ]] && tag="$(latest_gh_tag zensical/zensical)"
 
-  # Strip a leading v defensively — pip needs a bare version. mkdocs-material
-  # tags are already bare (e.g. 9.7.6), but a pinned override might carry one.
-  MKDOCS_MATERIAL_VERSION="${tag#v}"
+  # Strip the leading v — zensical tags carry one (v0.0.54); pip needs it bare.
+  ZENSICAL_VERSION="${tag#v}"
 }
 
 # ── argument parsing ─────────────────────────────────────────────────
 
 # Determine which tools to resolve and whether a version is pinned.
-ALL_TOOLS=(mkdocs-material)
+ALL_TOOLS=(zensical)
 TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
@@ -50,7 +49,7 @@ else
   for arg in "${@}"; do
     tool="${arg%%:*}"
     case "${tool}" in
-      mkdocs-material) ;;
+      zensical) ;;
       *) die "unknown tool: ${tool}. Valid tools: ${ALL_TOOLS[*]}" ;;
     esac
     TOOLS_TO_RESOLVE+=("${tool}")
@@ -62,7 +61,7 @@ fi
 
 # ── load existing lockfile values (for partial resolves) ─────────────
 
-MKDOCS_MATERIAL_VERSION=""
+ZENSICAL_VERSION=""
 
 if [[ -f "${LOCKFILE}" ]]; then
   # shellcheck source=/dev/null
@@ -82,7 +81,7 @@ done
 
 LOCKFILE_TMP="$(mktemp)"
 cat > "${LOCKFILE_TMP}" << EOF
-MKDOCS_MATERIAL_VERSION=${MKDOCS_MATERIAL_VERSION}
+ZENSICAL_VERSION=${ZENSICAL_VERSION}
 EOF
 mv "${LOCKFILE_TMP}" "${LOCKFILE}"
 

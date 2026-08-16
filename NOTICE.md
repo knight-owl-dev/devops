@@ -24,5 +24,4 @@ following tools under their respective licenses.
 
 ## docs
 
-- [MkDocs](https://www.mkdocs.org/) by the MkDocs contributors (BSD-2-Clause)
-- [Material for MkDocs](https://github.com/squidfunk/mkdocs-material) by Martin Donath (MIT)
+- [Zensical](https://github.com/zensical/zensical) by Zensical contributors (MIT)
