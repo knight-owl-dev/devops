@@ -140,9 +140,13 @@ mkdir -p images/<name> scripts/<name>
     runtime so the script can read it for `--version`.
   - Place the script in `images/<name>/bin/`.
 
-Images run as root. They target CI runners (GitHub Actions) where the workspace
-is owned by root and consumers would need to escalate anyway. Do not add a
-`USER` directive — it adds friction without meaningful isolation in CI.
+CI toolbox images run as root. They target CI runners (GitHub Actions) where the
+workspace is owned by root and consumers would need to escalate anyway, so a
+`USER` directive adds friction without meaningful isolation.
+
+A long-lived service is the exception — it owns no CI workspace, and it shares a
+volume with whatever talks to it. `keystone-hook-diagrams` runs as a non-root UID
+for that reason; its Dockerfile explains what that requires.
 
 ### 3. Create the resolve script
 
@@ -193,6 +197,13 @@ every expected tool is present.
 > matches. `check()` compares the command's first output line against the
 > expected version.
 
+An image that cannot verify itself from inside — no shell, an `ENTRYPOINT` that
+owns argv, or a service that answers a protocol rather than `--version` — ships
+`scripts/<name>/verify-host.sh` instead. `make verify` runs it on the host with
+`IMAGE` and `IMAGE_TAG` in the environment, and that script owns the container
+lifecycle. Presence of the file is the only signal.
+See `scripts/keystone-hook-diagrams/verify-host.sh`.
+
 ### 5. Create the compose file (local builds only)
 
 `images/<name>/compose.yaml` is used by `make build` to build locally. It reads
@@ -231,6 +242,13 @@ make lint-lockfile IMAGE=<name>
 > `make lint-lockfile` (and plain `make lint`) default to `IMAGE=ci-tools`, so
 > pass `IMAGE=<name>` to validate your new image — CI's `make lint` won't catch
 > a drift in it otherwise.
+
+An image whose dependencies are all pinned elsewhere — a base image digest, a
+committed `package-lock.json` — has nothing to put in `versions.lock` and gets an
+empty one. The file still has to exist: `validate-lockfile.sh` and `make build`
+both read it unconditionally. Leave it empty: `publish.yml` pipes the file
+straight into `build-args`, so even a comment line reaches the build. See
+`images/keystone-hook-diagrams/`.
 
 ### 7. Verify the full workflow
 
