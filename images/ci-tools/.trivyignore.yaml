@@ -244,6 +244,17 @@ vulnerabilities:
       bundles >= 10.3.1.
     expired_at: 2026-09-25
 
+  - id: CVE-2026-73566
+    statement: >-
+      node-tar uncontrolled recursion in filesFilter's mapHas — a crafted
+      long-path archive overflows the stack and terminates the Node
+      process, fixed in 7.5.21. Bundled in npm 12.0.2, which still ships
+      7.5.19. mapHas is installed only for a non-empty member-selection
+      list, and every npm call site (pacote, libnpmdiff, node-gyp, npm's
+      own tar utils) lists or extracts whole archives — so the path is
+      unreachable. Tracking: #203. Remove once npm bundles >= 7.5.21.
+    expired_at: 2026-09-25
+
   - id: CVE-2026-56852
     statement: >-
       golang.org/x/text norm.Iter enters an infinite loop on invalid UTF-8
