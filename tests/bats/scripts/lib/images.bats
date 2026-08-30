@@ -80,6 +80,16 @@ _commit() {
   assert_failure
 }
 
+@test "unchanged when only .trivyignore.yaml changed (scan policy)" {
+  printf 'vulnerabilities: []\n' > "${REPO}/images/ci-tools/.trivyignore.yaml"
+  _commit suppressions-only
+  cd "${REPO}"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run image_build_context_changed ci-tools v1.2.5
+  assert_failure
+}
+
 @test "changed when the since-ref is unknown (new image / first release)" {
   cd "${REPO}"
   # shellcheck disable=SC1090
