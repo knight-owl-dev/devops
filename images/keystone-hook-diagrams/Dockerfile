@@ -1,0 +1,96 @@
+# keystone-hook-diagrams — Renders mermaid fences for the core-diagrams template.
+#
+# A Keystone hook: it owns a Unix socket, answers `describe` and `transform`,
+# and shares nothing with the engine. See
+# https://keystone.knight-owl.dev/engine/writing-a-hook/
+#
+# Node owns the socket rather than socat, so one Chromium starts with the
+# container and serves every request. Every block waits on this hook, so paying
+# a browser launch per diagram would spend the author's whole timeout on
+# process startup.
+
+# ---------- dependencies ----------
+# The only stage that needs a package manager. Nothing from here reaches the
+# final image except the tree npm resolves and the node binary itself.
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS deps
+
+WORKDIR /app
+
+# No version ARGs: package-lock.json pins the whole tree with integrity hashes,
+# and `npm ci` refuses a manifest that disagrees with it. `make resolve`
+# regenerates both files.
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+# ---------- runtime ----------
+# Alpine rather than node:22-alpine: that image carries npm, npx, yarn and
+# corepack, which a service running only `node server.js` never calls. Each
+# brings a vendored dependency tree that every CVE scan then reports. Copying
+# the node binary out keeps the pinned runtime without them.
+#
+# The two digests are coupled: node is linked against this Alpine's musl, so
+# bumping one without the other risks an ABI mismatch. node:22-alpine is built
+# on Alpine 3.24, which is what the tag below tracks.
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+
+# Chromium from the distro: puppeteer-core drives a browser, it does not ship
+# one, and a distro build is what gets the security updates.
+#
+# The font packages are contract, not incidental: the manual names what
+# KEYSTONE_DIAGRAMS_FONT can resolve, so opensans is asked for by name rather
+# than relied on as something another package happens to pull in.
+#
+# libstdc++ and libgcc are what the copied node binary links against; chromium
+# would pull them anyway, but this image does not depend on that.
+#
+# libcrypto3 and libssl3 carry a floor, not a pin. The base ships a revision
+# that already satisfies chromium, and `apk add` on an installed package is a
+# no-op — unlike apt-get, which is why the sibling images can just name one. A
+# `>=` forces the patched build without breaking when the repository moves on.
+# Drop the floor once the base image ships it. Tracking: CVE-2026-14456.
+#
+# DL3018: the rest are unpinned on purpose. Alpine keeps only the current build
+# of a package, so an exact version breaks the build instead of holding it
+# still — the same call the sibling images make for DL3008.
+# hadolint ignore=DL3018
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates \
+    libstdc++ libgcc font-noto font-opensans \
+    "libcrypto3>=3.5.8-r0" "libssl3>=3.5.8-r0"
+
+COPY --from=deps /usr/local/bin/node /usr/local/bin/node
+COPY --from=deps /app/node_modules /app/node_modules
+COPY server.js /app/server.js
+
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
+    PUPPETEER_SKIP_DOWNLOAD=true
+
+# The socket directory ships with the image so a volume mounted over it
+# inherits this mode. Whichever container mounts an empty volume first decides
+# its ownership, and the hook starts before the engine — so left to Docker the
+# volume would arrive root-owned and the bind would fail.
+RUN mkdir -p /hooks && chmod 1777 /hooks
+
+# Non-root, where the CI toolbox images are not: this one owns no CI workspace,
+# only a volume it shares with the engine. The 1777 above is what lets a
+# non-root UID own the socket.
+RUN addgroup -g 1001 -S hook && adduser -u 1001 -S -G hook hook
+USER 1001:1001
+
+# ---------- metadata ----------
+ARG IMAGE_VERSION=local
+LABEL maintainer="Knight Owl <support@knight-owl.dev>"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.authors="Knight Owl LLC"
+LABEL org.opencontainers.image.source="https://github.com/knight-owl-dev/devops"
+LABEL org.opencontainers.image.version="${IMAGE_VERSION}"
+LABEL org.opencontainers.image.description="Mermaid diagram rendering hook for Keystone's core-diagrams template"
+
+# Started and listening are different moments, and Keystone looks for the socket
+# once, before a build starts. A project wiring this in can only wait on a
+# condition the image defines, and losing that race is not an error — it is a
+# book with every diagram rendered as a code block. The start period is for a
+# browser coming up cold, which is slow rather than broken.
+HEALTHCHECK --interval=1s --timeout=2s --retries=15 --start-period=30s \
+    CMD ["test", "-S", "/hooks/diagrams.sock"]
+
+ENTRYPOINT ["node", "/app/server.js"]

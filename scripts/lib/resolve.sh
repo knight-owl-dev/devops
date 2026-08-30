@@ -133,16 +133,36 @@ latest_npm_version() {
     || die "failed to fetch latest npm version for ${package}"
 }
 
-# Regenerate an npm tool's pinned dependency tree.
+# Rebuild package-lock.json from the package.json already in a directory.
 #
-# Writes package.json at the resolved version, then rebuilds
-# package-lock.json from scratch. The stale lock is deleted rather than
-# refreshed in place. `npm install --package-lock-only` keeps any pin still
-# in range, so an incremental regenerate would freeze the tree at its first
-# generation and stop absorbing transitive fixes.
+# The stale lock is deleted rather than refreshed in place. `npm install
+# --package-lock-only` keeps any pin still in range, so an incremental
+# regenerate would freeze the tree at its first generation and stop absorbing
+# transitive fixes.
 #
 # --package-lock-only resolves against the registry without installing, so
 # this stays a metadata operation like every other resolver.
+#
+# Separate from npm_lock so a caller that writes its own manifest — several
+# dependencies, or fields npm_lock's shape does not carry — reuses the
+# regeneration without npm_lock's single-package manifest.
+#
+# Arguments:
+#   $1 - Directory holding package.json
+npm_relock() {
+  local dir="${1}"
+
+  rm -f "${dir}/package-lock.json"
+  npm install --package-lock-only --silent --prefix "${dir}" > /dev/null 2>&1 \
+    || die "failed to resolve the dependency tree in ${dir}"
+  [[ -f "${dir}/package-lock.json" ]] \
+    || die "no package-lock.json written in ${dir}"
+}
+
+# Regenerate a single-dependency npm tool's pinned dependency tree.
+#
+# Writes package.json at the resolved version, then rebuilds package-lock.json
+# from scratch.
 #
 # Arguments:
 #   $1 - Directory to write package.json / package-lock.json into
@@ -164,11 +184,7 @@ npm_lock() {
 }
 EOF
 
-  rm -f "${dir}/package-lock.json"
-  npm install --package-lock-only --silent --prefix "${dir}" > /dev/null 2>&1 \
-    || die "failed to resolve the dependency tree for ${package}@${version}"
-  [[ -f "${dir}/package-lock.json" ]] \
-    || die "no package-lock.json written for ${package}@${version}"
+  npm_relock "${dir}"
 }
 
 # Fetch the latest version of a luarocks package.

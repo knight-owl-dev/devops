@@ -25,3 +25,11 @@ following tools under their respective licenses.
 ## docs
 
 - [Zensical](https://github.com/zensical/zensical) by Zensical contributors (MIT)
+
+## keystone-hook-diagrams
+
+- [mermaid](https://github.com/mermaid-js/mermaid) by mermaid contributors (MIT)
+- [puppeteer-core](https://github.com/puppeteer/puppeteer) by Google (Apache-2.0)
+- [Chromium](https://www.chromium.org/) by The Chromium Authors (BSD-3-Clause)
+- [Noto fonts](https://fonts.google.com/noto) by Google (SIL OFL 1.1)
+- [Open Sans](https://fonts.google.com/specimen/Open+Sans) by Google (SIL OFL 1.1)

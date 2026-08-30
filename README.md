@@ -25,6 +25,7 @@ Each image is purpose-built for a specific CI concern and published to GHCR at
 | --- | --- | --- |
 | `ci-tools` | Linting, formatting, and testing tools for CI pipelines | [images/ci-tools/README.md](images/ci-tools/README.md) |
 | `docs` | Zensical documentation builds | [images/docs/README.md](images/docs/README.md) |
+| `keystone-hook-diagrams` | Mermaid rendering hook for Keystone's `core-diagrams` template | [images/keystone-hook-diagrams/README.md](images/keystone-hook-diagrams/README.md) |
 
 ## Releasing
 
