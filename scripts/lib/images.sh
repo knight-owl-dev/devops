@@ -5,9 +5,12 @@
 #
 # The build context is everything under images/<name>/ that affects a published
 # artifact (the image or its package) — i.e. everything EXCEPT the release
-# metadata files (version, distributable) and compose.yaml (local `make build`
-# wiring only; CI passes build args from versions.lock directly). Excluding by
-# name keeps the default safe: a new, unrecognized file counts as a change.
+# metadata files (version, distributable), compose.yaml (local `make build`
+# wiring only; CI passes build args from versions.lock directly), and
+# .trivyignore.yaml (scan policy, never copied into the image; the CVE monitor
+# reads it from the default branch, so a suppression edit lands without a
+# release). Excluding by name keeps the default safe: a new, unrecognized file
+# counts as a change.
 # A missing or unknown <since-ref> — e.g. a brand-new image with no prior
 # release tag — is treated as "changed" (first release).
 #
@@ -34,7 +37,8 @@ image_build_context_changed() {
     "images/${name}/" \
     ":(exclude)images/${name}/version" \
     ":(exclude)images/${name}/distributable" \
-    ":(exclude)images/${name}/compose.yaml"; then
+    ":(exclude)images/${name}/compose.yaml" \
+    ":(exclude)images/${name}/.trivyignore.yaml"; then
     return 1 # no diff => unchanged
   fi
 
