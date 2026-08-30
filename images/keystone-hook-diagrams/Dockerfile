@@ -89,12 +89,11 @@ LABEL org.opencontainers.image.source="https://github.com/knight-owl-dev/devops"
 LABEL org.opencontainers.image.version="${IMAGE_VERSION}"
 LABEL org.opencontainers.image.description="Mermaid diagram rendering hook for Keystone's core-diagrams template"
 
-# Started and listening are different moments, and Keystone looks for the socket
-# once, before a build starts. A project wiring this in can only wait on a
-# condition the image defines, and losing that race is not an error — it is a
-# book with every diagram rendered as a code block. The start period is for a
-# browser coming up cold, which is slow rather than broken.
-HEALTHCHECK --interval=1s --timeout=2s --retries=15 --start-period=30s \
+# Keystone looks for the socket once, before a build starts, and losing that race
+# quietly renders every diagram as a code block. The start period covers a browser
+# coming up cold; --start-interval is what polls inside it. --interval and retries
+# apply only afterwards, budgeting 90 seconds to catch a dead renderer.
+HEALTHCHECK --interval=30s --start-interval=1s --timeout=2s --retries=3 --start-period=30s \
     CMD ["test", "-S", "/hooks/diagrams.sock"]
 
 ENTRYPOINT ["node", "/app/server.js"]

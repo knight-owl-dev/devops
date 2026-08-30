@@ -131,6 +131,8 @@ services:
     image: ghcr.io/knight-owl-dev/keystone-hook-diagrams:<tag>@sha256:<digest>
     healthcheck:
       test: ["CMD", "test", "-S", "/hooks/diagrams.sock"]
+      interval: 30s
+      start_interval: 1s
       start_period: 30s
     network_mode: none
     read_only: true
@@ -185,7 +187,9 @@ breaks something far away.
 - **The healthcheck tests for the socket.** Started and listening are different
   moments, and Keystone looks once, before the build begins. Losing that race is
   not a failed build — it is a book with every diagram quietly rendered as a code
-  block.
+  block. `start_interval` is what makes it prompt: without it Docker looks every
+  few seconds inside the start period, and healthy lands about four seconds after
+  the socket appears. `start_interval` needs Docker Engine 25.0 or newer.
 - **Nothing renders at a fixed size, and there is no lettering-size setting.**
   The container a figure is placed in owns scaling; this image owns resolution.
   mermaid lays a diagram out around its text, so a larger requested size produces
