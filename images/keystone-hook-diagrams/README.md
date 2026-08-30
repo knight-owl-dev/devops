@@ -57,6 +57,7 @@ and Keystone's own lookup both use the default.
 {
   "protocols": [1],
   "targets": ["mermaid"],
+  "identity": "v1.4.4/theme=neutral/font=Noto Serif, serif/look=classic",
   "formats": [["pdf", "docx", "odt"], ["epub"]]
 }
 ```
@@ -64,6 +65,14 @@ and Keystone's own lookup both use the default.
 `formats` partitions output formats by which of them share one answer, so
 Keystone's cache renders a diagram once for the three raster formats rather than
 three times.
+
+`identity` moves whenever this image or a setting under
+[Configuration](#configuration) does, which is how that cache notices a diagram
+would now render differently. The string is hashed, never parsed.
+
+An image built without a version sends none, and Keystone then caches nothing:
+every block is asked for on every run. The `docker build` below leaves
+`IMAGE_VERSION` at its default, so its reply carries no identity.
 
 `diagnostics` reports what is wrong with the settings under
 [Configuration](#configuration), and is absent when there is nothing to say. An

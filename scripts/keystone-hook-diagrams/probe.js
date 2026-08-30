@@ -119,6 +119,32 @@ async function main() {
     return `protocols ${described.protocols.join(',')}  targets ${described.targets.join(',')}`;
   });
 
+  // Rebuilt from the environment rather than read back from the reply. The
+  // check is that the string tracks the image and its settings; a reply compared
+  // to itself would pass on any string at all.
+  const setting = (name) => (process.env[`KEYSTONE_DIAGRAMS_${name}`] || '').trim();
+  const version = (process.env.IMAGE_VERSION || '').trim();
+  const expected =
+    !version || version === 'local'
+      ? null
+      : `${version}/theme=${setting('THEME')}/font=${setting('FONT')}/look=${setting('LOOK')}`;
+
+  await check('describe carries the cache identity', async () => {
+    if (!expected) {
+      expect(!described.identity, `an unversioned image sent '${described.identity}'`);
+      return 'omitted, this image carries no version';
+    }
+    expect(
+      described.identity === expected,
+      `got '${described.identity}', expected '${expected}'`,
+    );
+    // Nothing time-based or random. A string that moves between runs is a cache
+    // that never hits, and nothing downstream would report it.
+    const again = await ask({ op: 'describe' });
+    expect(again.identity === described.identity, `a second describe said '${again.identity}'`);
+    return described.identity;
+  });
+
   if (MODE === 'no-diagnostics') {
     await check('an installed font raises nothing', () => {
       expect(!described.diagnostics, `got ${JSON.stringify(described.diagnostics)}`);

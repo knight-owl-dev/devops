@@ -23,6 +23,9 @@ const SOCKET = process.env.HOOK_SOCKET || '/hooks/diagrams.sock';
 const PROTOCOLS = [1];
 const TARGETS = ['mermaid'];
 
+// The release tag, stamped in by the build. See identity().
+const IMAGE_VERSION = (process.env.IMAGE_VERSION || '').trim();
+
 // PDF takes a raster because the typesetter reads the file itself and cannot
 // read SVG; DOCX and ODT take one to avoid depending on the writer's SVG
 // handling. EPUB takes SVG, which scales and can carry a palette that follows
@@ -85,6 +88,23 @@ function houseStyle(theme) {
   if (PROJECT_LOOK) style.look = PROJECT_LOOK;
   if (PROJECT_FONT) style.themeVariables = { fontFamily: PROJECT_FONT };
   return style;
+}
+
+// What Keystone hashes into its cache key, and never reads — so the shape is
+// ours. It has to be identical across runs, and different whenever a block
+// would render differently.
+//
+// The version carries everything else that decides a picture — mermaid,
+// Chromium, the raster geometry, the installed fonts — since the image fixes
+// those, and an image cannot publish twice under one version
+// (scripts/compute-build-matrix.sh).
+//
+// A `local` build promises neither: it restamps one version over an edited
+// server.js. Sending none costs the cache and keeps the renders correct.
+function identity() {
+  if (!IMAGE_VERSION || IMAGE_VERSION === 'local') return null;
+  // Empty settings are spelled out, so unset stays distinct from set.
+  return `${IMAGE_VERSION}/theme=${PROJECT_THEME}/font=${PROJECT_FONT}/look=${PROJECT_LOOK}`;
 }
 
 // What is wrong with how this hook was configured, for `describe` to carry.
@@ -514,6 +534,8 @@ async function transform(request) {
 async function answer(request) {
   if (request.op === 'describe') {
     const reply = { protocols: PROTOCOLS, targets: TARGETS, formats: FORMAT_GROUPS };
+    const stamp = identity();
+    if (stamp) reply.identity = stamp;
     const diagnostics = houseStyleDiagnostics();
     if (diagnostics.length) reply.diagnostics = diagnostics;
     return reply;
