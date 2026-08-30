@@ -78,6 +78,10 @@ USER 1001:1001
 
 # ---------- metadata ----------
 ARG IMAGE_VERSION=local
+
+# server.js reads this back at runtime; an ARG does not reach the process.
+ENV IMAGE_VERSION=${IMAGE_VERSION}
+
 LABEL maintainer="Knight Owl <support@knight-owl.dev>"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.authors="Knight Owl LLC"
