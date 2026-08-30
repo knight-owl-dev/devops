@@ -77,12 +77,21 @@ build:
 NPM_DIR := $(CURDIR)/images/$(IMAGE)/npm
 NPM_MOUNT := $(if $(wildcard $(NPM_DIR)),-v "$(NPM_DIR):/npm:ro",)
 
+# An image that cannot verify itself from inside ships verify-host.sh, and that
+# script owns the container lifecycle. Presence is the signal, as with
+# NPM_MOUNT above.
+HOST_VERIFY := $(wildcard scripts/$(IMAGE)/verify-host.sh)
+
 verify:
+ifneq ($(HOST_VERIFY),)
+	@IMAGE="$(IMAGE)" IMAGE_TAG="$(IMAGE_TAG)" $(HOST_VERIFY)
+else
 	@docker run --rm $(DOCKER_TTY) \
 		-v "$(CURDIR)/scripts:/scripts" \
 		-v "$(CURDIR)/images/$(IMAGE)/versions.lock:/versions.lock:ro" \
 		$(NPM_MOUNT) \
 		$(IMAGE_TAG) /scripts/$(IMAGE)/verify.sh
+endif
 
 # Scan image for vulnerabilities. Policy lives in trivy.yaml; only the
 # per-image suppression file is passed here. NO_IGNORE=1 reports what
