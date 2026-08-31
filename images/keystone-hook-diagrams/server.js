@@ -19,7 +19,16 @@ const path = require('node:path');
 const puppeteer = require('puppeteer-core');
 const { execFileSync } = require('node:child_process');
 
-const SOCKET = process.env.HOOK_SOCKET || '/hooks/diagrams.sock';
+// Required, with no default: Keystone settles a language collision by sort order
+// over socket filenames, so a name chosen here would take that lever from the
+// caller. Checked before main(): a browser start is wasted on a container that
+// cannot bind, and main()'s handler answers with a stack rather than a message.
+const SOCKET = (process.env.HOOK_SOCKET || '').trim();
+if (!SOCKET) {
+  process.stderr.write('HOOK_SOCKET is required: the path this hook binds, e.g. /hooks/diagrams.sock\n');
+  process.exit(1);
+}
+
 const PROTOCOLS = [1];
 const TARGETS = ['mermaid'];
 

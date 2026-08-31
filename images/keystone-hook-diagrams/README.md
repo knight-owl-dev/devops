@@ -47,9 +47,14 @@ resolve — so adding or dropping one changes a documented contract.
 
 ## The interface
 
-The socket is `/hooks/diagrams.sock`, mode `0666`, on a volume shared with the
-engine. `HOOK_SOCKET` moves it, which is for testing; the template's healthcheck
-and Keystone's own lookup both use the default.
+`HOOK_SOCKET` is required and has no default: it is the path this hook binds,
+mode `0666`, on a volume shared with the engine. Started without it, the hook
+exits rather than picking a name. Keystone settles two hooks claiming one
+language by sort order over socket filenames, so the name is the only lever over
+which renderer wins — and it is the caller's to pull, not this image's.
+
+Put it under `/hooks`, which the image ships at `1777` so a non-root UID can own
+the socket on a volume mounted there.
 
 `describe` answers what this renderer is:
 
@@ -141,6 +146,7 @@ services:
     tmpfs: [/tmp]
     environment:
       HOME: /tmp
+      HOOK_SOCKET: /hooks/diagrams.sock
     volumes:
       - hooks:/hooks
 ```
@@ -156,7 +162,8 @@ Smoke-test a build:
 
 ```bash
 docker build -t keystone-hook-diagrams:local .
-docker run -d --name hook --tmpfs /tmp keystone-hook-diagrams:local
+docker run -d --name hook --tmpfs /tmp \
+  -e HOOK_SOCKET=/hooks/diagrams.sock keystone-hook-diagrams:local
 docker exec -i hook node -e '
 const net=require("net");
 const c=net.createConnection("/hooks/diagrams.sock");
@@ -184,7 +191,8 @@ breaks something far away.
   hook against a 30 second budget. Warm, a render is about 60 ms; launching a
   browser per diagram would spend that budget on process startup. This is why it
   is a Node server rather than socat in front of a CLI.
-- **The healthcheck tests for the socket.** Started and listening are different
+- **The caller declares the healthcheck; the image ships none.** It tests for the
+  socket, and only the caller knows that path. Started and listening are different
   moments, and Keystone looks once, before the build begins. Losing that race is
   not a failed build — it is a book with every diagram quietly rendered as a code
   block. `start_interval` is what makes it prompt: without it Docker looks every

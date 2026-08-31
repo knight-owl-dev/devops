@@ -19,7 +19,15 @@
 const net = require('node:net');
 const { execFileSync } = require('node:child_process');
 
-const SOCKET = process.env.HOOK_SOCKET || '/hooks/diagrams.sock';
+// Told the path, never guessing it: docker exec inherits the container's
+// environment, so this is the same value the hook bound. A fallback would turn a
+// renamed socket into a bare ENOENT on connect.
+const SOCKET = (process.env.HOOK_SOCKET || '').trim();
+if (!SOCKET) {
+  console.error('HOOK_SOCKET is required: the path the hook bound');
+  process.exit(1);
+}
+
 const MODE = process.argv[2] || 'render';
 
 // The renderer lays out at 800 and captures at 3x; the SVG carries a nominal
