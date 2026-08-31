@@ -89,11 +89,8 @@ LABEL org.opencontainers.image.source="https://github.com/knight-owl-dev/devops"
 LABEL org.opencontainers.image.version="${IMAGE_VERSION}"
 LABEL org.opencontainers.image.description="Mermaid diagram rendering hook for Keystone's core-diagrams template"
 
-# Keystone looks for the socket once, before a build starts, and losing that race
-# quietly renders every diagram as a code block. The start period covers a browser
-# coming up cold; --start-interval is what polls inside it. --interval and retries
-# apply only afterwards, budgeting 90 seconds to catch a dead renderer.
-HEALTHCHECK --interval=30s --start-interval=1s --timeout=2s --retries=3 --start-period=30s \
-    CMD ["test", "-S", "/hooks/diagrams.sock"]
+# No HEALTHCHECK on purpose: the readiness test is the socket, and HOOK_SOCKET
+# names it from outside. The caller that sets the variable declares the matching
+# check. See the README for what that check has to cover.
 
 ENTRYPOINT ["node", "/app/server.js"]
