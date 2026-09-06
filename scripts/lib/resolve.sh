@@ -143,9 +143,9 @@ latest_npm_version() {
 # --package-lock-only resolves against the registry without installing, so
 # this stays a metadata operation like every other resolver.
 #
-# Separate from npm_lock so a caller that writes its own manifest — several
-# dependencies, or fields npm_lock's shape does not carry — reuses the
-# regeneration without npm_lock's single-package manifest.
+# Separate from npm_lock, which writes the manifest: that is one job and this is
+# another, and only this half talks to the registry — which is the seam the bats
+# tests stub.
 #
 # Arguments:
 #   $1 - Directory holding package.json

@@ -144,9 +144,10 @@ CI toolbox images run as root. They target CI runners (GitHub Actions) where the
 workspace is owned by root and consumers would need to escalate anyway, so a
 `USER` directive adds friction without meaningful isolation.
 
-A long-lived service is the exception — it owns no CI workspace, and it shares a
-volume with whatever talks to it. `keystone-hook-diagrams` runs as a non-root UID
-for that reason; its Dockerfile explains what that requires.
+A long-lived service is the exception: it owns no CI workspace, and it shares a
+volume with whatever talks to it. Such an image runs as a non-root UID, and its
+Dockerfile creates that user and gives it ownership of whatever the service
+writes.
 
 ### 3. Create the resolve script
 
@@ -202,7 +203,6 @@ owns argv, or a service that answers a protocol rather than `--version` — ship
 `scripts/<name>/verify-host.sh` instead. `make verify` runs it on the host with
 `IMAGE` and `IMAGE_TAG` in the environment, and that script owns the container
 lifecycle. Presence of the file is the only signal.
-See `scripts/keystone-hook-diagrams/verify-host.sh`.
 
 ### 5. Create the compose file (local builds only)
 
@@ -247,8 +247,7 @@ An image whose dependencies are all pinned elsewhere — a base image digest, a
 committed `package-lock.json` — has nothing to put in `versions.lock` and gets an
 empty one. The file still has to exist: `validate-lockfile.sh` and `make build`
 both read it unconditionally. Leave it empty: `publish.yml` pipes the file
-straight into `build-args`, so even a comment line reaches the build. See
-`images/keystone-hook-diagrams/`.
+straight into `build-args`, so even a comment line reaches the build.
 
 ### 7. Verify the full workflow
 
