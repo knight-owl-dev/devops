@@ -37,7 +37,7 @@ number — there is no separate per-image numbering to manage.
 
 ## What the Publish Workflow Does
 
-`publish.yml` runs five jobs:
+`publish.yml` runs six jobs:
 
 ### matrix — compute the build set
 
@@ -46,15 +46,25 @@ equals the release tag — i.e. the release PR stamped it as changed. The subset
 carrying a `distributable` marker becomes the packaging set. Both are emitted as
 JSON matrices.
 
-### publish — build, scan, sign (per image in the build set)
+### build — verify, scan, push by digest (per image, per architecture)
+
+Each architecture builds on a native runner: `ubuntu-latest` for amd64,
+`ubuntu-24.04-arm` for arm64. Nothing in the publish path runs under QEMU
+emulation.
 
 1. Loads `images/<image>/versions.lock` as build args, substituting `=local`
    with the image's version
-2. Builds a single-platform image and runs `scripts/<image>/verify.sh`
+2. Builds for the runner's own architecture and runs `make verify`
 3. Scans for CRITICAL/HIGH CVEs with Trivy (fails the build on findings)
-4. Builds multi-platform, pushes to GHCR with an SBOM attestation, tagging
-   `:latest` and `:v<version>`
-5. Signs the pushed digest with cosign (keyless via Sigstore Fulcio)
+4. Pushes to GHCR under its digest with no tag, carrying SBOM and provenance
+   attestations, and uploads the digest as an artifact
+
+### publish — assemble and sign the manifest list (per image in the build set)
+
+1. Merges both architectures' digests into one manifest list tagged `:latest`
+   and `:v<version>`, annotated from the Dockerfile's `image.description` label
+2. Signs the index digest with cosign (keyless via Sigstore Fulcio) — one
+   signature covers both platforms and both tags
 
 ### package — build assets (per image in the packaging set)
 
@@ -155,8 +165,8 @@ Each published image is protected by three mechanisms:
 - **CVE scanning** — Trivy scans the verified image for CRITICAL and HIGH
   severity vulnerabilities before pushing. Unfixed CVEs are ignored. Policy
   lives in the repo-root `trivy.yaml`.
-- **SBOM attestation** — a Software Bill of Materials is generated during
-  the multi-platform build and attached to the image in GHCR.
+- **SBOM attestation** — a Software Bill of Materials is generated for each
+  architecture's build and attached to the image in GHCR.
 - **Image signing** — cosign signs the pushed digest using keyless Sigstore
   signing (Fulcio OIDC). No long-lived keys are required.
 
