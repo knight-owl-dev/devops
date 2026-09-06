@@ -1,9 +1,0 @@
-{
-  "name": "keystone-hook-diagrams",
-  "private": true,
-  "type": "commonjs",
-  "dependencies": {
-    "mermaid": "11.17.2",
-    "puppeteer-core": "24.10.2"
-  }
-}
