@@ -45,6 +45,8 @@ Based on the description, recommend applicable labels from this list:
 | `security`         | Security-related fixes or improvements         |
 | `breaking-change`  | Changes that break existing behavior           |
 | `dependencies`     | Dependency updates                             |
+| `docker`           | Docker image or container changes              |
+| `github-actions`   | GitHub Actions workflow changes                |
 | `good-first-issue` | Simple issues suitable for newcomers           |
 | `help-wanted`      | Issues needing extra attention or expertise    |
 
@@ -64,7 +66,8 @@ Based on the confirmed type, draft the issue following the appropriate template.
 
 **Formatting**: Write paragraphs as flowing text without hard line breaks. GitHub's
 markdown renderer handles wrapping automatically. Only use line breaks between sections
-or for bullet lists.
+or for bullet lists. Keep it laconic and load-bearing — state the goal and scope,
+nothing more; cut flourish and drama.
 
 **For Bug Reports** (template: `.github/ISSUE_TEMPLATE/bug.md`):
 
@@ -133,12 +136,13 @@ Ask for confirmation before creating.
 
 ### 8. Create the Issue
 
-Use the gh CLI to create the issue:
+Use the gh CLI to create the issue, with a separate `--label` flag per label:
 
 ```bash
 gh issue create \
   --repo knight-owl-dev/devops \
-  --label "<labels>" \
+  --label "<label-1>" \
+  --label "<label-2>" \
   --title "<title>" \
   --body "<body>"
 ```
@@ -150,8 +154,10 @@ After successful creation:
 - Display the issue URL
 - Note that Issue Types must be set manually (gh CLI doesn't support this yet)
 - Ask if the user wants to open the issue in browser to set the type:
+
   ```bash
   gh issue view <issue-number> --repo knight-owl-dev/devops --web
   ```
+
 - Offer to create a branch for the issue (using GitHub's naming convention:
   `<issue-number>-<issue-title-slug>`)

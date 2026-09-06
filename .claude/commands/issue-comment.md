@@ -57,9 +57,9 @@ Ask the user what kind of comment they want to post using AskUserQuestion:
 - Question: "What type of comment would you like to post?"
 - Header: "Comment"
 - Options:
-    - **"Simple comment"** — Just a text message
-    - **"Progress update"** — Include recent commits and changed files as context
-    - **"Save thoughts"** — Save notes/thoughts for later work on this issue
+  - **"Simple comment"** — Just a text message
+  - **"Progress update"** — Include recent commits and changed files as context
+  - **"Save thoughts"** — Save notes/thoughts for later work on this issue
 
 ### 4a. Simple Comment
 
@@ -72,9 +72,9 @@ If the user chose "Simple comment":
 - Question: "What would you like to say?"
 - Header: "Message"
 - Options: Provide a few quick responses, but primarily expect free-form "Other" input
-    - "Looks good, merging soon"
-    - "Need more context on this"
-    - "Working on this now"
+  - "Looks good, merging soon"
+  - "Need more context on this"
+  - "Working on this now"
 
 ### 4b. Progress Update
 
@@ -113,8 +113,8 @@ If the user chose "Progress update":
    - `def5678` Second commit message
 
    ### Changed Files
-   - `src/file1.cs` (+50, -10)
-   - `src/file2.cs` (+20, -5)
+   - `scripts/lib/resolve.sh` (+50, -10)
+   - `images/ci-tools/Dockerfile` (+20, -5)
 
    ### Status
    - [ ] Ready for review
@@ -155,12 +155,12 @@ Before posting, show the user a preview of the full comment.
 
 Ask using AskUserQuestion:
 
-- Question: "Post this comment to issue #<number>?"
+- Question: "Post this comment to issue #`<number>`?"
 - Header: "Confirm"
 - Options:
-    - "Post comment" — proceed with posting
-    - "Edit first" — let the user modify (go back to comment input)
-    - "Cancel" — abort without posting
+  - "Post comment" — proceed with posting
+  - "Edit first" — let the user modify (go back to comment input)
+  - "Cancel" — abort without posting
 
 ### 6. Post the Comment
 
@@ -183,7 +183,7 @@ EOF
 
 After successful posting:
 
-- Display "Comment posted to issue #<number>"
+- Display "Comment posted to issue #`<number>`"
 - Show the issue URL: `https://github.com/knight-owl-dev/devops/issues/<number>`
 - Offer to open in browser:
 
