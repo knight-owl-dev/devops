@@ -27,6 +27,10 @@ git status --short
 gh repo view --json isFork,parent,nameWithOwner
 ```
 
+Stop if `git branch --show-current` returns the default branch: a PR opens from a
+feature branch, and every diff below is scoped to what that branch adds — on
+`main` they all come back empty and step 3 has no issue number to parse.
+
 ### 2. Determine Repository Topology
 
 Analyze the `gh repo view` output to determine the workflow type:
@@ -87,7 +91,31 @@ Review the git log output to understand what changes were made:
 - Identify the high-level changes (not commit-by-commit detail)
 - Focus on what behavior/functionality changed
 
-### 6. Determine Labels
+### 6. Offer a Pre-PR Review
+
+Surface the review before drafting; it is easy to forget when reviewing by hand.
+Running it now folds fixes into the branch instead of onto an open PR, where each
+costs another CI round.
+
+Choose from the diff (`git diff main...HEAD --stat`):
+
+- **Touches code** (`scripts/`, `images/*/bin/`, `.github/`, `Makefile`) — offer
+  `/code-review` for correctness: logic and edge-case bugs, which CI does not
+  check.
+- **Docs- or comment-only** — offer to skip; correctness is not that diff's lane.
+
+Use AskUserQuestion, defaulting to the offer that matches the diff:
+
+- Question: "Run a review before opening the PR?"
+- Header: "Review"
+- Options:
+  - "Run /code-review" — correctness pass
+  - "Skip — already reviewed"
+
+If it runs, present the findings, apply the accepted fixes, and re-stage before
+continuing.
+
+### 7. Determine Labels
 
 Based on the issue labels and commit content, recommend applicable labels:
 
@@ -99,16 +127,19 @@ Based on the issue labels and commit content, recommend applicable labels:
 | `security`        | Security-related fixes or improvements |
 | `breaking-change` | Changes that break existing behavior   |
 | `dependencies`    | Dependency updates                     |
+| `docker`          | Docker image or container changes      |
+| `github-actions`  | GitHub Actions workflow changes        |
 
 If the related issue has labels, prefer to match them.
 
-### 7. Draft PR Content
+### 8. Draft PR Content
 
 Follow the PR template (`.github/pull_request_template.md`):
 
 **Formatting**: Write paragraphs as flowing text without hard line breaks. GitHub's
 markdown renderer handles wrapping automatically. Only use line breaks between sections
-or for bullet lists.
+or for bullet lists. Keep it laconic and load-bearing — state the change and why,
+nothing more; cut flourish and drama.
 
 ```markdown
 ## Summary
@@ -137,7 +168,7 @@ Group related changes conceptually.]
 Omit this section if not needed.]
 ```
 
-### 8. Generate PR Title
+### 9. Generate PR Title
 
 Create an outcome-focused title that:
 
@@ -149,7 +180,7 @@ Create an outcome-focused title that:
   appends the PR number during squash merge; issue linking belongs in the body via `Refs #NN`
   or `Fixes #NN`
 
-### 9. Preview and Confirm
+### 10. Preview and Confirm
 
 Show the user a preview of:
 
@@ -164,7 +195,7 @@ Use AskUserQuestion to confirm before creating, with options to:
 - Edit the content
 - Add/remove labels
 
-### 10. Push Branch if Needed
+### 11. Push Branch if Needed
 
 Check if the branch has been pushed to remote:
 
@@ -172,10 +203,12 @@ Check if the branch has been pushed to remote:
 git status -sb
 ```
 
-If not pushed (no upstream), push with tracking:
+If there is no upstream, push with tracking. Push too when the branch is ahead
+of its upstream: a review fix from step 6 can land after an earlier push.
 
 ```bash
-git push -u origin <branch-name>
+git push -u origin <branch-name>   # no upstream
+git push                           # upstream exists, local is ahead
 ```
 
 This works for both workflows:
@@ -183,9 +216,11 @@ This works for both workflows:
 - **Clone**: `origin` is the main repository
 - **Fork**: `origin` is the user's fork (correct destination for PR branches)
 
-### 11. Create the Pull Request
+### 12. Create the Pull Request
 
 Use gh CLI to create the PR. The `--head` flag format differs based on repository topology.
+
+Use a separate `--label` flag for each label.
 
 **For cloned repositories** (direct access):
 
@@ -194,7 +229,8 @@ gh pr create \
   --repo knight-owl-dev/devops \
   --base main \
   --head <branch-name> \
-  --label "<labels>" \
+  --label "<label-1>" \
+  --label "<label-2>" \
   --title "<title>" \
   --body "<body>"
 ```
@@ -206,7 +242,8 @@ gh pr create \
   --repo knight-owl-dev/devops \
   --base main \
   --head <fork-owner>:<branch-name> \
-  --label "<labels>" \
+  --label "<label-1>" \
+  --label "<label-2>" \
   --title "<title>" \
   --body "<body>"
 ```
@@ -214,18 +251,20 @@ gh pr create \
 The `--head` flag must include the fork owner prefix (e.g., `alice:my-feature-branch`) so
 GitHub knows which fork contains the branch.
 
-### 12. Output
+### 13. Output
 
 After successful creation:
 
 - Display the PR URL
 - Ask if the user wants to open it in browser:
+
   ```bash
   gh pr view <pr-number> --repo knight-owl-dev/devops --web
   ```
 
 ### Error Handling
 
+- **On the default branch**: Stop — there is no feature branch to open a PR from
 - **Uncommitted changes**: Warn the user and ask if they want to commit first
 - **No commits**: Inform user there are no changes to create a PR for
 - **Branch not pushed**: Offer to push the branch automatically

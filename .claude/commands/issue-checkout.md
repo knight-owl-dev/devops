@@ -18,12 +18,12 @@ If there are uncommitted changes, **stop and warn the user**:
 
 - Show the list of modified/untracked files
 - Ask using AskUserQuestion:
-    - Question: "You have uncommitted changes. How would you like to proceed?"
-    - Header: "Uncommitted"
-    - Options:
-        - "Commit changes first" - let the user commit before continuing
-        - "Stash changes" - runs `git stash push -m "WIP before switching to issue #<number>"`
-        - "Cancel" - abort the checkout
+  - Question: "You have uncommitted changes. How would you like to proceed?"
+  - Header: "Uncommitted"
+  - Options:
+    - "Commit changes first" - let the user commit before continuing
+    - "Stash changes" - runs `git stash push -m "WIP before switching to issue #<number>"`
+    - "Cancel" - abort the checkout
 
 **Do not proceed** until the working tree is clean or changes are stashed.
 
@@ -212,8 +212,8 @@ If the issue has no assignee, offer to self-assign:
 - Question: "This issue is unassigned. Assign it to yourself?"
 - Header: "Assign"
 - Options:
-    - "Yes, assign to me" - assigns the issue
-    - "No, leave unassigned" - continues without assigning
+  - "Yes, assign to me" - assigns the issue
+  - "No, leave unassigned" - continues without assigning
 - If yes:
 
   ```bash
