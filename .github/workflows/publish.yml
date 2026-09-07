@@ -91,6 +91,11 @@ jobs:
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: images/${{ matrix.image }}/
+          # Constrains the build to the arch the matrix names. Redundant on a
+          # native runner; without it, an arch paired with the wrong runner
+          # label builds that runner's platform and the index carries one
+          # architecture twice.
+          platforms: linux/${{ matrix.arch }}
           load: true
           tags: ${{ matrix.image }}:verify
           build-args: ${{ steps.args.outputs.build_args }}
@@ -128,6 +133,7 @@ jobs:
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: images/${{ matrix.image }}/
+          platforms: linux/${{ matrix.arch }}
           build-args: ${{ steps.args.outputs.build_args }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           sbom: true
