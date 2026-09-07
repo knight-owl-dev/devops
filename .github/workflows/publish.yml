@@ -78,24 +78,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # mode=max caches every stage. ci-tools compiles luarocks in a
-      # `lua-builder` stage that reaches the final image only through
-      # COPY --from, which a final-image-only cache never records.
-      #
-      # A registry ref and not type=gha: this workflow runs on tag pushes, an
-      # Actions cache is readable only from the ref that wrote it and from the
-      # default branch, and each release is its own tag — so nothing written
-      # here would ever be read back. One ref per arch; the two hold different
-      # layers.
       - name: Build and verify
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: images/${{ matrix.image }}/
+          # Constrains the build to the arch the matrix names. Redundant on a
+          # native runner; without it, an arch paired with the wrong runner
+          # label builds that runner's platform and the index carries one
+          # architecture twice.
+          platforms: linux/${{ matrix.arch }}
           load: true
           tags: ${{ matrix.image }}:verify
           build-args: ${{ steps.args.outputs.build_args }}
           cache-from: type=registry,ref=ghcr.io/knight-owl-dev/${{ matrix.image }}:buildcache-${{ matrix.arch }}
-          cache-to: type=registry,ref=ghcr.io/knight-owl-dev/${{ matrix.image }}:buildcache-${{ matrix.arch }},mode=max
 
       - name: Verify tools
         run: make verify IMAGE=${{ matrix.image }} IMAGE_TAG=${{ matrix.image }}:verify
@@ -128,11 +123,27 @@ jobs:
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: images/${{ matrix.image }}/
+          platforms: linux/${{ matrix.arch }}
           build-args: ${{ steps.args.outputs.build_args }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           sbom: true
           provenance: true
           cache-from: type=registry,ref=ghcr.io/knight-owl-dev/${{ matrix.image }}:buildcache-${{ matrix.arch }}
+          # Exported after the scan: buildcache-<arch> is a tag on the same
+          # package as :latest, so a failed scan must leave none of its layers
+          # reachable. Costs no rebuild — the builder outlives the step, so
+          # this build hits local cache.
+          #
+          # A registry ref and not type=gha: this workflow runs on tag pushes,
+          # an Actions cache is readable only from the ref that wrote it and
+          # from the default branch, and each release is its own tag — so
+          # nothing written here would ever be read back. One ref per arch; the
+          # two hold different layers.
+          #
+          # mode=max caches every stage. ci-tools compiles luarocks in a
+          # `lua-builder` stage that reaches the final image only through
+          # COPY --from, which a final-image-only cache never records.
+          cache-to: type=registry,ref=ghcr.io/knight-owl-dev/${{ matrix.image }}:buildcache-${{ matrix.arch }},mode=max
 
       - name: Export digest
         env:
