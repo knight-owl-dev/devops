@@ -177,7 +177,10 @@ for verification commands and full details.
 
 If the Trivy scan fails during publish:
 
-1. **Reproduce locally** — run `make scan` to confirm the finding.
+1. **Reproduce locally** — run `make scan NO_CACHE=1` to confirm the finding.
+   A cached apt layer keeps distro packages at the version the cache captured,
+   so a plain `make scan` reports distro CVEs that CI, installing fresh from
+   the security repo, has already patched.
 2. **Identify the source layer** — Trivy output shows which package
    introduced the CVE. Check whether it comes from the base image or a
    tool installed in the Dockerfile.

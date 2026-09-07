@@ -62,12 +62,18 @@ get-version:
 release:
 	@AUTOMERGE='$(AUTOMERGE)' scripts/release.sh $(if $(VERSION),$(VERSION),$(BUMP))
 
-# Build image locally
+# Build image locally. NO_CACHE=1 rebuilds every layer: a cached apt layer
+# holds distro packages at the version the cache captured, so scanning over one
+# reports CVEs that CI, installing fresh from the security repo, has patched.
+ifdef NO_CACHE
+BUILD_FLAGS := --no-cache
+endif
+
 build:
 	@docker compose \
 		--env-file images/$(IMAGE)/versions.lock \
 		-f images/$(IMAGE)/compose.yaml \
-		build
+		build $(BUILD_FLAGS)
 
 # Verify all tools in the built image.
 #
@@ -255,6 +261,7 @@ help:
 	@echo "  make release BUMP=patch    Open a release PR, version bumped from latest tag"
 	@echo "  make release VERSION=1.3.0 Open a release PR at an explicit version"
 	@echo "  make build             Build image locally"
+	@echo "  make build NO_CACHE=1  Build without layer cache (matches CI)"
 	@echo "  make verify            Verify all tools in the built image"
 	@echo "  make scan              Scan image for vulnerabilities"
 	@echo "  make scan NO_IGNORE=1  Scan without .trivyignore.yaml suppressions"
