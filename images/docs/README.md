@@ -18,6 +18,10 @@ from the Node-based `ci-tools`, so neither image carries the other's stack.
 
 The pinned `zensical` version is tracked in [`versions.lock`](versions.lock).
 
+`pip` is uninstalled after it installs `zensical`, so the image ships none of
+pip's vendored dependencies. A derived image that needs pip can restore it with
+`python -m ensurepip --default-pip`.
+
 Zensical reads an existing `mkdocs.yml` directly. It requires `site_dir` to
 resolve inside the project root, canonicalizing the path first — a symlink
 pointing out fails the same check.
