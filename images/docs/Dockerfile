@@ -1,5 +1,5 @@
 # docs — Zensical documentation build image for Knight Owl
-FROM python:3.13-slim-bookworm@sha256:e4fa1f978c539608a10cdf74700ac32a3f719dfc6e8b6b6001da82deb36302a2
+FROM python:3.13-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -8,23 +8,17 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # build through the Makefile (`make docs-build`), the same way they drive
 # lint/test in ci-tools, so the build command lives in one place.
 #
-# libgnutls30 is listed explicitly to force apt to pull the latest deb12u7+
-# revision, fixing CVE-2026-33845, CVE-2026-42010, CVE-2026-33846,
-# CVE-2026-3833, and CVE-2026-42009. Remove once the base image ships
-# libgnutls30 >= 3.7.9-2+deb12u7. Tracking issue: #135.
-#
-# libssl3 and openssl are listed explicitly to force apt to pull the deb12u2
-# revision, fixing CVE-2026-45447 (heap use-after-free in PKCS7_verify()).
-# Remove once the base image ships openssl >= 3.0.20-1~deb12u2. Tracking
-# issue: #173.
+# libpcre2-8-0 is listed explicitly to force apt to pull the deb12u1 revision
+# from bookworm-security, fixing CVE-2026-86145 and CVE-2026-89161. make is
+# the only other package here and does not depend on pcre2, so nothing
+# upgrades it transitively. Remove once the base image ships
+# libpcre2-8-0 >= 10.42-1+deb12u1. Tracking issue: #263.
 #
 # DL3008: apt packages are intentionally unpinned
 # hadolint ignore=DL3008
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    libgnutls30 \
-    libssl3 \
-    openssl \
+    libpcre2-8-0 \
     make \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
@@ -34,8 +28,14 @@ RUN apt-get update \
 # npm/luarocks tools in ci-tools (see docs/supply-chain-security.md). The version
 # is pinned externally from versions.lock. Zensical ships prebuilt abi3 wheels,
 # so its Rust core needs no compiler here.
+#
+# pip is uninstalled once it has done its job: its vendored copies of msgpack
+# and setuptools are this image's only recurring CVE source, and nothing here
+# runs pip after the build. A derived image that needs it back can restore it
+# with `python -m ensurepip --default-pip`.
 ARG ZENSICAL_VERSION
-RUN pip install --no-cache-dir "zensical==${ZENSICAL_VERSION}"
+RUN pip install --no-cache-dir "zensical==${ZENSICAL_VERSION}" \
+  && python -m pip uninstall -y pip
 
 # ---------- runtime ----------
 # Images run as root because they target CI runners (GitHub Actions) where the
