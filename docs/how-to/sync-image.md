@@ -58,13 +58,14 @@ ACTIONLINT_SHA256_ARM64=cd3dfe5f6688...
 HADOLINT_VERSION=v2.14.0
 HADOLINT_SHA256_AMD64=6bf226944684...
 HADOLINT_SHA256_ARM64=331f1d3511b8...
-MARKDOWNLINT_CLI2_VERSION=0.20.0
 LUACHECK_VERSION=1.2.0-1
 VALIDATE_ACTION_PINS_VERSION=local
 ```
 
-Tools installed via package managers (npm, luarocks) track versions only —
-the package manager verifies integrity during install.
+Tools installed by a package manager (luarocks, pip, and the npm CLI itself)
+track versions only — the package manager verifies integrity during install.
+Tools installed *from* npm are the exception, pinned by the `package-lock.json`
+described above.
 
 Org-developed scripts use `local` as their version. At publish time the
 workflow substitutes the release version (from the git tag) so the Docker image

@@ -59,7 +59,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Installed from PyPI — pip verifies wheel integrity (same trust model as the
-# npm/luarocks tools in ci-tools). Pinned externally from versions.lock.
+# luarocks tools in ci-tools). Pinned externally from versions.lock.
 ARG ZENSICAL_VERSION
 RUN pip install --no-cache-dir "zensical==${ZENSICAL_VERSION}"
 

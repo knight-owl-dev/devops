@@ -35,7 +35,9 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [zip](https://infozip.sourceforge.net) | Archive assembly for archive-format test fixtures (ODT/DOCX/EPUB) |
 
 Pinned versions and checksums are tracked in
-[`versions.lock`](versions.lock).
+[`versions.lock`](versions.lock). Tools installed from npm carry no key there —
+a committed `package-lock.json` under [`npm/`](npm) pins each one and its whole
+dependency tree.
 
 ## Locale
 
