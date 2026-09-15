@@ -132,7 +132,11 @@ mkdir -p images/<name> scripts/<name>
     and checksum at build time.
   - If the upstream asset naming doesn't use `amd64`/`arm64` directly, map
     `TARGETARCH` to the expected value (e.g., `amd64` → `x86_64`).
-- For package-manager installs (npm, luarocks, etc.):
+- For tools installed from npm:
+  - No ARG. `make resolve` generates `images/<name>/npm/<tool>/`, and the build
+    installs from the committed lockfile with `npm ci` — see
+    [Sync an Image](sync-image.md#what-gets-written).
+- For other package-manager installs (luarocks, pip, the npm CLI itself, etc.):
   - A version ARG is sufficient — the package manager verifies integrity.
 - For repo-local scripts (shipped from the repo, not downloaded):
   - Use `COPY --chmod=755` instead of a download-and-verify `RUN`.
@@ -158,6 +162,8 @@ applicable) for each tool, then writes `images/<name>/versions.lock`.
   checksums for **both** architectures (`amd64` and `arm64`).
 - For package-manager tools, use the appropriate CLI or registry API
   (e.g., `npm view`, `luarocks search`).
+- For tools installed from npm, call `npm_lock` to write `npm/<tool>/` and set
+  no `versions.lock` key — a key with no matching `ARG` fails `make lint`.
 
 Shared helpers live in `scripts/lib/resolve.sh`. See
 `scripts/ci-tools/resolve.sh` as a reference implementation.

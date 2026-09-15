@@ -150,6 +150,14 @@ resolve_cspell() {
   npm_lock "${NPM_DIR}/cspell" cspell "${version}"
 }
 
+# shellcheck disable=SC2034
+resolve_prettier() {
+  local version="${1:-}"
+  [[ -z "${version}" ]] && version="$(latest_npm_version prettier)"
+  PRETTIER_VERSION="${version}"
+  npm_lock "${NPM_DIR}/prettier" prettier "${version}"
+}
+
 resolve_luacheck() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_luarocks_version luacheck)"
@@ -203,7 +211,7 @@ resolve_validate_action_pins() {
 # ── argument parsing ─────────────────────────────────────────────────
 
 # Determine which tools to resolve and whether a version is pinned.
-ALL_TOOLS=(npm shfmt actionlint hadolint yq markdownlint-cli2 biome stylelint cspell luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
+ALL_TOOLS=(npm shfmt actionlint hadolint yq markdownlint-cli2 biome stylelint cspell prettier luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
 TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
@@ -213,7 +221,7 @@ else
   for arg in "${@}"; do
     tool="${arg%%:*}"
     case "${tool}" in
-      npm | shfmt | actionlint | hadolint | yq | markdownlint-cli2 | biome | stylelint | cspell | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
+      npm | shfmt | actionlint | hadolint | yq | markdownlint-cli2 | biome | stylelint | cspell | prettier | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
       *) die "unknown tool: ${tool}. Valid tools: ${ALL_TOOLS[*]}" ;;
     esac
     TOOLS_TO_RESOLVE+=("${tool}")

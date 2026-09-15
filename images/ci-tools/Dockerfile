@@ -168,6 +168,12 @@ RUN npm ci --prefix /opt/npm/cspell --omit=dev \
   && ln -s /opt/npm/cspell/node_modules/.bin/cspell /usr/local/bin/cspell \
   && npm cache clean --force
 
+# ---------- prettier ----------
+COPY npm/prettier/ /opt/npm/prettier/
+RUN npm ci --prefix /opt/npm/prettier --omit=dev \
+  && ln -s /opt/npm/prettier/node_modules/.bin/prettier /usr/local/bin/prettier \
+  && npm cache clean --force
+
 # ---------- lua toolchain (luacheck + busted on Lua 5.4) ----------
 # Rocks are compiled against Lua 5.4 in the builder and copied as artifacts, so
 # this image carries no -dev headers, no gcc, and no luarocks. The generated

@@ -39,6 +39,7 @@ MARKDOWNLINT_CLI2_VERSION="$(npm_expected markdownlint-cli2)"
 BIOME_VERSION="$(npm_expected biome)"
 STYLELINT_VERSION="$(npm_expected stylelint)"
 CSPELL_VERSION="$(npm_expected cspell)"
+PRETTIER_VERSION="$(npm_expected prettier)"
 
 echo "Verifying ci-tools ..."
 check "npm" "${NPM_VERSION}" npm --version
@@ -59,6 +60,7 @@ check "chktex" "" chktex --version
 check "mandoc" "" command -v mandoc
 check "stylelint" "${STYLELINT_VERSION}" stylelint --version
 check "cspell" "${CSPELL_VERSION}" cspell --version
+check "prettier" "${PRETTIER_VERSION}" prettier --version
 check "validate-action-pins" "${VALIDATE_ACTION_PINS_VERSION}" \
   validate-action-pins --version
 check "bats" "${BATS_VERSION}" bats --version
