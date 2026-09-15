@@ -242,3 +242,13 @@ vulnerabilities:
       own tar utils) lists or extracts whole archives — so the path is
       unreachable. Tracking: #203. Remove once npm bundles >= 7.5.21.
     expired_at: 2026-10-22
+
+  - id: CVE-2026-85730
+    statement: >-
+      smol-toml denial of service via malformed TOML, fixed in 1.7.1.
+      Reaches markdownlint-cli2 0.23.2, which exact-pins 1.7.0 — the whole
+      0.23.x line does, so no bump clears it. The only TOML parsed is the
+      consuming repo's own .markdownlint.toml, never attacker-supplied, and
+      the blast radius is a hung lint job. Tracking: #203. Remove once
+      markdownlint-cli2 pins smol-toml >= 1.7.1.
+    expired_at: 2026-10-29
