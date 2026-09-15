@@ -23,6 +23,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [parallel](https://www.gnu.org/software/parallel/) | Parallel execution backend for bats --jobs |
 | [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | Markdown linting |
 | [npm](https://github.com/npm/cli) | Package manager (upgraded beyond base image for CVE fixes) |
+| [prettier](https://github.com/prettier/prettier) | Markdown formatting |
 | [rsync](https://rsync.samba.org) | File synchronization for build assembly |
 | [shellcheck](https://github.com/koalaman/shellcheck) | Shell script linting |
 | [shfmt](https://github.com/mvdan/sh) | Shell script formatting |

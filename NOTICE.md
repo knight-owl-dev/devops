@@ -17,6 +17,7 @@ following tools under their respective licenses.
 - [stylelint](https://github.com/stylelint/stylelint) by stylelint contributors (MIT)
 - [ChkTeX](https://www.nongnu.org/chktex/) by ChkTeX contributors (GPLv2+)
 - [CSpell](https://github.com/streetsidesoftware/cspell) by cspell contributors (MIT)
+- [Prettier](https://github.com/prettier/prettier) by Prettier contributors (MIT)
 - [bats-core](https://github.com/bats-core/bats-core) by bats-core contributors (MIT)
 - [GNU Parallel](https://www.gnu.org/software/parallel/) by Ole Tange (GPLv3+)
 - [XMLStarlet](https://xmlstar.sourceforge.net) by Mikhail Grushinskiy (MIT)
