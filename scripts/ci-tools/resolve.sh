@@ -104,6 +104,25 @@ resolve_yq() {
   YQ_SHA256_ARM64="${sha256_arm64}"
 }
 
+resolve_gh() {
+  local tag="${1:-}"
+  [[ -z "${tag}" ]] && tag="$(latest_gh_tag cli/cli)"
+
+  # Strip leading v — Dockerfile constructs v${VERSION} in the URL.
+  local version="${tag#v}"
+
+  local digests
+  digests="$(fetch_gh_digests cli/cli "v${version}")"
+
+  local sha256_amd64 sha256_arm64
+  sha256_amd64="$(pick_gh_digest "${digests}" "gh_${version}_linux_amd64.tar.gz")"
+  sha256_arm64="$(pick_gh_digest "${digests}" "gh_${version}_linux_arm64.tar.gz")"
+
+  GH_VERSION="${version}"
+  GH_SHA256_AMD64="${sha256_amd64}"
+  GH_SHA256_ARM64="${sha256_arm64}"
+}
+
 resolve_npm() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version npm)"
@@ -211,7 +230,7 @@ resolve_validate_action_pins() {
 # ── argument parsing ─────────────────────────────────────────────────
 
 # Determine which tools to resolve and whether a version is pinned.
-ALL_TOOLS=(npm shfmt actionlint hadolint yq markdownlint-cli2 biome stylelint cspell prettier luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
+ALL_TOOLS=(npm shfmt actionlint hadolint yq gh markdownlint-cli2 biome stylelint cspell prettier luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
 TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
@@ -221,7 +240,7 @@ else
   for arg in "${@}"; do
     tool="${arg%%:*}"
     case "${tool}" in
-      npm | shfmt | actionlint | hadolint | yq | markdownlint-cli2 | biome | stylelint | cspell | prettier | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
+      npm | shfmt | actionlint | hadolint | yq | gh | markdownlint-cli2 | biome | stylelint | cspell | prettier | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
       *) die "unknown tool: ${tool}. Valid tools: ${ALL_TOOLS[*]}" ;;
     esac
     TOOLS_TO_RESOLVE+=("${tool}")
@@ -238,6 +257,7 @@ SHFMT_VERSION="" SHFMT_SHA256_AMD64="" SHFMT_SHA256_ARM64=""
 ACTIONLINT_VERSION="" ACTIONLINT_SHA256_AMD64="" ACTIONLINT_SHA256_ARM64=""
 HADOLINT_VERSION="" HADOLINT_SHA256_AMD64="" HADOLINT_SHA256_ARM64=""
 YQ_VERSION="" YQ_SHA256_AMD64="" YQ_SHA256_ARM64=""
+GH_VERSION="" GH_SHA256_AMD64="" GH_SHA256_ARM64=""
 LUACHECK_VERSION=""
 BUSTED_VERSION=""
 BATS_VERSION="" BATS_COMMIT=""
@@ -280,6 +300,9 @@ HADOLINT_SHA256_ARM64=${HADOLINT_SHA256_ARM64}
 YQ_VERSION=${YQ_VERSION}
 YQ_SHA256_AMD64=${YQ_SHA256_AMD64}
 YQ_SHA256_ARM64=${YQ_SHA256_ARM64}
+GH_VERSION=${GH_VERSION}
+GH_SHA256_AMD64=${GH_SHA256_AMD64}
+GH_SHA256_ARM64=${GH_SHA256_ARM64}
 LUACHECK_VERSION=${LUACHECK_VERSION}
 BUSTED_VERSION=${BUSTED_VERSION}
 BATS_VERSION=${BATS_VERSION}

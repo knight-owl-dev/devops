@@ -22,6 +22,7 @@ following tools under their respective licenses.
 - [GNU Parallel](https://www.gnu.org/software/parallel/) by Ole Tange (GPLv3+)
 - [XMLStarlet](https://xmlstar.sourceforge.net) by Mikhail Grushinskiy (MIT)
 - [yq](https://github.com/mikefarah/yq) by Mike Farah (MIT)
+- [GitHub CLI](https://github.com/cli/cli) by GitHub (MIT)
 
 ## docs
 
