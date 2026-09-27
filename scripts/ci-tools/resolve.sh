@@ -230,7 +230,14 @@ resolve_validate_action_pins() {
 # ── argument parsing ─────────────────────────────────────────────────
 
 # Determine which tools to resolve and whether a version is pinned.
-ALL_TOOLS=(npm shfmt actionlint hadolint yq gh markdownlint-cli2 biome stylelint cspell prettier luacheck busted bats bats-support bats-assert bats-file validate-action-pins)
+ALL_TOOLS=(
+  npm
+  shfmt actionlint hadolint yq gh
+  markdownlint-cli2 biome stylelint cspell prettier
+  luacheck busted
+  bats bats-support bats-assert bats-file
+  validate-action-pins
+)
 TOOLS_TO_RESOLVE=()
 declare -A PINNED_VERSIONS=()
 
@@ -239,10 +246,8 @@ if [[ $# -eq 0 ]]; then
 else
   for arg in "${@}"; do
     tool="${arg%%:*}"
-    case "${tool}" in
-      npm | shfmt | actionlint | hadolint | yq | gh | markdownlint-cli2 | biome | stylelint | cspell | prettier | luacheck | busted | bats | bats-support | bats-assert | bats-file | validate-action-pins) ;;
-      *) die "unknown tool: ${tool}. Valid tools: ${ALL_TOOLS[*]}" ;;
-    esac
+    [[ " ${ALL_TOOLS[*]} " == *" ${tool} "* ]] \
+      || die "unknown tool: ${tool}. Valid tools: ${ALL_TOOLS[*]}"
     TOOLS_TO_RESOLVE+=("${tool}")
     if [[ "${arg}" == *:* ]]; then
       PINNED_VERSIONS["${tool}"]="${arg#*:}"
