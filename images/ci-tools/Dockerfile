@@ -104,7 +104,7 @@ RUN ACTIONLINT_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
   && curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${TARGETARCH}.tar.gz" \
       -o /tmp/actionlint.tar.gz \
   && echo "${ACTIONLINT_SHA256}  /tmp/actionlint.tar.gz" | sha256sum -c - \
-  && tar -xzf /tmp/actionlint.tar.gz -C /usr/local/bin actionlint \
+  && tar -xzf /tmp/actionlint.tar.gz -C /usr/local/bin --no-same-owner actionlint \
   && rm /tmp/actionlint.tar.gz
 
 # ---------- hadolint ----------
@@ -130,6 +130,19 @@ RUN YQ_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
       -o /usr/local/bin/yq \
   && echo "${YQ_SHA256}  /usr/local/bin/yq" | sha256sum -c - \
   && chmod +x /usr/local/bin/yq
+
+# ---------- gh ----------
+ARG GH_VERSION
+ARG GH_SHA256_AMD64
+ARG GH_SHA256_ARM64
+RUN GH_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
+      && echo "${GH_SHA256_AMD64}" || echo "${GH_SHA256_ARM64}") \
+  && curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${TARGETARCH}.tar.gz" \
+      -o /tmp/gh.tar.gz \
+  && echo "${GH_SHA256}  /tmp/gh.tar.gz" | sha256sum -c - \
+  && tar -xzf /tmp/gh.tar.gz -C /usr/local/bin --no-same-owner --strip-components=2 \
+      "gh_${GH_VERSION}_linux_${TARGETARCH}/bin/gh" \
+  && rm /tmp/gh.tar.gz
 
 # ---------- npm ----------
 # Upgrade npm beyond the base image version to pick up transitive dependency

@@ -13,6 +13,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [biome](https://github.com/biomejs/biome) | JavaScript/TypeScript linting |
 | [chktex](https://www.nongnu.org/chktex/) | LaTeX document linting |
 | [cspell](https://github.com/streetsidesoftware/cspell) | Spell checking |
+| [gh](https://github.com/cli/cli) | GitHub CLI (pull requests, releases, API calls) |
 | [git](https://git-scm.com) | Version control (build-time cloning and runtime use) |
 | [gpg](https://gnupg.org) | GPG signature verification |
 | [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting |
