@@ -38,6 +38,100 @@ ARG BUSTED_VERSION
 RUN luarocks --lua-version=5.4 install busted "${BUSTED_VERSION}" \
   && rm -rf /root/.cache/luarocks
 
+# ---------- release binaries ----------
+# Downloads and verifies each release binary into /out. The final stage copies
+# /out alone, so the helper and the downloaded archives never ship.
+#
+# Base digest duplicated from lua-builder for Dependabot — see the note there.
+FROM node:26-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2 AS release-bins
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# DL3008: apt packages are intentionally unpinned
+# hadolint ignore=DL3008
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --chmod=755 build/install-release.sh /usr/local/bin/install-release
+
+ARG TARGETARCH
+
+# ---------- shfmt ----------
+ARG SHFMT_AMD64_URL
+ARG SHFMT_AMD64_SHA256
+ARG SHFMT_ARM64_URL
+ARG SHFMT_ARM64_SHA256
+RUN install-release "${TARGETARCH}" \
+      "${SHFMT_AMD64_URL}" "${SHFMT_AMD64_SHA256}" \
+      "${SHFMT_ARM64_URL}" "${SHFMT_ARM64_SHA256}" \
+      /out/shfmt
+
+# ---------- actionlint ----------
+ARG ACTIONLINT_AMD64_URL
+ARG ACTIONLINT_AMD64_SHA256
+ARG ACTIONLINT_ARM64_URL
+ARG ACTIONLINT_ARM64_SHA256
+RUN install-release "${TARGETARCH}" \
+      "${ACTIONLINT_AMD64_URL}" "${ACTIONLINT_AMD64_SHA256}" \
+      "${ACTIONLINT_ARM64_URL}" "${ACTIONLINT_ARM64_SHA256}" \
+      /out/actionlint \
+      actionlint
+
+# ---------- hadolint ----------
+ARG HADOLINT_AMD64_URL
+ARG HADOLINT_AMD64_SHA256
+ARG HADOLINT_ARM64_URL
+ARG HADOLINT_ARM64_SHA256
+RUN install-release "${TARGETARCH}" \
+      "${HADOLINT_AMD64_URL}" "${HADOLINT_AMD64_SHA256}" \
+      "${HADOLINT_ARM64_URL}" "${HADOLINT_ARM64_SHA256}" \
+      /out/hadolint
+
+# ---------- yq ----------
+ARG YQ_AMD64_URL
+ARG YQ_AMD64_SHA256
+ARG YQ_ARM64_URL
+ARG YQ_ARM64_SHA256
+RUN install-release "${TARGETARCH}" \
+      "${YQ_AMD64_URL}" "${YQ_AMD64_SHA256}" \
+      "${YQ_ARM64_URL}" "${YQ_ARM64_SHA256}" \
+      /out/yq
+
+# ---------- gh ----------
+ARG GH_AMD64_URL
+ARG GH_AMD64_SHA256
+ARG GH_ARM64_URL
+ARG GH_ARM64_SHA256
+RUN install-release "${TARGETARCH}" \
+      "${GH_AMD64_URL}" "${GH_AMD64_SHA256}" \
+      "${GH_ARM64_URL}" "${GH_ARM64_SHA256}" \
+      /out/gh \
+      '*/bin/gh'
+
+# ---------- shellcheck ----------
+ARG SHELLCHECK_AMD64_URL
+ARG SHELLCHECK_AMD64_SHA256
+ARG SHELLCHECK_ARM64_URL
+ARG SHELLCHECK_ARM64_SHA256
+RUN install-release "${TARGETARCH}" \
+      "${SHELLCHECK_AMD64_URL}" "${SHELLCHECK_AMD64_SHA256}" \
+      "${SHELLCHECK_ARM64_URL}" "${SHELLCHECK_ARM64_SHA256}" \
+      /out/shellcheck \
+      'shellcheck-*/shellcheck'
+
+# ---------- jq ----------
+ARG JQ_AMD64_URL
+ARG JQ_AMD64_SHA256
+ARG JQ_ARM64_URL
+ARG JQ_ARM64_SHA256
+RUN install-release "${TARGETARCH}" \
+      "${JQ_AMD64_URL}" "${JQ_AMD64_SHA256}" \
+      "${JQ_ARM64_URL}" "${JQ_ARM64_SHA256}" \
+      /out/jq
+
 # ---------- final image ----------
 # Base digest duplicated from lua-builder for Dependabot — see the note there.
 FROM node:26-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2
@@ -49,11 +143,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # hadolint ignore=DL3008
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    shellcheck \
     chktex \
     mandoc \
     parallel \
-    jq \
     locales \
     make \
     curl \
@@ -81,68 +173,8 @@ RUN mkdir -m 700 "${GNUPGHOME}"
 # Silence GNU parallel's citation notice in CI logs
 RUN mkdir -p /root/.parallel && touch /root/.parallel/will-cite
 
-# ---------- platform ----------
-ARG TARGETARCH
-
-# ---------- shfmt ----------
-ARG SHFMT_VERSION
-ARG SHFMT_SHA256_AMD64
-ARG SHFMT_SHA256_ARM64
-RUN SHFMT_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
-      && echo "${SHFMT_SHA256_AMD64}" || echo "${SHFMT_SHA256_ARM64}") \
-  && curl -fsSL "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_${TARGETARCH}" \
-      -o /usr/local/bin/shfmt \
-  && echo "${SHFMT_SHA256}  /usr/local/bin/shfmt" | sha256sum -c - \
-  && chmod +x /usr/local/bin/shfmt
-
-# ---------- actionlint ----------
-ARG ACTIONLINT_VERSION
-ARG ACTIONLINT_SHA256_AMD64
-ARG ACTIONLINT_SHA256_ARM64
-RUN ACTIONLINT_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
-      && echo "${ACTIONLINT_SHA256_AMD64}" || echo "${ACTIONLINT_SHA256_ARM64}") \
-  && curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_${TARGETARCH}.tar.gz" \
-      -o /tmp/actionlint.tar.gz \
-  && echo "${ACTIONLINT_SHA256}  /tmp/actionlint.tar.gz" | sha256sum -c - \
-  && tar -xzf /tmp/actionlint.tar.gz -C /usr/local/bin --no-same-owner actionlint \
-  && rm /tmp/actionlint.tar.gz
-
-# ---------- hadolint ----------
-ARG HADOLINT_VERSION
-ARG HADOLINT_SHA256_AMD64
-ARG HADOLINT_SHA256_ARM64
-RUN HADOLINT_ARCH=$([ "${TARGETARCH}" = "amd64" ] \
-      && echo "x86_64" || echo "${TARGETARCH}") \
-  && HADOLINT_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
-      && echo "${HADOLINT_SHA256_AMD64}" || echo "${HADOLINT_SHA256_ARM64}") \
-  && curl -fsSL "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-linux-${HADOLINT_ARCH}" \
-      -o /usr/local/bin/hadolint \
-  && echo "${HADOLINT_SHA256}  /usr/local/bin/hadolint" | sha256sum -c - \
-  && chmod +x /usr/local/bin/hadolint
-
-# ---------- yq ----------
-ARG YQ_VERSION
-ARG YQ_SHA256_AMD64
-ARG YQ_SHA256_ARM64
-RUN YQ_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
-      && echo "${YQ_SHA256_AMD64}" || echo "${YQ_SHA256_ARM64}") \
-  && curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${TARGETARCH}" \
-      -o /usr/local/bin/yq \
-  && echo "${YQ_SHA256}  /usr/local/bin/yq" | sha256sum -c - \
-  && chmod +x /usr/local/bin/yq
-
-# ---------- gh ----------
-ARG GH_VERSION
-ARG GH_SHA256_AMD64
-ARG GH_SHA256_ARM64
-RUN GH_SHA256=$([ "${TARGETARCH}" = "amd64" ] \
-      && echo "${GH_SHA256_AMD64}" || echo "${GH_SHA256_ARM64}") \
-  && curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${TARGETARCH}.tar.gz" \
-      -o /tmp/gh.tar.gz \
-  && echo "${GH_SHA256}  /tmp/gh.tar.gz" | sha256sum -c - \
-  && tar -xzf /tmp/gh.tar.gz -C /usr/local/bin --no-same-owner --strip-components=2 \
-      "gh_${GH_VERSION}_linux_${TARGETARCH}/bin/gh" \
-  && rm /tmp/gh.tar.gz
+# ---------- release binaries ----------
+COPY --from=release-bins /out/ /usr/local/bin/
 
 # ---------- npm ----------
 # Upgrade npm beyond the base image version to pick up transitive dependency

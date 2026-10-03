@@ -17,6 +17,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [git](https://git-scm.com) | Version control (build-time cloning and runtime use) |
 | [gpg](https://gnupg.org) | GPG signature verification |
 | [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting |
+| [jq](https://github.com/jqlang/jq) | JSON processing |
 | [lua](https://www.lua.org) | Lua 5.4 interpreter (runtime for busted; matches Pandoc's HsLua) |
 | [luacheck](https://github.com/lunarmodules/luacheck) | Lua script linting |
 | [luassert](https://github.com/lunarmodules/luassert) | Lua assertion library (busted dependency) |

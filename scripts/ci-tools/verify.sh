@@ -18,6 +18,7 @@ source "${REPO_ROOT}/scripts/lib/verify.sh"
 # Load expected versions from the lockfile if mounted.
 NPM_VERSION=""
 SHFMT_VERSION="" ACTIONLINT_VERSION="" HADOLINT_VERSION="" YQ_VERSION="" GH_VERSION=""
+SHELLCHECK_VERSION="" JQ_VERSION=""
 LUACHECK_VERSION="" BUSTED_VERSION=""
 BATS_VERSION=""
 VALIDATE_ACTION_PINS_VERSION=""
@@ -43,12 +44,16 @@ PRETTIER_VERSION="$(npm_expected prettier)"
 
 echo "Verifying ci-tools ..."
 check "npm" "${NPM_VERSION}" npm --version
-check "shellcheck" "" shellcheck --version
+# check reads only the first line, and shellcheck's --version opens with a banner.
+check "shellcheck" "${SHELLCHECK_VERSION}" \
+  bash -o pipefail -c "shellcheck --version | sed -n 's/^version: //p'"
 check "shfmt" "${SHFMT_VERSION}" shfmt --version
 check "actionlint" "${ACTIONLINT_VERSION}" actionlint --version
 check "hadolint" "${HADOLINT_VERSION}" hadolint --version
 check "yq" "${YQ_VERSION}" yq --version
 check "gh" "${GH_VERSION}" gh --version
+# normalize_version would cut a jq-1.8.2 tag to "jq", matching any version.
+check "jq" "${JQ_VERSION#jq-}" jq --version
 check "markdownlint-cli2" "${MARKDOWNLINT_CLI2_VERSION}" markdownlint-cli2 --version
 check "biome" "${BIOME_VERSION}" biome --version
 check "lua" "5.4" lua5.4 -v

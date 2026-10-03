@@ -134,6 +134,23 @@ _make_compose_raw() {
   assert_success
 }
 
+@test "a release binary's VERSION key needs no ARG" {
+  _make_dockerfile "FROM scratch" "ARG TOOL_AMD64_URL"
+  _make_lockfile "TOOL_VERSION=v1.0.0" "TOOL_AMD64_URL=https://example.test/tool"
+  _make_compose TOOL_AMD64_URL
+  run "${SCRIPT}" test-image
+  assert_success
+}
+
+@test "a VERSION key without a sibling URL key still needs an ARG" {
+  _make_dockerfile "FROM scratch" "ARG OTHER_AMD64_URL"
+  _make_lockfile "TOOL_VERSION=v1.0.0" "OTHER_AMD64_URL=https://example.test/other"
+  _make_compose OTHER_AMD64_URL
+  run "${SCRIPT}" test-image
+  assert_failure
+  assert_output --partial "TOOL_VERSION"
+}
+
 # ── compose forwarding ───────────────────────────────────────────────
 
 @test "exits 1 when an ARG is never forwarded by compose.yaml" {
