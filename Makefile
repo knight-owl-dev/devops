@@ -169,20 +169,20 @@ lint-docker:
 # only, not globally.
 lint-sh:
 	@echo "Linting shell scripts..." \
-		&& shellcheck scripts/*.sh scripts/*/*.sh tests/deb/*.sh images/*/bin/* \
+		&& shellcheck scripts/*.sh scripts/*/*.sh tests/deb/*.sh images/*/bin/* images/*/build/*.sh \
 		&& shellcheck -e SC2154 $$(find tests/bats -type f \( -name '*.bash' -o -name '*.bats' \)) \
 		&& echo "OK"
 
 # Check shell script formatting
 lint-sh-fmt:
 	@echo "Checking shell script formatting..." \
-		&& shfmt -d -i 2 -ci -bn -sr scripts/ tests/ \
+		&& shfmt -d -i 2 -ci -bn -sr scripts/ tests/ images/*/build/ \
 		&& echo "OK"
 
 # Fix shell script formatting
 lint-sh-fmt-fix:
 	@echo "Fixing shell script formatting..." \
-		&& shfmt -w -i 2 -ci -bn -sr scripts/ tests/ \
+		&& shfmt -w -i 2 -ci -bn -sr scripts/ tests/ images/*/build/ \
 		&& echo "OK"
 
 # Lint GitHub Actions workflows
