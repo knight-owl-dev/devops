@@ -89,7 +89,7 @@ setup() {
 
 @test "resolve_ref tolerates a missing v prefix (comment 3, tag v3)" {
   # trivy-action case: the git tag carries the leading v but the
-  # Dependabot-written comment does not. The verbatim lookup 404s;
+  # bot-written comment does not. The verbatim lookup 404s;
   # the v-prefixed retry resolves.
   # shellcheck disable=SC1090
   source "${SCRIPT}"
