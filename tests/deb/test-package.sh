@@ -16,11 +16,11 @@ set -euo pipefail
 #                   scripts/<image>/verify-deb-install.sh
 #   path-to-deb     Path to the .deb to test
 #   test-container  Docker base image to install into
-#                   (default: debian:bookworm-slim)
+#                   (default: debian:trixie-slim)
 #
 # Examples:
 #   ./tests/deb/test-package.sh ci-tools artifacts/release/ci-tools_0.0.0_amd64.deb
-#   ./tests/deb/test-package.sh ci-tools artifacts/release/ci-tools_0.0.0_amd64.deb ubuntu:24.04
+#   ./tests/deb/test-package.sh ci-tools artifacts/release/ci-tools_0.0.0_amd64.deb ubuntu:26.04
 #
 # Requirements:
 #   - Docker must be installed and running
@@ -39,13 +39,13 @@ if [[ $# -lt 2 ]]; then
   echo ""
   echo "Examples:"
   echo "  $0 ci-tools artifacts/release/ci-tools_0.0.0_amd64.deb"
-  echo "  $0 ci-tools artifacts/release/ci-tools_0.0.0_amd64.deb ubuntu:24.04"
+  echo "  $0 ci-tools artifacts/release/ci-tools_0.0.0_amd64.deb ubuntu:26.04"
   exit 1
 fi
 
 IMAGE="$1"
 DEB_FILE="$2"
-TEST_IMAGE="${3:-debian:bookworm-slim}"
+TEST_IMAGE="${3:-debian:trixie-slim}"
 
 if [[ ! -f "${DEB_FILE}" ]]; then
   echo "ERROR: File not found: ${DEB_FILE}"

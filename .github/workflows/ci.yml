@@ -8,7 +8,7 @@ on:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     container: ghcr.io/knight-owl-dev/ci-tools:latest
     steps:
       - name: Checkout
@@ -22,7 +22,7 @@ jobs:
 
   bats:
     name: BATS
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     container: ghcr.io/knight-owl-dev/ci-tools:latest
     steps:
       - name: Checkout
@@ -36,7 +36,7 @@ jobs:
 
   deb-images:
     name: Discover distributable images
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     permissions:
       contents: read
     outputs:
@@ -49,14 +49,13 @@ jobs:
         id: list
         run: ./scripts/list-distributable-images.sh
 
-  # Builds run on ubuntu-latest (x86_64) for both architectures. The tools
-  # are bash scripts, so nfpm produces valid debs regardless of host arch.
-  # Architecture-specific testing happens in test-deb using native runners.
+  # One host builds both architectures: the tools are bash scripts, so nfpm's
+  # debs don't depend on host arch. test-deb covers each arch natively.
   build-deb:
     name: Build .deb (${{ matrix.image }}-${{ matrix.arch }})
     needs: deb-images
     if: ${{ needs.deb-images.outputs.images != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     strategy:
       fail-fast: false
       matrix:
@@ -102,13 +101,13 @@ jobs:
         distro: [debian, ubuntu]
         include:
           - arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-26.04
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
           - distro: debian
-            container: debian:bookworm
+            container: debian:trixie
           - distro: ubuntu
-            container: ubuntu:24.04
+            container: ubuntu:26.04
 
     steps:
       - name: Checkout (for verify script)

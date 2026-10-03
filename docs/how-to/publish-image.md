@@ -48,8 +48,8 @@ JSON matrices.
 
 ### build — verify, scan, push by digest (per image, per architecture)
 
-Each architecture builds on a native runner: `ubuntu-latest` for amd64,
-`ubuntu-24.04-arm` for arm64. Nothing in the publish path runs under QEMU
+Each architecture builds on a native runner: `ubuntu-26.04` for amd64,
+`ubuntu-26.04-arm` for arm64. Nothing in the publish path runs under QEMU
 emulation.
 
 1. Loads `images/<image>/versions.lock` as build args, substituting `=local`

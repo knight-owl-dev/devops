@@ -55,7 +55,7 @@ Reference the image in a GitHub Actions workflow:
 ```yaml
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     container: ghcr.io/knight-owl-dev/ci-tools:latest
     steps:
       - uses: actions/checkout@v6

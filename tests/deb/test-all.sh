@@ -81,7 +81,7 @@ esac
 # Placeholder version — this exercises the packaging pipeline, not a release.
 VERSION="0.0.0"
 ARCHS=(amd64 arm64)
-TEST_IMAGES=(debian:bookworm-slim ubuntu:24.04)
+TEST_IMAGES=(debian:trixie-slim ubuntu:26.04)
 
 echo "Distributable images: ${IMAGES[*]}"
 echo "Host architecture: ${HOST_ARCH} (${HOST_DEB_ARCH})"

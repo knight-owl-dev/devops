@@ -33,7 +33,7 @@ Reference the image in a GitHub Actions workflow:
 ```yaml
 jobs:
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     container: ghcr.io/knight-owl-dev/docs:latest
     steps:
       - uses: actions/checkout@v6
