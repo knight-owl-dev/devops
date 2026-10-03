@@ -56,6 +56,15 @@ resolve_gh() {
   resolve_gh_release GH cli/cli "${1:-}" 'gh_{version}_linux_{arch}.tar.gz' amd64 arm64
 }
 
+resolve_shellcheck() {
+  resolve_gh_release SHELLCHECK koalaman/shellcheck "${1:-}" \
+    'shellcheck-{tag}.linux.{arch}.tar.gz' x86_64 aarch64
+}
+
+resolve_jq() {
+  resolve_gh_release JQ jqlang/jq "${1:-}" 'jq-linux-{arch}' amd64 arm64
+}
+
 resolve_npm() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version npm)"
@@ -165,7 +174,7 @@ resolve_validate_action_pins() {
 # Determine which tools to resolve and whether a version is pinned.
 ALL_TOOLS=(
   npm
-  shfmt actionlint hadolint yq gh
+  shfmt actionlint hadolint yq gh shellcheck jq
   markdownlint-cli2 biome stylelint cspell prettier
   luacheck busted
   bats bats-support bats-assert bats-file
@@ -196,6 +205,8 @@ ACTIONLINT_VERSION="" ACTIONLINT_AMD64_URL="" ACTIONLINT_AMD64_SHA256="" ACTIONL
 HADOLINT_VERSION="" HADOLINT_AMD64_URL="" HADOLINT_AMD64_SHA256="" HADOLINT_ARM64_URL="" HADOLINT_ARM64_SHA256=""
 YQ_VERSION="" YQ_AMD64_URL="" YQ_AMD64_SHA256="" YQ_ARM64_URL="" YQ_ARM64_SHA256=""
 GH_VERSION="" GH_AMD64_URL="" GH_AMD64_SHA256="" GH_ARM64_URL="" GH_ARM64_SHA256=""
+SHELLCHECK_VERSION="" SHELLCHECK_AMD64_URL="" SHELLCHECK_AMD64_SHA256="" SHELLCHECK_ARM64_URL="" SHELLCHECK_ARM64_SHA256=""
+JQ_VERSION="" JQ_AMD64_URL="" JQ_AMD64_SHA256="" JQ_ARM64_URL="" JQ_ARM64_SHA256=""
 LUACHECK_VERSION=""
 BUSTED_VERSION=""
 BATS_VERSION="" BATS_COMMIT=""
@@ -251,6 +262,16 @@ GH_AMD64_URL=${GH_AMD64_URL}
 GH_AMD64_SHA256=${GH_AMD64_SHA256}
 GH_ARM64_URL=${GH_ARM64_URL}
 GH_ARM64_SHA256=${GH_ARM64_SHA256}
+SHELLCHECK_VERSION=${SHELLCHECK_VERSION}
+SHELLCHECK_AMD64_URL=${SHELLCHECK_AMD64_URL}
+SHELLCHECK_AMD64_SHA256=${SHELLCHECK_AMD64_SHA256}
+SHELLCHECK_ARM64_URL=${SHELLCHECK_ARM64_URL}
+SHELLCHECK_ARM64_SHA256=${SHELLCHECK_ARM64_SHA256}
+JQ_VERSION=${JQ_VERSION}
+JQ_AMD64_URL=${JQ_AMD64_URL}
+JQ_AMD64_SHA256=${JQ_AMD64_SHA256}
+JQ_ARM64_URL=${JQ_ARM64_URL}
+JQ_ARM64_SHA256=${JQ_ARM64_SHA256}
 LUACHECK_VERSION=${LUACHECK_VERSION}
 BUSTED_VERSION=${BUSTED_VERSION}
 BATS_VERSION=${BATS_VERSION}

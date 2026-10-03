@@ -111,6 +111,27 @@ RUN install-release "${TARGETARCH}" \
       /out/gh \
       '*/bin/gh'
 
+# ---------- shellcheck ----------
+ARG SHELLCHECK_AMD64_URL
+ARG SHELLCHECK_AMD64_SHA256
+ARG SHELLCHECK_ARM64_URL
+ARG SHELLCHECK_ARM64_SHA256
+RUN install-release "${TARGETARCH}" \
+      "${SHELLCHECK_AMD64_URL}" "${SHELLCHECK_AMD64_SHA256}" \
+      "${SHELLCHECK_ARM64_URL}" "${SHELLCHECK_ARM64_SHA256}" \
+      /out/shellcheck \
+      'shellcheck-*/shellcheck'
+
+# ---------- jq ----------
+ARG JQ_AMD64_URL
+ARG JQ_AMD64_SHA256
+ARG JQ_ARM64_URL
+ARG JQ_ARM64_SHA256
+RUN install-release "${TARGETARCH}" \
+      "${JQ_AMD64_URL}" "${JQ_AMD64_SHA256}" \
+      "${JQ_ARM64_URL}" "${JQ_ARM64_SHA256}" \
+      /out/jq
+
 # ---------- final image ----------
 # Base digest duplicated from lua-builder for Dependabot — see the note there.
 FROM node:26-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2
@@ -122,11 +143,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # hadolint ignore=DL3008
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    shellcheck \
     chktex \
     mandoc \
     parallel \
-    jq \
     locales \
     make \
     curl \

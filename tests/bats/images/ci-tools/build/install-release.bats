@@ -26,19 +26,16 @@ _raw() {
   printf 'tool-%s' "${1}" > "${SRC}/tool_linux_${1}"
 }
 
-# _archive <tar.gz|tar.xz> <entry>... — build a tarball, print its path. Each
-# entry's content is its own path.
+# _archive <entry>... — build a .tar.gz, print its path. Each entry's content is
+# its own path.
 _archive() {
-  local ext="${1}" flag
-  shift
-  [[ "${ext}" == "tar.gz" ]] && flag="z" || flag="J"
   local tree="${BATS_TEST_TMPDIR}/tree" entry
   for entry in "${@}"; do
     mkdir -p "$(dirname "${tree}/${entry}")"
     printf '%s' "${entry}" > "${tree}/${entry}"
   done
-  tar -c"${flag}"f "${SRC}/tool.${ext}" -C "${tree}" "${@}"
-  echo "${SRC}/tool.${ext}"
+  tar -czf "${SRC}/tool.tar.gz" -C "${tree}" "${@}"
+  echo "${SRC}/tool.tar.gz"
 }
 
 # Build a raw asset per arch and install the one for $1.
@@ -92,7 +89,7 @@ _install_both() {
 
 @test "tar.gz: extracts the member a glob names" {
   local asset
-  asset="$(_archive tar.gz tool_1.0_linux_amd64/bin/tool tool_1.0_linux_amd64/LICENSE)"
+  asset="$(_archive tool_1.0_linux_amd64/bin/tool tool_1.0_linux_amd64/LICENSE)"
   _install_both "${asset}" '*/bin/tool'
   assert_success
   assert_file_executable "${DEST}"
@@ -100,18 +97,9 @@ _install_both() {
   assert_output "tool_1.0_linux_amd64/bin/tool"
 }
 
-@test "tar.xz: extracts the member a glob names" {
-  local asset
-  asset="$(_archive tar.xz tool-v1.0/tool tool-v1.0/README.txt)"
-  _install_both "${asset}" 'tool-*/tool'
-  assert_success
-  run cat "${DEST}"
-  assert_output "tool-v1.0/tool"
-}
-
 @test "tar.gz: extracts a top-level member by name" {
   local asset
-  asset="$(_archive tar.gz tool LICENSE)"
+  asset="$(_archive tool LICENSE)"
   _install_both "${asset}" tool
   assert_success
   run cat "${DEST}"
@@ -120,7 +108,7 @@ _install_both() {
 
 @test "archive: fails without a member" {
   local asset
-  asset="$(_archive tar.gz tool)"
+  asset="$(_archive tool)"
   _install_both "${asset}"
   assert_failure
   assert_output --partial "archive needs a member"
@@ -128,7 +116,7 @@ _install_both() {
 
 @test "archive: fails when no entry matches the member" {
   local asset
-  asset="$(_archive tar.gz tool)"
+  asset="$(_archive tool)"
   _install_both "${asset}" '*/bin/tool'
   assert_failure
   assert_output --partial "no member matches"
@@ -137,7 +125,7 @@ _install_both() {
 
 @test "archive: fails when the member matches more than one entry" {
   local asset
-  asset="$(_archive tar.gz a/bin/tool b/bin/tool)"
+  asset="$(_archive a/bin/tool b/bin/tool)"
   _install_both "${asset}" '*/bin/tool'
   assert_failure
   assert_output --partial "matches more than one entry"

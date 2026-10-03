@@ -3,9 +3,9 @@ set -euo pipefail
 
 # install-release.sh — Install a release binary verified by SHA256
 #
-# The URL extension picks the asset type: .tar.gz or .tar.xz extracts <member>,
-# a GNU tar glob matching exactly one entry; anything else is the binary itself.
-# The glob keeps version and arch out of the caller ('*/bin/gh').
+# The URL extension picks the asset type: .tar.gz extracts <member>, a GNU tar
+# glob matching exactly one entry; anything else is the binary itself. The glob
+# keeps version and arch out of the caller ('*/bin/gh').
 #
 # Usage:
 #   install-release.sh <arch> <url-amd64> <sha256-amd64> <url-arm64> <sha256-arm64> <dest> [member]
@@ -32,12 +32,9 @@ main() {
   esac
   [[ -n "${url}" && -n "${sha256}" ]] || die "empty URL or SHA256 for ${arch}"
 
-  local tar_flag=""
-  case "${url}" in
-    *.tar.gz) tar_flag="z" ;;
-    *.tar.xz) tar_flag="J" ;;
-  esac
-  if [[ -n "${tar_flag}" ]]; then
+  local archive=false
+  [[ "${url}" == *.tar.gz ]] && archive=true
+  if [[ "${archive}" == true ]]; then
     [[ -n "${member}" ]] || die "archive needs a member: ${url}"
   else
     [[ -z "${member}" ]] || die "raw binary takes no member: ${url}"
@@ -49,18 +46,18 @@ main() {
   echo "${sha256}  ${asset}" | sha256sum -c --status - \
     || die "SHA256 mismatch: ${url}"
 
-  if [[ -z "${tar_flag}" ]]; then
+  if [[ "${archive}" == false ]]; then
     install -D -m 755 "${asset}" "${dest}"
     return
   fi
 
   local matches
-  matches="$(tar -t"${tar_flag}"f "${asset}" --wildcards "${member}" 2> /dev/null)" \
+  matches="$(tar -tzf "${asset}" --wildcards "${member}" 2> /dev/null)" \
     || die "no member matches ${member}: ${url}"
   [[ "${matches}" != *$'\n'* ]] \
     || die "member ${member} matches more than one entry: ${url}"
 
-  tar -x"${tar_flag}"Of "${asset}" "${matches}" > "${TMP_DIR}/member"
+  tar -xzOf "${asset}" "${matches}" > "${TMP_DIR}/member"
   install -D -m 755 "${TMP_DIR}/member" "${dest}"
 }
 

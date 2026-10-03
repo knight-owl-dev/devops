@@ -110,10 +110,7 @@ shfmt_v3.13.0_linux_arm64=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 # latest_gh_tag and fetch_gh_digests are stubbed: they call the GitHub API.
 
 _stub_gh_api() {
-  # SC2317: called indirectly, through resolve_gh_release.
-  # shellcheck disable=SC2317
   latest_gh_tag() { echo "v9.9.9"; }
-  # shellcheck disable=SC2317
   fetch_gh_digests() {
     echo "tool-${2}-x86_64=${VALID_SHA}"
     echo "tool-${2}-aarch64=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -165,8 +162,8 @@ _stub_gh_api() {
 @test "npm_lock writes a manifest pinning the requested version" {
   # shellcheck disable=SC1090
   source "${LIB}"
-  # SC2317: called indirectly, through npm_lock.
-  # shellcheck disable=SC2317
+  # SC2329: called indirectly, through npm_lock.
+  # shellcheck disable=SC2329
   npm_relock() { :; }
 
   npm_lock "${BATS_TEST_TMPDIR}/cspell" cspell 10.0.1
@@ -180,8 +177,8 @@ _stub_gh_api() {
 @test "npm_lock keeps a scoped package name intact" {
   # shellcheck disable=SC1090
   source "${LIB}"
-  # SC2317: called indirectly, through npm_lock.
-  # shellcheck disable=SC2317
+  # SC2329: called indirectly, through npm_lock.
+  # shellcheck disable=SC2329
   npm_relock() { :; }
 
   npm_lock "${BATS_TEST_TMPDIR}/biome" @biomejs/biome 2.3.4
@@ -194,8 +191,8 @@ _stub_gh_api() {
 @test "npm_lock creates the target directory" {
   # shellcheck disable=SC1090
   source "${LIB}"
-  # SC2317: called indirectly, through npm_lock.
-  # shellcheck disable=SC2317
+  # SC2329: called indirectly, through npm_lock.
+  # shellcheck disable=SC2329
   npm_relock() { :; }
 
   npm_lock "${BATS_TEST_TMPDIR}/nested/deep/cspell" cspell 10.0.1
