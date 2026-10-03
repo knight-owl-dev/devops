@@ -8,7 +8,7 @@ on:
 jobs:
   matrix:
     name: Compute build matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     permissions:
       contents: read
     outputs:
@@ -46,9 +46,9 @@ jobs:
         arch: [amd64, arm64]
         include:
           - arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-26.04
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
     env:
       IMAGE: ghcr.io/knight-owl-dev/${{ matrix.image }}
     steps:
@@ -168,7 +168,7 @@ jobs:
     name: Publish ${{ matrix.image }}
     needs: [matrix, build]
     if: ${{ needs.matrix.outputs.images != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     # Tags are named here alone, so this is the only job that can race another
     # release for :latest. Never cancel one midway: a half-published release
     # leaves per-arch manifests with no index naming them.
@@ -283,7 +283,7 @@ jobs:
     name: Package ${{ matrix.image }}
     needs: [matrix, publish]
     if: ${{ needs.matrix.outputs.distributable != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     permissions:
       contents: read
     strategy:
@@ -331,7 +331,7 @@ jobs:
       && needs.build.result != 'failure'
       && needs.publish.result != 'failure'
       && needs.package.result != 'failure'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     permissions:
       contents: write
     steps:
@@ -390,7 +390,7 @@ jobs:
     name: Dispatch ${{ matrix.image }} downstream
     needs: [matrix, release]
     if: ${{ needs.matrix.outputs.distributable != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     permissions:
       contents: read
     strategy:
