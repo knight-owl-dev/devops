@@ -1,5 +1,5 @@
 # docs — Zensical documentation build image for Knight Owl
-FROM python:3.13-slim-trixie@sha256:bb2988715db2cf7ace7b53f38f3cffbef7c7046a656bee66245eb0ed386e2e81
+FROM python:3.14-slim-trixie@sha256:0741d101873c12ab927e6f8653feb8862b9bd58771177acb1b885b95141f91b4
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
