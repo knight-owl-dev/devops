@@ -162,8 +162,8 @@ _stub_gh_api() {
 @test "npm_lock writes a manifest pinning the requested version" {
   # shellcheck disable=SC1090
   source "${LIB}"
-  # SC2317 (shellcheck < 0.11) / SC2329: called indirectly, through npm_lock.
-  # shellcheck disable=SC2317,SC2329
+  # SC2329: called indirectly, through npm_lock.
+  # shellcheck disable=SC2329
   npm_relock() { :; }
 
   npm_lock "${BATS_TEST_TMPDIR}/cspell" cspell 10.0.1
@@ -177,8 +177,8 @@ _stub_gh_api() {
 @test "npm_lock keeps a scoped package name intact" {
   # shellcheck disable=SC1090
   source "${LIB}"
-  # SC2317 (shellcheck < 0.11) / SC2329: called indirectly, through npm_lock.
-  # shellcheck disable=SC2317,SC2329
+  # SC2329: called indirectly, through npm_lock.
+  # shellcheck disable=SC2329
   npm_relock() { :; }
 
   npm_lock "${BATS_TEST_TMPDIR}/biome" @biomejs/biome 2.3.4
@@ -191,8 +191,8 @@ _stub_gh_api() {
 @test "npm_lock creates the target directory" {
   # shellcheck disable=SC1090
   source "${LIB}"
-  # SC2317 (shellcheck < 0.11) / SC2329: called indirectly, through npm_lock.
-  # shellcheck disable=SC2317,SC2329
+  # SC2329: called indirectly, through npm_lock.
+  # shellcheck disable=SC2329
   npm_relock() { :; }
 
   npm_lock "${BATS_TEST_TMPDIR}/nested/deep/cspell" cspell 10.0.1
