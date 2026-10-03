@@ -75,12 +75,6 @@ re-surfaces for re-triage rather than silencing the CVE forever (see
 `images/ci-tools/.trivyignore.yaml` and the
 [suppression workflow](publish-image.md#suppressing-a-cve)).
 
-> **Debian bookworm bases:** the scan often flags *fixed* `libgnutls30` CVEs on
-> `*-slim-bookworm` bases. Force the patched revision by adding `libgnutls30` to
-> the apt install rather than suppressing — the CVEs are fixed upstream. See the
-> [recipe](recipes/non-distributable-image.md) and
-> [#135](https://github.com/knight-owl-dev/devops/issues/135).
->
 > `cve-monitor.yml` **auto-discovers** its scan set: a `discover` job runs
 > `list-published-images.sh`, which enumerates `images/*/version` and keeps the
 > images whose `ghcr.io/knight-owl-dev/<name>:latest` probe succeeds. Once your
