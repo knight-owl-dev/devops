@@ -46,7 +46,7 @@ take version inputs as `ARG`s with **no defaults** (the lockfile supplies them).
 
 ```dockerfile
 # docs — Zensical documentation build image for Knight Owl
-FROM python:3.13-slim-bookworm@sha256:e4fa1f978c...
+FROM python:3.13-slim-trixie@sha256:bb2988715d...
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -72,7 +72,7 @@ LABEL org.opencontainers.image.version="${IMAGE_VERSION}"
 Get the **manifest-list** digest (multi-arch), never a platform digest:
 
 ```bash
-docker buildx imagetools inspect python:3.13-slim-bookworm | grep -i 'digest\|mediatype'
+docker buildx imagetools inspect python:3.13-slim-trixie | grep -i 'digest\|mediatype'
 # MediaType must be application/vnd.oci.image.index.v1+json
 ```
 
@@ -80,14 +80,6 @@ docker buildx imagetools inspect python:3.13-slim-bookworm | grep -i 'digest\|me
 > are validated against `versions.lock` keys. `ARG IMAGE_VERSION=local` has a
 > default, so it is excluded — the lockfile holds exactly one key here
 > (`ZENSICAL_VERSION`).
->
-> **Gotcha — Debian bookworm + `libgnutls30`.** Bookworm-based bases (including
-> `python:*-slim-bookworm`) currently ship an outdated `libgnutls30` that the
-> Trivy scan flags as **fixed** CVEs. The fix is to add `libgnutls30` to the apt
-> install so it pulls the patched `deb12u7+` revision — **not** a suppression
-> (the CVEs are fixed upstream). `ci-tools` does the same; see
-> [#135](https://github.com/knight-owl-dev/devops/issues/135). Expect this on
-> any new bookworm image and verify with `make scan` (step 6).
 
 ## 3. Write the resolve and verify scripts
 

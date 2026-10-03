@@ -1,5 +1,5 @@
 # docs — Zensical documentation build image for Knight Owl
-FROM python:3.13-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e
+FROM python:3.13-slim-trixie@sha256:bb2988715db2cf7ace7b53f38f3cffbef7c7046a656bee66245eb0ed386e2e81
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -8,11 +8,11 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # build through the Makefile (`make docs-build`), the same way they drive
 # lint/test in ci-tools, so the build command lives in one place.
 #
-# libpcre2-8-0 is listed explicitly to force apt to pull the deb12u1 revision
-# from bookworm-security, fixing CVE-2026-86145 and CVE-2026-89161. make is
-# the only other package here and does not depend on pcre2, so nothing
-# upgrades it transitively. Remove once the base image ships
-# libpcre2-8-0 >= 10.42-1+deb12u1. Tracking issue: #263.
+# libpcre2-8-0 is listed explicitly to force apt to pull the deb13u3 revision
+# from trixie-security, fixing CVE-2026-103111. make is the only other package
+# here and does not depend on pcre2, so nothing upgrades it transitively.
+# Remove once the base image ships libpcre2-8-0 >= 10.46-1~deb13u3. Tracking
+# issue: #263.
 #
 # DL3008: apt packages are intentionally unpinned
 # hadolint ignore=DL3008

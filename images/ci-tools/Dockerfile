@@ -10,7 +10,7 @@
 # FROM, and an `ARG BASE_IMAGE` reference would silence its base-image updates.
 # The two FROM lines must stay identical — the native .so modules built here
 # load under the final stage's interpreter and need the same glibc ABI.
-FROM node:26-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2 AS lua-builder
+FROM node:26-trixie-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS lua-builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -43,7 +43,7 @@ RUN luarocks --lua-version=5.4 install busted "${BUSTED_VERSION}" \
 # /out alone, so the helper and the downloaded archives never ship.
 #
 # Base digest duplicated from lua-builder for Dependabot — see the note there.
-FROM node:26-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2 AS release-bins
+FROM node:26-trixie-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS release-bins
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -134,7 +134,7 @@ RUN install-release "${TARGETARCH}" \
 
 # ---------- final image ----------
 # Base digest duplicated from lua-builder for Dependabot — see the note there.
-FROM node:26-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2
+FROM node:26-trixie-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
