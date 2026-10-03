@@ -7,7 +7,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-26.04-arm
-    container: ghcr.io/knight-owl-dev/ci-tools:v1.6.0@sha256:d2383459fc2cbd70a8b541c155bae808179bd73455dd7799f1e0dd972edf1f13
+    container: ghcr.io/knight-owl-dev/ci-tools:v1.6.1@sha256:822d75b014b3de9859297439df2d31b3a761a293db5d0b1874cd18c77f03068f
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -21,7 +21,7 @@ jobs:
   bats:
     name: BATS
     runs-on: ubuntu-26.04-arm
-    container: ghcr.io/knight-owl-dev/ci-tools:v1.6.0@sha256:d2383459fc2cbd70a8b541c155bae808179bd73455dd7799f1e0dd972edf1f13
+    container: ghcr.io/knight-owl-dev/ci-tools:v1.6.1@sha256:822d75b014b3de9859297439df2d31b3a761a293db5d0b1874cd18c77f03068f
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
