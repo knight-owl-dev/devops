@@ -125,13 +125,12 @@ mkdir -p images/<name> scripts/<name>
 ### 2. Write the Dockerfile
 
 - Use `ARG` without defaults for any versioned dependency (forces external input).
-- For direct binary downloads:
-  - Verify downloads with SHA256 checksums.
-  - Provide per-arch checksum args (e.g., `TOOL_SHA256_AMD64`, `TOOL_SHA256_ARM64`).
-  - Use `ARG TARGETARCH` (auto-set by BuildKit) to select the correct binary URL
-    and checksum at build time.
-  - If the upstream asset naming doesn't use `amd64`/`arm64` directly, map
-    `TARGETARCH` to the expected value (e.g., `amd64` → `x86_64`).
+- For GitHub release binaries:
+  - Declare `TOOL_AMD64_URL`, `TOOL_AMD64_SHA256`, `TOOL_ARM64_URL`, and
+    `TOOL_ARM64_SHA256`. The resolver writes all four, so the Dockerfile holds
+    no asset names or arch spellings.
+  - Install in a throwaway stage and copy the binaries into the final image —
+    see the `release-bins` stage in `images/ci-tools/Dockerfile`.
 - For tools installed from npm:
   - No ARG. `make resolve` generates `images/<name>/npm/<tool>/`, and the build
     installs from the committed lockfile with `npm ci` — see
@@ -158,8 +157,8 @@ writes.
 `scripts/<name>/resolve.sh` fetches latest versions (and checksums where
 applicable) for each tool, then writes `images/<name>/versions.lock`.
 
-- For GitHub-hosted binaries, use the `gh` CLI to fetch release tags and
-  checksums for **both** architectures (`amd64` and `arm64`).
+- For GitHub release binaries, call `resolve_gh_release` with an asset name
+  template and the upstream's arch spellings.
 - For package-manager tools, use the appropriate CLI or registry API
   (e.g., `npm view`, `luarocks search`).
 - For tools installed from npm, call `npm_lock` to write `npm/<tool>/` and set
@@ -226,9 +225,10 @@ services:
         - linux/amd64
         - linux/arm64
       args:
-        TOOL_VERSION: ${TOOL_VERSION}
-        TOOL_SHA256_AMD64: ${TOOL_SHA256_AMD64}
-        TOOL_SHA256_ARM64: ${TOOL_SHA256_ARM64}
+        TOOL_AMD64_URL: ${TOOL_AMD64_URL}
+        TOOL_AMD64_SHA256: ${TOOL_AMD64_SHA256}
+        TOOL_ARM64_URL: ${TOOL_ARM64_URL}
+        TOOL_ARM64_SHA256: ${TOOL_ARM64_SHA256}
 ```
 
 ### 6. Seed the lockfile

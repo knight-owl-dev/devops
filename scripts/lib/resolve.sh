@@ -47,24 +47,6 @@ gh_tag_commit() {
   echo "${sha}"
 }
 
-# Download a GitHub release asset to stdout.
-#
-# Uses the `gh` CLI to download the asset. Output is written to stdout
-# so callers can capture or pipe it directly.
-#
-# Arguments:
-#   $1 - GitHub repository in "owner/repo" format
-#   $2 - Release tag (e.g. "v3.12.0")
-#   $3 - Asset filename pattern (passed to gh --pattern)
-#
-# Outputs:
-#   Raw asset contents on stdout
-fetch_gh_asset() {
-  local repo="${1}" tag="${2}" asset="${3}"
-  gh release download "${tag}" --repo "${repo}" --pattern "${asset}" --output - \
-    || die "failed to download ${asset} from ${repo}@${tag}"
-}
-
 # Fetch SHA256 digests for GitHub release assets in a single API call.
 #
 # GitHub natively exposes digests on release assets (since June 2025).
@@ -106,18 +88,57 @@ pick_gh_digest() {
   echo "${hash}"
 }
 
-# Validate that a string is a 64-character lowercase hex SHA256 hash.
+# Render a release asset name from a template.
 #
-# Exits with an error if the hash does not match the expected format.
+# Placeholders: {tag} as published, {version} without a leading v, and {arch}
+# in the upstream's spelling.
 #
 # Arguments:
-#   $1 - Hash string to validate
-#   $2 - Tool name (used in the error message on failure)
-validate_sha256() {
-  local hash="${1}" tool="${2}"
-  if [[ ! "${hash}" =~ ^[a-f0-9]{64}$ ]]; then
-    die "invalid SHA256 for ${tool}: ${hash:-(empty)}"
+#   $1 - Asset name template (e.g. "gh_{version}_linux_{arch}.tar.gz")
+#   $2 - Release tag (e.g. "v2.102.0")
+#   $3 - Arch spelling (e.g. "amd64")
+#
+# Outputs:
+#   The asset name (e.g. "gh_2.102.0_linux_amd64.tar.gz")
+gh_asset_name() {
+  local template="${1}" tag="${2}" arch="${3}"
+  local name="${template//'{tag}'/${tag}}"
+  name="${name//'{version}'/${tag#v}}"
+  echo "${name//'{arch}'/${arch}}"
+}
+
+# Resolve a GitHub release binary for both build arches.
+#
+# Sets <prefix>_VERSION to the tag, and <prefix>_<ARCH>_URL and
+# <prefix>_<ARCH>_SHA256 for AMD64 and ARM64. Digests are GitHub's native
+# asset digests (see fetch_gh_digests).
+#
+# Arguments:
+#   $1 - Variable prefix (e.g. "GH")
+#   $2 - GitHub repository in "owner/repo" format
+#   $3 - Release tag; empty resolves the latest
+#   $4 - Asset name template (see gh_asset_name)
+#   $5 - Upstream's spelling of amd64 (e.g. "x86_64")
+#   $6 - Upstream's spelling of arm64 (e.g. "aarch64")
+resolve_gh_release() {
+  local prefix="${1}" repo="${2}" tag="${3}" template="${4}"
+  if [[ -z "${tag}" ]]; then
+    tag="$(latest_gh_tag "${repo}")" || exit 1
   fi
+
+  local digests
+  digests="$(fetch_gh_digests "${repo}" "${tag}")" || exit 1
+
+  printf -v "${prefix}_VERSION" '%s' "${tag}"
+  local pair key asset sha256
+  for pair in "AMD64:${5}" "ARM64:${6}"; do
+    key="${pair%%:*}"
+    asset="$(gh_asset_name "${template}" "${tag}" "${pair#*:}")"
+    sha256="$(pick_gh_digest "${digests}" "${asset}")" || exit 1
+    printf -v "${prefix}_${key}_URL" '%s' \
+      "https://github.com/${repo}/releases/download/${tag}/${asset}"
+    printf -v "${prefix}_${key}_SHA256" '%s' "${sha256}"
+  done
 }
 
 # Fetch the latest version of an npm package from the registry.

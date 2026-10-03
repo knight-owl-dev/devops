@@ -3,9 +3,8 @@ set -euo pipefail
 
 # resolve.sh — Resolve latest versions and SHA256 checksums for ci-tools binaries
 #
-# Fetches the latest GitHub release tag and checksums for each tool
-# (via checksum assets or GitHub's native release digests) and writes
-# images/ci-tools/versions.lock.
+# Fetches the latest version of each tool, plus asset URLs and GitHub's native
+# digests for release binaries, and writes images/ci-tools/versions.lock.
 # Partial resolves preserve existing lockfile values for unresolved tools.
 #
 # npm-installed tools are written to images/ci-tools/npm/<tool>/ instead —
@@ -36,91 +35,25 @@ source "${REPO_ROOT}/scripts/lib/resolve.sh"
 # ── per-tool resolvers ───────────────────────────────────────────────
 
 resolve_shfmt() {
-  local tag="${1:-}"
-  [[ -z "${tag}" ]] && tag="$(latest_gh_tag mvdan/sh)"
-
-  local digests
-  digests="$(fetch_gh_digests mvdan/sh "${tag}")"
-
-  local sha256_amd64 sha256_arm64
-  sha256_amd64="$(pick_gh_digest "${digests}" "shfmt_${tag}_linux_amd64")"
-  sha256_arm64="$(pick_gh_digest "${digests}" "shfmt_${tag}_linux_arm64")"
-
-  SHFMT_VERSION="${tag}"
-  SHFMT_SHA256_AMD64="${sha256_amd64}"
-  SHFMT_SHA256_ARM64="${sha256_arm64}"
+  resolve_gh_release SHFMT mvdan/sh "${1:-}" 'shfmt_{tag}_linux_{arch}' amd64 arm64
 }
 
 resolve_actionlint() {
-  local tag="${1:-}"
-  [[ -z "${tag}" ]] && tag="$(latest_gh_tag rhysd/actionlint)"
-
-  # Strip leading v — Dockerfile constructs v${VERSION} in the URL.
-  local version="${tag#v}"
-
-  local checksums
-  checksums="$(fetch_gh_asset rhysd/actionlint "${tag}" "actionlint_${version}_checksums.txt")"
-
-  local sha256_amd64 sha256_arm64
-  sha256_amd64="$(echo "${checksums}" | grep 'linux_amd64.tar.gz' | awk '{print $1}')"
-  sha256_arm64="$(echo "${checksums}" | grep 'linux_arm64.tar.gz' | awk '{print $1}')"
-  validate_sha256 "${sha256_amd64}" "actionlint (amd64)"
-  validate_sha256 "${sha256_arm64}" "actionlint (arm64)"
-
-  ACTIONLINT_VERSION="${version}"
-  ACTIONLINT_SHA256_AMD64="${sha256_amd64}"
-  ACTIONLINT_SHA256_ARM64="${sha256_arm64}"
+  resolve_gh_release ACTIONLINT rhysd/actionlint "${1:-}" \
+    'actionlint_{version}_linux_{arch}.tar.gz' amd64 arm64
 }
 
 resolve_hadolint() {
-  local tag="${1:-}"
-  [[ -z "${tag}" ]] && tag="$(latest_gh_tag hadolint/hadolint)"
-
-  local digests
-  digests="$(fetch_gh_digests hadolint/hadolint "${tag}")"
-
-  local sha256_amd64 sha256_arm64
-  sha256_amd64="$(pick_gh_digest "${digests}" "hadolint-linux-x86_64")"
-  sha256_arm64="$(pick_gh_digest "${digests}" "hadolint-linux-arm64")"
-
-  HADOLINT_VERSION="${tag}"
-  HADOLINT_SHA256_AMD64="${sha256_amd64}"
-  HADOLINT_SHA256_ARM64="${sha256_arm64}"
+  resolve_gh_release HADOLINT hadolint/hadolint "${1:-}" \
+    'hadolint-linux-{arch}' x86_64 arm64
 }
 
 resolve_yq() {
-  local tag="${1:-}"
-  [[ -z "${tag}" ]] && tag="$(latest_gh_tag mikefarah/yq)"
-
-  local digests
-  digests="$(fetch_gh_digests mikefarah/yq "${tag}")"
-
-  local sha256_amd64 sha256_arm64
-  sha256_amd64="$(pick_gh_digest "${digests}" "yq_linux_amd64")"
-  sha256_arm64="$(pick_gh_digest "${digests}" "yq_linux_arm64")"
-
-  YQ_VERSION="${tag}"
-  YQ_SHA256_AMD64="${sha256_amd64}"
-  YQ_SHA256_ARM64="${sha256_arm64}"
+  resolve_gh_release YQ mikefarah/yq "${1:-}" 'yq_linux_{arch}' amd64 arm64
 }
 
 resolve_gh() {
-  local tag="${1:-}"
-  [[ -z "${tag}" ]] && tag="$(latest_gh_tag cli/cli)"
-
-  # Strip leading v — Dockerfile constructs v${VERSION} in the URL.
-  local version="${tag#v}"
-
-  local digests
-  digests="$(fetch_gh_digests cli/cli "v${version}")"
-
-  local sha256_amd64 sha256_arm64
-  sha256_amd64="$(pick_gh_digest "${digests}" "gh_${version}_linux_amd64.tar.gz")"
-  sha256_arm64="$(pick_gh_digest "${digests}" "gh_${version}_linux_arm64.tar.gz")"
-
-  GH_VERSION="${version}"
-  GH_SHA256_AMD64="${sha256_amd64}"
-  GH_SHA256_ARM64="${sha256_arm64}"
+  resolve_gh_release GH cli/cli "${1:-}" 'gh_{version}_linux_{arch}.tar.gz' amd64 arm64
 }
 
 resolve_npm() {
@@ -258,11 +191,11 @@ fi
 # ── load existing lockfile values (for partial resolves) ─────────────
 
 NPM_VERSION=""
-SHFMT_VERSION="" SHFMT_SHA256_AMD64="" SHFMT_SHA256_ARM64=""
-ACTIONLINT_VERSION="" ACTIONLINT_SHA256_AMD64="" ACTIONLINT_SHA256_ARM64=""
-HADOLINT_VERSION="" HADOLINT_SHA256_AMD64="" HADOLINT_SHA256_ARM64=""
-YQ_VERSION="" YQ_SHA256_AMD64="" YQ_SHA256_ARM64=""
-GH_VERSION="" GH_SHA256_AMD64="" GH_SHA256_ARM64=""
+SHFMT_VERSION="" SHFMT_AMD64_URL="" SHFMT_AMD64_SHA256="" SHFMT_ARM64_URL="" SHFMT_ARM64_SHA256=""
+ACTIONLINT_VERSION="" ACTIONLINT_AMD64_URL="" ACTIONLINT_AMD64_SHA256="" ACTIONLINT_ARM64_URL="" ACTIONLINT_ARM64_SHA256=""
+HADOLINT_VERSION="" HADOLINT_AMD64_URL="" HADOLINT_AMD64_SHA256="" HADOLINT_ARM64_URL="" HADOLINT_ARM64_SHA256=""
+YQ_VERSION="" YQ_AMD64_URL="" YQ_AMD64_SHA256="" YQ_ARM64_URL="" YQ_ARM64_SHA256=""
+GH_VERSION="" GH_AMD64_URL="" GH_AMD64_SHA256="" GH_ARM64_URL="" GH_ARM64_SHA256=""
 LUACHECK_VERSION=""
 BUSTED_VERSION=""
 BATS_VERSION="" BATS_COMMIT=""
@@ -294,20 +227,30 @@ LOCKFILE_TMP="$(mktemp)"
 cat > "${LOCKFILE_TMP}" << EOF
 NPM_VERSION=${NPM_VERSION}
 SHFMT_VERSION=${SHFMT_VERSION}
-SHFMT_SHA256_AMD64=${SHFMT_SHA256_AMD64}
-SHFMT_SHA256_ARM64=${SHFMT_SHA256_ARM64}
+SHFMT_AMD64_URL=${SHFMT_AMD64_URL}
+SHFMT_AMD64_SHA256=${SHFMT_AMD64_SHA256}
+SHFMT_ARM64_URL=${SHFMT_ARM64_URL}
+SHFMT_ARM64_SHA256=${SHFMT_ARM64_SHA256}
 ACTIONLINT_VERSION=${ACTIONLINT_VERSION}
-ACTIONLINT_SHA256_AMD64=${ACTIONLINT_SHA256_AMD64}
-ACTIONLINT_SHA256_ARM64=${ACTIONLINT_SHA256_ARM64}
+ACTIONLINT_AMD64_URL=${ACTIONLINT_AMD64_URL}
+ACTIONLINT_AMD64_SHA256=${ACTIONLINT_AMD64_SHA256}
+ACTIONLINT_ARM64_URL=${ACTIONLINT_ARM64_URL}
+ACTIONLINT_ARM64_SHA256=${ACTIONLINT_ARM64_SHA256}
 HADOLINT_VERSION=${HADOLINT_VERSION}
-HADOLINT_SHA256_AMD64=${HADOLINT_SHA256_AMD64}
-HADOLINT_SHA256_ARM64=${HADOLINT_SHA256_ARM64}
+HADOLINT_AMD64_URL=${HADOLINT_AMD64_URL}
+HADOLINT_AMD64_SHA256=${HADOLINT_AMD64_SHA256}
+HADOLINT_ARM64_URL=${HADOLINT_ARM64_URL}
+HADOLINT_ARM64_SHA256=${HADOLINT_ARM64_SHA256}
 YQ_VERSION=${YQ_VERSION}
-YQ_SHA256_AMD64=${YQ_SHA256_AMD64}
-YQ_SHA256_ARM64=${YQ_SHA256_ARM64}
+YQ_AMD64_URL=${YQ_AMD64_URL}
+YQ_AMD64_SHA256=${YQ_AMD64_SHA256}
+YQ_ARM64_URL=${YQ_ARM64_URL}
+YQ_ARM64_SHA256=${YQ_ARM64_SHA256}
 GH_VERSION=${GH_VERSION}
-GH_SHA256_AMD64=${GH_SHA256_AMD64}
-GH_SHA256_ARM64=${GH_SHA256_ARM64}
+GH_AMD64_URL=${GH_AMD64_URL}
+GH_AMD64_SHA256=${GH_AMD64_SHA256}
+GH_ARM64_URL=${GH_ARM64_URL}
+GH_ARM64_SHA256=${GH_ARM64_SHA256}
 LUACHECK_VERSION=${LUACHECK_VERSION}
 BUSTED_VERSION=${BUSTED_VERSION}
 BATS_VERSION=${BATS_VERSION}

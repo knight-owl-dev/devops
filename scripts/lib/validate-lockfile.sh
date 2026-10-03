@@ -49,8 +49,12 @@ validate_image() {
     | sed '/^TARGETARCH$/d' \
     | sort > "${tmpdir}/dockerfile"
 
-  # Key names from lockfile.
-  sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' "${lockfile}" \
+  # Key names from lockfile. A release binary's <T>_VERSION is exempt: its URL
+  # carries the version into the build, and only verify reads the key.
+  awk -F= '!/^[A-Z_][A-Z0-9_]*=/ { next }
+    NR == FNR { keys[$1]; next }
+    !($1 ~ /_VERSION$/ && (substr($1, 1, length($1) - 8) "_AMD64_URL") in keys) { print $1 }' \
+    "${lockfile}" "${lockfile}" \
     | sort > "${tmpdir}/lockfile"
 
   # Build arg names from compose.yaml. The Dockerfile is not YAML, so it is

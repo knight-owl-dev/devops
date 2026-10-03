@@ -3,8 +3,8 @@
 #
 # Unit tests for scripts/lib/resolve.sh helpers that do not touch
 # the network. The upstream-fetching wrappers (latest_gh_tag,
-# fetch_gh_asset, fetch_gh_digests, latest_npm_version,
-# latest_luarocks_version) are integration-only and excluded.
+# fetch_gh_digests, latest_npm_version, latest_luarocks_version) are
+# integration-only: excluded, or stubbed where a helper calls them.
 
 load ../../helpers/common
 
@@ -15,65 +15,6 @@ setup() {
   common_setup
   LIB="${REPO_ROOT}/scripts/lib/resolve.sh"
   export LIB
-}
-
-# ── validate_sha256 ──────────────────────────────────────────────────
-
-@test "validate_sha256 accepts a 64-char lowercase hex string" {
-  # shellcheck disable=SC1090
-  source "${LIB}"
-  run validate_sha256 "${VALID_SHA}" "shfmt"
-  assert_success
-  assert_output ""
-}
-
-@test "validate_sha256 rejects an empty hash and reports (empty)" {
-  # shellcheck disable=SC1090
-  source "${LIB}"
-  run validate_sha256 "" "shfmt"
-  assert_failure 1
-  assert_output --partial "invalid SHA256 for shfmt"
-  assert_output --partial "(empty)"
-}
-
-@test "validate_sha256 rejects uppercase hex" {
-  # shellcheck disable=SC1090
-  source "${LIB}"
-  run validate_sha256 "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" "shfmt"
-  assert_failure 1
-  assert_output --partial "invalid SHA256 for shfmt"
-}
-
-@test "validate_sha256 rejects a too-short hash" {
-  # shellcheck disable=SC1090
-  source "${LIB}"
-  run validate_sha256 "deadbeef" "shfmt"
-  assert_failure 1
-  assert_output --partial "invalid SHA256 for shfmt"
-}
-
-@test "validate_sha256 rejects a too-long hash" {
-  # shellcheck disable=SC1090
-  source "${LIB}"
-  run validate_sha256 "${VALID_SHA}a" "shfmt"
-  assert_failure 1
-  assert_output --partial "invalid SHA256 for shfmt"
-}
-
-@test "validate_sha256 rejects non-hex characters" {
-  # shellcheck disable=SC1090
-  source "${LIB}"
-  run validate_sha256 "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz" "shfmt"
-  assert_failure 1
-  assert_output --partial "invalid SHA256 for shfmt"
-}
-
-@test "validate_sha256 includes the tool name in the error message" {
-  # shellcheck disable=SC1090
-  source "${LIB}"
-  run validate_sha256 "nope" "markdownlint-cli2"
-  assert_failure 1
-  assert_output --partial "invalid SHA256 for markdownlint-cli2"
 }
 
 # ── resolve_local ────────────────────────────────────────────────────
@@ -145,6 +86,75 @@ shfmt_v3.13.0_linux_arm64=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
   run pick_gh_digest "asset=not-a-real-hash" "asset"
   assert_failure 1
   assert_output --partial "invalid digest for asset"
+}
+
+# ── gh_asset_name ────────────────────────────────────────────────────
+
+@test "gh_asset_name fills {tag}, {version} and {arch}" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run gh_asset_name 'tool_{tag}_{version}_linux_{arch}.tar.gz' v1.2.3 x86_64
+  assert_success
+  assert_output "tool_v1.2.3_1.2.3_linux_x86_64.tar.gz"
+}
+
+@test "gh_asset_name leaves a template without placeholders unchanged" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run gh_asset_name 'tool' v1.2.3 amd64
+  assert_output "tool"
+}
+
+# ── resolve_gh_release ───────────────────────────────────────────────
+#
+# latest_gh_tag and fetch_gh_digests are stubbed: they call the GitHub API.
+
+_stub_gh_api() {
+  # SC2317: called indirectly, through resolve_gh_release.
+  # shellcheck disable=SC2317
+  latest_gh_tag() { echo "v9.9.9"; }
+  # shellcheck disable=SC2317
+  fetch_gh_digests() {
+    echo "tool-${2}-x86_64=${VALID_SHA}"
+    echo "tool-${2}-aarch64=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  }
+}
+
+@test "resolve_gh_release sets version, URLs and digests per arch" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  _stub_gh_api
+
+  resolve_gh_release TOOL owner/tool v1.0.0 'tool-{tag}-{arch}' x86_64 aarch64
+  assert_equal "${TOOL_VERSION}" "v1.0.0"
+  assert_equal "${TOOL_AMD64_URL}" \
+    "https://github.com/owner/tool/releases/download/v1.0.0/tool-v1.0.0-x86_64"
+  assert_equal "${TOOL_AMD64_SHA256}" "${VALID_SHA}"
+  assert_equal "${TOOL_ARM64_URL}" \
+    "https://github.com/owner/tool/releases/download/v1.0.0/tool-v1.0.0-aarch64"
+  assert_equal "${TOOL_ARM64_SHA256}" \
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}
+
+@test "resolve_gh_release resolves the latest tag when none is given" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  _stub_gh_api
+
+  resolve_gh_release TOOL owner/tool "" 'tool-{tag}-{arch}' x86_64 aarch64
+  assert_equal "${TOOL_VERSION}" "v9.9.9"
+  assert_equal "${TOOL_AMD64_URL}" \
+    "https://github.com/owner/tool/releases/download/v9.9.9/tool-v9.9.9-x86_64"
+}
+
+@test "resolve_gh_release fails when an arch's asset has no digest" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  _stub_gh_api
+
+  run resolve_gh_release TOOL owner/tool v1.0.0 'tool-{tag}-{arch}' x86_64 arm64
+  assert_failure
+  assert_output --partial "no digest found for asset tool-v1.0.0-arm64"
 }
 
 # ── npm_lock ─────────────────────────────────────────────────────────
