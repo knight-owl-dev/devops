@@ -65,6 +65,7 @@
     "pcre",
     "projectsigstore",
     "relock",
+    "renovatebot",
     "rhysd",
     "rockspec",
     "setuptools",

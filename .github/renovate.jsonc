@@ -1,0 +1,80 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  // config:recommended is not extended: its presets address ecosystems this
+  // repo does not have.
+  "extends": ["docker:pinDigests"],
+
+  "dependencyDashboard": true,
+
+  // Commit subjects here are plain imperative sentences.
+  "semanticCommits": "disabled",
+
+  // No `schedule` here: renovate.yml's cron is the single owner of when this
+  // runs. A second window would make a workflow_dispatch outside it look like
+  // a no-op run.
+  "prConcurrentLimit": 5,
+
+  // A weekly run under the default hourly cap leaves every update past the
+  // second for next week; prConcurrentLimit already bounds the CI load.
+  "prHourlyLimit": 0,
+
+  "ignorePaths": [
+    // Each names the :local image it builds, which no registry holds.
+    "images/*/compose.yaml",
+
+    // Tool versions move by hand, through `make resolve`.
+    "images/*/npm/**"
+  ],
+
+  "customManagers": [
+    {
+      // A matrix leg names its runner under a key of its own, and the
+      // github-runners manager reads `runs-on:` alone. Unmatched, a new Ubuntu
+      // moves every runs-on: job and strands the matrices. The capture groups
+      // mirror what that manager extracts: depName "ubuntu", currentValue
+      // "26.04" or "26.04-arm".
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": ["runner: (?<depName>ubuntu)-(?<currentValue>\\S+)"],
+      "datasourceTemplate": "github-runners",
+      "autoReplaceStringTemplate": "runner: {{depName}}-{{newValue}}"
+    }
+  ],
+
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "matchDepTypes": ["action"],
+      "labels": ["dependencies", "github-actions"]
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchDepTypes": ["action"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "actions (minor and patch)"
+    },
+
+    // Matched by datasource, not manager: the matrix legs come from the custom
+    // manager above, so matchManagers github-actions would label half of them.
+    {
+      "matchDatasources": ["github-runners"],
+      "labels": ["dependencies", "github-actions"]
+    },
+
+    // Each image's base gets a PR of its own, so a red check names one image.
+    {
+      "matchDatasources": ["docker"],
+      "labels": ["dependencies", "docker"]
+    },
+
+    // Trivy moves by hand. The scanner version is pinned in three places
+    // scripts/lib/validate-trivy-pins.sh holds equal, one of them a Makefile
+    // no manager reads — so a PR touching only the two workflows lands a tree
+    // that fails its own lint.
+    {
+      "matchPackageNames": ["aquasecurity/trivy", "aquasecurity/trivy-action"],
+      "enabled": false
+    }
+  ]
+}

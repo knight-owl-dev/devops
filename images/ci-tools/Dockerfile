@@ -1,16 +1,14 @@
 # ci-tools — shared linting image for Knight Owl CI pipelines
 
+# Every stage shares one base: the native .so modules built in lua-builder load
+# under the final stage's interpreter and need its glibc ABI.
+ARG BASE_IMAGE=node:26-trixie-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1
+
 # ---------- lua builder ----------
 # Compiles the Lua 5.4 rocks in a throwaway stage. luarocks, gcc, and the
 # liblua5.4-dev → libc6-dev → linux-libc-dev header chain live only here and are
 # never copied forward, so the final image ships none of their CVEs.
-#
-# The base digest is repeated verbatim in the final stage rather than hoisted
-# into an ARG: Dependabot's Docker parser only bumps digests written directly in
-# FROM, and an `ARG BASE_IMAGE` reference would silence its base-image updates.
-# The two FROM lines must stay identical — the native .so modules built here
-# load under the final stage's interpreter and need the same glibc ABI.
-FROM node:26-trixie-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS lua-builder
+FROM ${BASE_IMAGE} AS lua-builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -41,9 +39,7 @@ RUN luarocks --lua-version=5.4 install busted "${BUSTED_VERSION}" \
 # ---------- release binaries ----------
 # Downloads and verifies each release binary into /out. The final stage copies
 # /out alone, so the helper and the downloaded archives never ship.
-#
-# Base digest duplicated from lua-builder for Dependabot — see the note there.
-FROM node:26-trixie-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1 AS release-bins
+FROM ${BASE_IMAGE} AS release-bins
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -133,8 +129,7 @@ RUN install-release "${TARGETARCH}" \
       /out/jq
 
 # ---------- final image ----------
-# Base digest duplicated from lua-builder for Dependabot — see the note there.
-FROM node:26-trixie-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1
+FROM ${BASE_IMAGE}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 

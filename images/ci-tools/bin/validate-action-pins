@@ -161,10 +161,10 @@ _resolve_as_tag() {
   local repo="${1}" ref="${2}"
   local json obj_type obj_sha tag_obj_json commit_sha candidate
 
-  # Candidate tag forms to try, in order. Upstreams and Dependabot
+  # Candidate tag forms to try, in order. Upstreams and update bots
   # sometimes disagree on the leading `v`: aquasecurity/trivy-action
   # names its git tags `v0.36.0` but its GitHub release (and thus the
-  # Dependabot-written pin comment) `0.36.0`, so the verbatim lookup
+  # bot-written pin comment) `0.36.0`, so the verbatim lookup
   # 404s even though the SHA pin is correct. For a semver-shaped ref we
   # also try the alternate prefix form so a cosmetic `v` difference is
   # not reported as an unresolved ref. Non-version refs (branch names)
@@ -204,10 +204,9 @@ _resolve_as_tag() {
 }
 
 # Resolve a ref (tag or branch) to its commit SHA, classifying the ref
-# by which GitHub endpoint answered. Tags are probed first to match the
-# Dependabot convention of `owner/repo@<sha> # <ref>` where <ref> is
-# usually a tag; branch references fall back to /git/ref/heads via
-# head_sha.
+# by which GitHub endpoint answered. Tags are probed first: in the
+# `owner/repo@<sha> # <ref>` convention <ref> is usually a tag; branch
+# references fall back to /git/ref/heads via head_sha.
 #
 # Arguments:
 #   $1 - Repository (owner/repo)
@@ -255,8 +254,8 @@ compare_behind() {
   jq -r '.behind_by // empty' <<< "${json}"
 }
 
-# Return the "effective" ref for a parsed pin — the Dependabot-style
-# ref hint a caller should resolve against.
+# Return the "effective" ref for a parsed pin — the ref hint a caller
+# should resolve against.
 #
 # Arguments:
 #   $1 - kind (from parse_uses_line): "sha" or "ref"
@@ -804,9 +803,8 @@ cmd_check() {
 # — exit 0 on success regardless of whether upgrades are available.
 #
 # The goal is to save time on periodic audits, not to pick "the" next
-# version: for tag pins, every tag newer than the current one is listed
-# (across minor AND major bumps, since Dependabot does not open major
-# bumps by default). For branch pins, the current branch HEAD is
+# version: for tag pins, every tag newer than the current one is listed,
+# major bumps included. For branch pins, the current branch HEAD is
 # reported so stale SHA-to-branch pins are visible at a glance.
 #
 # Dedup is per-file (matching cmd_check), so a pin that appears in

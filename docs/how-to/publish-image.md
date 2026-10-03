@@ -187,7 +187,7 @@ If the Trivy scan fails during publish:
 3. **Check for a fresher base image first** — regardless of the source
    layer, see whether a newer base digest is available (`docker buildx
    imagetools inspect node:26-trixie-slim`) and fold it in. Base-layer and
-   apt CVEs usually clear in a batch on a rebuilt base, and Dependabot's
+   apt CVEs usually clear in a batch on a rebuilt base, and Renovate's
    weekly bump may not have opened its PR yet — so this is often the cheapest
    fix and worth checking before hand-patching. A base bump needs no tool
    refresh — the pinned tools are independent of the base digest.

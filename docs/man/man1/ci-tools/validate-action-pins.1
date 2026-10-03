@@ -32,8 +32,8 @@ lines pinned to a commit SHA with a ref comment, for example:
 .Dl uses: actions/checkout@de0fac2e... # v6
 .Dl uses: Homebrew/actions/setup-homebrew@1234abcd... # main
 .Pp
-The comment follows the Dependabot convention \(em the ref may be a tag
-or a branch name, with no prefix to distinguish them.
+The comment follows the Renovate and Dependabot convention \(em the ref
+may be a tag or a branch name, with no prefix to distinguish them.
 .Nm
 probes the GitHub REST API for a matching tag first and falls back to a
 branch of the same name.
@@ -145,9 +145,8 @@ Report upgrade inventory for each pin, once per file.
 Duplicates within a single file collapse to one record; a pin that
 appears in several files is reported for every file, so operators can
 see each file that needs editing to take an upgrade.
-For tag pins, every tag strictly newer than the current ref is listed
-\(em across both minor and major bumps, since Dependabot does not open
-major-version pull requests by default.
+For tag pins, every tag strictly newer than the current ref is listed,
+major bumps included.
 For branch pins, the current branch HEAD SHA is reported so
 SHA-to-branch pins that have drifted are visible at a glance.
 Output is informational \(em
