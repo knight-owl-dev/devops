@@ -114,7 +114,7 @@ jobs:
           trivy-config: trivy.yaml
           trivyignores: images/${{ matrix.image }}/.trivyignore.yaml
           # Keep in sync with the Makefile and cve-monitor.yml (see trivy.yaml).
-          version: v0.74.0
+          version: v0.75.0
 
       # Pushed under its digest with no tag, so neither arch claims :latest on
       # its own. The publish job names them.
