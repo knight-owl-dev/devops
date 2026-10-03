@@ -20,9 +20,11 @@
   "prHourlyLimit": 0,
 
   "ignorePaths": [
-    // Build their image rather than pull one — a :local tag has no registry
-    // to check. The Dockerfiles beside them are tracked.
-    "images/*/compose.yaml"
+    // Each names the :local image it builds, which no registry holds.
+    "images/*/compose.yaml",
+
+    // Tool versions move by hand, through `make resolve`.
+    "images/*/npm/**"
   ],
 
   "customManagers": [
@@ -73,14 +75,6 @@
     {
       "matchPackageNames": ["aquasecurity/trivy", "aquasecurity/trivy-action"],
       "enabled": false
-    },
-
-    // The github-actions manager reads renovate.yml's renovate-version input
-    // as this image. The input takes a version, so a digest has nowhere to go.
-    {
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["ghcr.io/renovatebot/renovate"],
-      "pinDigests": false
     }
   ]
 }

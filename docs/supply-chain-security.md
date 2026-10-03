@@ -50,8 +50,9 @@ locally.
 - **Security-tooling Actions** — `aquasecurity/trivy-action` (CVE scanning)
   and `sigstore/cosign-installer` (image signing). Both are maintained by
   their respective CNCF projects and pinned by SHA.
-- **Dependabot** — automated dependency updates for the base image, GitHub
-  Actions, and npm packages.
+- **Renovate** — the official image, pinned by digest and run under the org's
+  GitHub App, so no hosted third party holds write access. What it updates is
+  in `.github/renovate.jsonc`.
 
 ## What We Avoid
 
