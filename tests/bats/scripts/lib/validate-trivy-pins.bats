@@ -38,6 +38,33 @@ _make_workflow() {
   } > "${FAKE_REPO}/.github/workflows/${name}.yml"
 }
 
+# _make_split_workflow <name> <version> [setup] — Trivy installed by a
+# setup-trivy step and trivy-action skipping its own setup. setup=no omits the
+# setup-trivy step; an empty version omits its `version:` input. A job with no
+# Trivy step rides along, as in publish.yml.
+_make_split_workflow() {
+  local name="$1" version="$2" setup="${3:-yes}"
+  {
+    echo "jobs:"
+    echo "  matrix:"
+    echo "    steps:"
+    echo "      - run: echo hi"
+    echo "  build:"
+    echo "    steps:"
+    if [[ "${setup}" == yes ]]; then
+      echo "      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567"
+      if [[ -n "${version}" ]]; then
+        echo "        with:"
+        echo "          version: ${version}"
+      fi
+    fi
+    echo "      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25"
+    echo "        with:"
+    echo "          image-ref: example:latest"
+    echo "          skip-setup-trivy: true"
+  } > "${FAKE_REPO}/.github/workflows/${name}.yml"
+}
+
 # Both workflows pinned identically unless a test overrides one.
 _make_workflows() {
   _make_workflow publish "$1"
@@ -128,4 +155,42 @@ _make_workflows() {
   run "${SCRIPT}"
   assert_failure 1
   assert_output --partial "cve-monitor.yml: workflow not found"
+}
+
+# ── setup-trivy installs ─────────────────────────────────────────────
+
+@test "exits 0 when setup-trivy carries the pin and trivy-action skips setup" {
+  _make_makefile "0.73.0"
+  _make_split_workflow publish "v0.73.0"
+  _make_workflow cve-monitor "v0.73.0"
+  run "${SCRIPT}"
+  assert_success
+  assert_output ""
+}
+
+@test "exits 1 when the setup-trivy pin drifts from the Makefile" {
+  _make_makefile "0.73.0"
+  _make_split_workflow publish "v0.70.0"
+  _make_workflow cve-monitor "v0.73.0"
+  run "${SCRIPT}"
+  assert_failure 1
+  assert_output --partial "publish.yml: pinned to 'v0.70.0', Makefile pins '0.73.0'"
+}
+
+@test "exits 1 when a setup-trivy step omits version" {
+  _make_makefile "0.73.0"
+  _make_split_workflow publish ""
+  _make_workflow cve-monitor "v0.73.0"
+  run "${SCRIPT}"
+  assert_failure 1
+  assert_output --partial "publish.yml: setup-trivy step has no 'version:'"
+}
+
+@test "exits 1 when trivy-action skips setup with no setup-trivy step in its job" {
+  _make_makefile "0.73.0"
+  _make_split_workflow publish "v0.73.0" no
+  _make_workflow cve-monitor "v0.73.0"
+  run "${SCRIPT}"
+  assert_failure 1
+  assert_output --partial "publish.yml: trivy-action step skips setup, but its job has no setup-trivy step"
 }

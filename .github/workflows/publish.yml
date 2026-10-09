@@ -104,6 +104,15 @@ jobs:
             exit 1
           fi
 
+      # Installed uncached. trivy-action's own setup caches the binary per arch,
+      # and tags restore from main, where only the arm64 CVE monitor saves: the
+      # amd64 legs miss and race to save an entry no later release reads.
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          # Keep in sync with the Makefile and cve-monitor.yml (see trivy.yaml).
+          version: v0.75.0
+
       - name: Scan for vulnerabilities
         # Policy comes from trivy.yaml. Do not add severity/exit-code/
         # ignore-unfixed inputs here — the action turns any input it receives
@@ -113,8 +122,7 @@ jobs:
           image-ref: ${{ matrix.image }}:verify
           trivy-config: trivy.yaml
           trivyignores: images/${{ matrix.image }}/.trivyignore.yaml
-          # Keep in sync with the Makefile and cve-monitor.yml (see trivy.yaml).
-          version: v0.75.0
+          skip-setup-trivy: true
 
       # Pushed under its digest with no tag, so neither arch claims :latest on
       # its own. The publish job names them.

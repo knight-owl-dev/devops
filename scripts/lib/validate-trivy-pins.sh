@@ -42,7 +42,9 @@ fi
 
 expected="${make_pin#v}"
 
-# GitHub release tag from each trivy-action step — v-prefixed.
+# GitHub release tag from each step that installs Trivy — v-prefixed. That is
+# a setup-trivy step, or a trivy-action step running its own setup; one that
+# skips setup needs a setup-trivy step in its job.
 for workflow in "${workflows[@]}"; do
   name="$(basename "${workflow}")"
 
@@ -51,26 +53,40 @@ for workflow in "${workflows[@]}"; do
     continue
   fi
 
-  pins="$(
-    yq -r '.jobs[].steps[]?
-      | select(.uses // "" | test("^aquasecurity/trivy-action@"))
-      | .with.version // "MISSING"' "${workflow}"
+  # One line per installing-or-scanning step: action, skip-setup flag, version,
+  # and how many setup-trivy steps its job has. Jobs without either emit a blank line.
+  # SC2016: the $names below are yq variables.
+  # shellcheck disable=SC2016
+  steps="$(
+    yq -r '.jobs[] | (.steps // []) as $steps
+      | ($steps | map(select(.uses // "" | test("^aquasecurity/setup-trivy@"))) | length) as $setups
+      | $steps[]
+      | select(.uses // "" | test("^aquasecurity/(setup-trivy|trivy-action)@"))
+      | [(.uses | sub("@.*"; "") | sub("^aquasecurity/"; "")),
+        (.with["skip-setup-trivy"] // false | tostring),
+        (.with.version // "MISSING"),
+        ($setups | tostring)]
+      | join(" ")' "${workflow}"
   )"
 
-  if [[ -z "${pins}" ]]; then
+  if [[ "${steps}" != *trivy-action* ]]; then
     fail "${name}: no aquasecurity/trivy-action step found"
     continue
   fi
 
-  while IFS= read -r pin; do
-    if [[ "${pin}" == "MISSING" ]]; then
-      fail "${name}: trivy-action step has no 'version:' — it would install the action's own default"
+  while read -r action skip pin setups; do
+    [[ -n "${action}" ]] || continue
+    if [[ "${action}" == trivy-action && "${skip}" == true ]]; then
+      [[ "${setups}" -gt 0 ]] \
+        || fail "${name}: trivy-action step skips setup, but its job has no setup-trivy step"
+    elif [[ "${pin}" == MISSING ]]; then
+      fail "${name}: ${action} step has no 'version:' — it would install its own default"
     elif [[ "${pin}" != v* ]]; then
       fail "${name}: release tag must be v-prefixed, got 'version: ${pin}'"
     elif [[ "${pin#v}" != "${expected}" ]]; then
       fail "${name}: pinned to '${pin}', Makefile pins '${expected}'"
     fi
-  done <<< "${pins}"
+  done <<< "${steps}"
 done
 
 [[ "${errors}" -eq 0 ]] || exit 1
