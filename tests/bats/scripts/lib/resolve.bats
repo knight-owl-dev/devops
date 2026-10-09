@@ -182,6 +182,24 @@ _stub_gh_api() {
   assert_output --partial "no digest found for asset tool-v1.0.0-arm64"
 }
 
+# ── npm_relock ───────────────────────────────────────────────────────
+
+@test "npm_relock shows npm's output when the tree fails to resolve" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  # SC2329: called indirectly, through npm_relock.
+  # shellcheck disable=SC2329
+  npm() {
+    echo "npm error code ERESOLVE"
+    return 1
+  }
+
+  run npm_relock "${BATS_TEST_TMPDIR}"
+  assert_failure
+  assert_output --partial "failed to resolve the dependency tree in ${BATS_TEST_TMPDIR}"
+  assert_output --partial "npm error code ERESOLVE"
+}
+
 # ── npm_lock ─────────────────────────────────────────────────────────
 #
 # npm_relock is stubbed throughout: it shells out to the registry, which this

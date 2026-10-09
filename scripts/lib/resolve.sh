@@ -217,8 +217,11 @@ npm_relock() {
   local dir="${1}"
 
   rm -f "${dir}/package-lock.json"
-  npm install --package-lock-only --silent --prefix "${dir}" > /dev/null 2>&1 \
-    || die "failed to resolve the dependency tree in ${dir}"
+  local output
+  # npm's output names the clash (e.g. ERESOLVE's peer and range); shown only
+  # on failure.
+  output="$(npm install --package-lock-only --prefix "${dir}" 2>&1)" \
+    || die "failed to resolve the dependency tree in ${dir}:"$'\n'"${output}"
   [[ -f "${dir}/package-lock.json" ]] \
     || die "no package-lock.json written in ${dir}"
 }
