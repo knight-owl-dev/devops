@@ -208,24 +208,42 @@ vulnerabilities:
       brace-expansion stack exhaustion from crafted brace patterns (DoS),
       fixed in 5.0.10. Affects npm 12.2.0's vendored brace-expansion 5.0.9
       — npm only expands its own install-time globs, never untrusted
-      patterns, so practical risk is negligible. Tracking: #274. Remove
+      patterns, so practical risk is negligible. Tracking: #299. Remove
       once npm ships a bundle on brace-expansion >= 5.0.10.
-    expired_at: 2026-11-17
+    expired_at: 2026-11-23
 
   - id: CVE-2026-102278
     statement: >-
       brace-expansion uncontrolled recursion in nested braces (DoS), fixed
       in 5.0.11. Affects npm 12.2.0's vendored brace-expansion 5.0.9 — npm
       only expands its own install-time globs, never untrusted patterns,
-      so practical risk is negligible. Tracking: #274. Remove once npm
+      so practical risk is negligible. Tracking: #299. Remove once npm
       ships a bundle on brace-expansion >= 5.0.11.
-    expired_at: 2026-11-17
+    expired_at: 2026-11-23
 
   - id: CVE-2026-19534
     statement: >-
       undici DoS via WebSocket subprotocol handling, fixed in 6.28.1.
       Affects npm 12.2.0's vendored undici 6.28.0 — npm opens no WebSocket
       connections, and only talks to the registry at build time, so
-      practical risk is negligible. Tracking: #274. Remove once npm ships
+      practical risk is negligible. Tracking: #299. Remove once npm ships
       a bundle on undici >= 6.28.1.
-    expired_at: 2026-11-17
+    expired_at: 2026-11-23
+
+  - id: CVE-2026-78667
+    statement: >-
+      net/http server DoS via crafted Range headers, fixed in Go 1.26.9 /
+      1.27.2. Affects actionlint v1.7.12 (Go 1.26.1) and gh v2.102.0, shfmt
+      v3.14.1 and yq v4.54.1 (all Go 1.27.1) — none serves HTTP, so
+      practical risk is negligible. Tracking: #96, #299. Remove once all
+      four ship builds on Go >= 1.26.9 or 1.27.2.
+    expired_at: 2026-11-23
+
+  - id: CVE-2026-97031
+    statement: >-
+      crypto/tls server DoS via repeated ECH outer extension references,
+      fixed in Go 1.26.9 / 1.27.2. Affects actionlint v1.7.12 (Go 1.26.1)
+      and gh v2.102.0, shfmt v3.14.1 and yq v4.54.1 (all Go 1.27.1) — none
+      accepts TLS connections, so practical risk is negligible. Tracking:
+      #96, #299. Remove once all four ship builds on Go >= 1.26.9 or 1.27.2.
+    expired_at: 2026-11-23
