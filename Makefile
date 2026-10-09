@@ -109,8 +109,7 @@ else
 TRIVY_FLAGS := --ignorefile images/$(IMAGE)/.trivyignore.yaml
 endif
 
-# Keep in sync with the trivy-action `version:` in publish.yml and
-# cve-monitor.yml (see trivy.yaml).
+# Keep in sync with the workflow pins trivy.yaml lists.
 TRIVY_IMAGE := aquasec/trivy:0.75.0
 
 scan: build

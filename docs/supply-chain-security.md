@@ -47,9 +47,9 @@ locally.
   `actions/download-artifact`, `actions/setup-go`,
   `actions/create-github-app-token`. These are maintained by GitHub or Docker
   with broad community oversight.
-- **Security-tooling Actions** — `aquasecurity/trivy-action` (CVE scanning)
-  and `sigstore/cosign-installer` (image signing). Both are maintained by
-  their respective CNCF projects and pinned by SHA.
+- **Security-tooling Actions** — `aquasecurity/trivy-action` and
+  `aquasecurity/setup-trivy` (CVE scanning), `sigstore/cosign-installer` (image
+  signing). Each is maintained by its CNCF project and pinned by SHA.
 - **Renovate** — the official image, pinned by digest and run under the org's
   GitHub App, so no hosted third party holds write access. What it updates is
   in `.github/renovate.jsonc`.
