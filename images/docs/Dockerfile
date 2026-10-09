@@ -1,5 +1,5 @@
 # docs — Zensical documentation build image for Knight Owl
-FROM python:3.14-slim-trixie@sha256:c3e521df8b2b498a7a682e7e18676771cb80c6b75b8699af886b2d554ce40151
+FROM python:3.14-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -8,17 +8,10 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # build through the Makefile (`make docs-build`), the same way they drive
 # lint/test in ci-tools, so the build command lives in one place.
 #
-# libpcre2-8-0 is listed explicitly to force apt to pull the deb13u3 revision
-# from trixie-security, fixing CVE-2026-103111. make is the only other package
-# here and does not depend on pcre2, so nothing upgrades it transitively.
-# Remove once the base image ships libpcre2-8-0 >= 10.46-1~deb13u3. Tracking
-# issue: #263.
-#
 # DL3008: apt packages are intentionally unpinned
 # hadolint ignore=DL3008
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    libpcre2-8-0 \
     make \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
