@@ -6,7 +6,8 @@ set -euo pipefail
 #
 # trivy.yaml lists the call sites and the tag shape each one takes. Two failure
 # modes justify the check: a bare GitHub tag 404s in trivy's install.sh, and an
-# absent workflow pin leaves trivy-action installing its own bundled version.
+# absent workflow pin installs the action's default — trivy-action's bundled
+# version, setup-trivy's latest.
 #
 # Usage:
 #   scripts/lib/validate-trivy-pins.sh
@@ -44,7 +45,7 @@ expected="${make_pin#v}"
 
 # GitHub release tag from each step that installs Trivy — v-prefixed. That is
 # a setup-trivy step, or a trivy-action step running its own setup; one that
-# skips setup needs a setup-trivy step in its job.
+# skips setup needs a setup-trivy step earlier in its job.
 for workflow in "${workflows[@]}"; do
   name="$(basename "${workflow}")"
 
@@ -53,19 +54,21 @@ for workflow in "${workflows[@]}"; do
     continue
   fi
 
-  # One line per installing-or-scanning step: action, skip-setup flag, version,
-  # and how many setup-trivy steps its job has. Jobs without either emit a blank line.
+  # One line per installing-or-scanning step: action, skip-setup value,
+  # version, and how many setup-trivy steps precede it in its job. Jobs without
+  # either emit a blank line.
   # SC2016: the $names below are yq variables.
   # shellcheck disable=SC2016
   steps="$(
     yq -r '.jobs[] | (.steps // []) as $steps
-      | ($steps | map(select(.uses // "" | test("^aquasecurity/setup-trivy@"))) | length) as $setups
-      | $steps[]
+      | [$steps | to_entries | .[]
+        | select(.value.uses // "" | test("^aquasecurity/setup-trivy@")) | .key] as $setups
+      | $steps | to_entries | .[] | .key as $i | .value
       | select(.uses // "" | test("^aquasecurity/(setup-trivy|trivy-action)@"))
       | [(.uses | sub("@.*"; "") | sub("^aquasecurity/"; "")),
-        (.with["skip-setup-trivy"] // false | tostring),
+        (.with["skip-setup-trivy"] // "false" | tostring),
         (.with.version // "MISSING"),
-        ($setups | tostring)]
+        ($setups | map(select(. < $i)) | length | tostring)]
       | join(" ")' "${workflow}"
   )"
 
@@ -74,13 +77,14 @@ for workflow in "${workflows[@]}"; do
     continue
   fi
 
+  # trivy-action runs its setup only when skip-setup-trivy is the string false.
   while read -r action skip pin setups; do
     [[ -n "${action}" ]] || continue
-    if [[ "${action}" == trivy-action && "${skip}" == true ]]; then
+    if [[ "${action}" == trivy-action && "${skip}" != false ]]; then
       [[ "${setups}" -gt 0 ]] \
-        || fail "${name}: trivy-action step skips setup, but its job has no setup-trivy step"
+        || fail "${name}: trivy-action step skips setup, but no setup-trivy step precedes it in its job"
     elif [[ "${pin}" == MISSING ]]; then
-      fail "${name}: ${action} step has no 'version:' — it would install its own default"
+      fail "${name}: ${action} step has no 'version:' — it would install the action's default"
     elif [[ "${pin}" != v* ]]; then
       fail "${name}: release tag must be v-prefixed, got 'version: ${pin}'"
     elif [[ "${pin#v}" != "${expected}" ]]; then

@@ -73,7 +73,11 @@
     // no manager reads — so a PR touching only the two workflows lands a tree
     // that fails its own lint.
     {
-      "matchPackageNames": ["aquasecurity/trivy", "aquasecurity/trivy-action"],
+      "matchPackageNames": [
+        "aquasecurity/trivy",
+        "aquasecurity/trivy-action",
+        "aquasecurity/setup-trivy"
+      ],
       "enabled": false
     }
   ]
