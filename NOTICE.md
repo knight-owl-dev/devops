@@ -18,6 +18,7 @@ following tools under their respective licenses.
 - [ChkTeX](https://www.nongnu.org/chktex/) by ChkTeX contributors (GPLv2+)
 - [CSpell](https://github.com/streetsidesoftware/cspell) by cspell contributors (MIT)
 - [Prettier](https://github.com/prettier/prettier) by Prettier contributors (MIT)
+- [prettier-plugin-pandoc](https://github.com/knight-owl-dev/prettier-plugin-pandoc) by Knight Owl LLC (GPL-2.0-or-later)
 - [bats-core](https://github.com/bats-core/bats-core) by bats-core contributors (MIT)
 - [GNU Parallel](https://www.gnu.org/software/parallel/) by Ole Tange (GPLv3+)
 - [XMLStarlet](https://xmlstar.sourceforge.net) by Mikhail Grushinskiy (MIT)

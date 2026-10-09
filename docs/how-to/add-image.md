@@ -156,7 +156,9 @@ applicable) for each tool, then writes `images/<name>/versions.lock`.
 - For package-manager tools, use the appropriate CLI or registry API
   (e.g., `npm view`, `luarocks search`).
 - For tools installed from npm, call `npm_lock` to write `npm/<tool>/` and set
-  no `versions.lock` key — a key with no matching `ARG` fails `make lint`.
+  no `versions.lock` key — a key with no matching `ARG` fails `make lint`. Pass
+  several package/version pairs when packages must share one tree (a plugin and
+  its host — see `resolve_prettier`).
 
 Shared helpers live in `scripts/lib/resolve.sh`. See
 `scripts/ci-tools/resolve.sh` as a reference implementation.

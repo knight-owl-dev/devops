@@ -88,6 +88,34 @@ shfmt_v3.13.0_linux_arm64=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
   assert_output --partial "invalid digest for asset"
 }
 
+# ── pick_npm_version ─────────────────────────────────────────────────
+
+@test "pick_npm_version returns a bare name's single version" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run pick_npm_version "3.9.9"
+  assert_success
+  assert_output "3.9.9"
+}
+
+@test "pick_npm_version picks the highest of a range's matches" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run pick_npm_version "prettier@3.10.0 '3.10.0'
+prettier@3.9.9 '3.9.9'
+prettier@3.2.1 '3.2.1'"
+  assert_success
+  assert_output "3.10.0"
+}
+
+@test "pick_npm_version errors on empty output" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run pick_npm_version ""
+  assert_failure 1
+  assert_output --partial "no version in npm view output"
+}
+
 # ── gh_asset_name ────────────────────────────────────────────────────
 
 @test "gh_asset_name fills {tag}, {version} and {arch}" {
@@ -154,6 +182,24 @@ _stub_gh_api() {
   assert_output --partial "no digest found for asset tool-v1.0.0-arm64"
 }
 
+# ── npm_relock ───────────────────────────────────────────────────────
+
+@test "npm_relock shows npm's output when the tree fails to resolve" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  # SC2329: called indirectly, through npm_relock.
+  # shellcheck disable=SC2329
+  npm() {
+    echo "npm error code ERESOLVE"
+    return 1
+  }
+
+  run npm_relock "${BATS_TEST_TMPDIR}"
+  assert_failure
+  assert_output --partial "failed to resolve the dependency tree in ${BATS_TEST_TMPDIR}"
+  assert_output --partial "npm error code ERESOLVE"
+}
+
 # ── npm_lock ─────────────────────────────────────────────────────────
 #
 # npm_relock is stubbed throughout: it shells out to the registry, which this
@@ -186,6 +232,32 @@ _stub_gh_api() {
   assert_success
   assert_output --partial '"@biomejs/biome": "2.3.4"'
   assert_output --partial '"name": "ci-tools-biome"'
+}
+
+@test "npm_lock pins every package it is given in one manifest" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  # SC2329: called indirectly, through npm_lock.
+  # shellcheck disable=SC2329
+  npm_relock() { :; }
+
+  npm_lock "${BATS_TEST_TMPDIR}/prettier" \
+    @knight-owl-llc/prettier-plugin-pandoc 0.4.0 prettier 3.9.9
+  run jq -c .dependencies "${BATS_TEST_TMPDIR}/prettier/package.json"
+  assert_success
+  assert_output '{"@knight-owl-llc/prettier-plugin-pandoc":"0.4.0","prettier":"3.9.9"}'
+}
+
+@test "npm_lock rejects a package without a version" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  # SC2329: called indirectly, through npm_lock.
+  # shellcheck disable=SC2329
+  npm_relock() { :; }
+
+  run npm_lock "${BATS_TEST_TMPDIR}/prettier" prettier 3.9.9 orphan
+  assert_failure
+  assert_file_not_exist "${BATS_TEST_TMPDIR}/prettier/package.json"
 }
 
 @test "npm_lock creates the target directory" {
