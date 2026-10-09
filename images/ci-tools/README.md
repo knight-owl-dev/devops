@@ -26,6 +26,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | Markdown linting |
 | [npm](https://github.com/npm/cli) | Package manager (upgraded beyond base image for CVE fixes) |
 | [prettier](https://github.com/prettier/prettier) | Markdown formatting |
+| [prettier-plugin-pandoc](https://github.com/knight-owl-dev/prettier-plugin-pandoc) | Pandoc Markdown formatting for prettier, loadable by package name |
 | [rsync](https://rsync.samba.org) | File synchronization for build assembly |
 | [shellcheck](https://github.com/koalaman/shellcheck) | Shell script linting |
 | [shfmt](https://github.com/mvdan/sh) | Shell script formatting |

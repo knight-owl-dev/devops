@@ -111,12 +111,35 @@ resolve_cspell() {
   npm_lock "${NPM_DIR}/cspell" cspell "${version}"
 }
 
+# Plugins bundled with prettier, loadable by name — the image links each into
+# /node_modules. They import prettier at runtime, so all share one tree, and
+# prettier resolves within every plugin's peer range: space-joined ranges
+# intersect. A pin outside them fails at lock time with ERESOLVE.
+PRETTIER_PLUGINS=(
+  @knight-owl-llc/prettier-plugin-pandoc
+)
+
 # shellcheck disable=SC2034
 resolve_prettier() {
   local version="${1:-}"
-  [[ -z "${version}" ]] && version="$(latest_npm_version prettier)"
+  local pairs=() ranges=() plugin plugin_version range
+  for plugin in "${PRETTIER_PLUGINS[@]}"; do
+    plugin_version="$(latest_npm_version "${plugin}")"
+    range="$(npm_peer_range "${plugin}" "${plugin_version}" prettier)"
+    pairs+=("${plugin}" "${plugin_version}")
+    ranges+=("${range}")
+  done
+  if [[ -z "${version}" ]]; then
+    local spec=prettier
+    ((${#ranges[@]} > 0)) && spec+="@${ranges[*]}"
+    version="$(latest_npm_version "${spec}")"
+  fi
   PRETTIER_VERSION="${version}"
-  npm_lock "${NPM_DIR}/prettier" prettier "${version}"
+  npm_lock "${NPM_DIR}/prettier" "${pairs[@]}" prettier "${version}"
+  local i
+  for ((i = 0; i < ${#pairs[@]}; i += 2)); do
+    echo "  OK   ${pairs[i]}  ${pairs[i + 1]}"
+  done
 }
 
 resolve_luacheck() {

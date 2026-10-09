@@ -208,10 +208,14 @@ RUN npm ci --prefix /opt/npm/cspell --omit=dev \
   && ln -s /opt/npm/cspell/node_modules/.bin/cspell /usr/local/bin/cspell \
   && npm cache clean --force
 
-# ---------- prettier ----------
+# ---------- prettier + plugins ----------
+# Prettier resolves a plugin name from $PWD, never from its own install; see
+# link-npm-plugins.sh. Bind-mounted, so the script stays out of the image.
 COPY npm/prettier/ /opt/npm/prettier/
-RUN npm ci --prefix /opt/npm/prettier --omit=dev \
+RUN --mount=type=bind,source=build/link-npm-plugins.sh,target=/tmp/link-npm-plugins \
+  npm ci --prefix /opt/npm/prettier --omit=dev \
   && ln -s /opt/npm/prettier/node_modules/.bin/prettier /usr/local/bin/prettier \
+  && /tmp/link-npm-plugins /opt/npm/prettier prettier \
   && npm cache clean --force
 
 # ---------- lua toolchain (luacheck + busted on Lua 5.4) ----------

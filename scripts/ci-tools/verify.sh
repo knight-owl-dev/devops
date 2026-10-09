@@ -27,20 +27,62 @@ if [[ -f /versions.lock ]]; then
   source /versions.lock
 fi
 
-# Expected versions for npm tools come from their generated package.json,
-# which carries exactly one dependency. Empty when /npm is unmounted, which
-# `check` treats as presence-only.
+# Expected versions for npm tools come from their generated package.json.
+# Empty when /npm is unmounted, which `check` treats as presence-only.
+#
+# Arguments:
+#   $1 - Directory under /npm
+#   $2 - Package name
 npm_expected() {
   local manifest="/npm/${1}/package.json"
   [[ -f "${manifest}" ]] || return 0
-  yq -r '.dependencies | to_entries | .[0].value' "${manifest}"
+  PACKAGE="${2}" yq -r '.dependencies[strenv(PACKAGE)]' "${manifest}"
 }
 
-MARKDOWNLINT_CLI2_VERSION="$(npm_expected markdownlint-cli2)"
-BIOME_VERSION="$(npm_expected biome)"
-STYLELINT_VERSION="$(npm_expected stylelint)"
-CSPELL_VERSION="$(npm_expected cspell)"
-PRETTIER_VERSION="$(npm_expected prettier)"
+MARKDOWNLINT_CLI2_VERSION="$(npm_expected markdownlint-cli2 markdownlint-cli2)"
+BIOME_VERSION="$(npm_expected biome @biomejs/biome)"
+STYLELINT_VERSION="$(npm_expected stylelint stylelint)"
+CSPELL_VERSION="$(npm_expected cspell cspell)"
+PRETTIER_VERSION="$(npm_expected prettier prettier)"
+
+# List an npm host's plugins: every other dependency in its manifest. Reads the
+# repo's manifest when mounted, so a plugin the image lacks fails, else the
+# image's own.
+#
+# Arguments:
+#   $1 - Directory under /npm and /opt/npm
+#   $2 - Host package name
+npm_plugins() {
+  local manifest="/opt/npm/${1}/package.json"
+  [[ -f "/npm/${1}/package.json" ]] && manifest="/npm/${1}/package.json"
+  HOST="${2}" yq -r '.dependencies | keys | .[] | select(. != strenv(HOST))' "${manifest}"
+}
+
+# Check an npm host's plugins: each one's version at its /node_modules link, and
+# that the host loads it by bare name.
+#
+# Arguments:
+#   $1 - Directory under /npm and /opt/npm
+#   $2 - Host package name
+#   $3 - Function that loads the plugin named by its argument
+check_npm_plugins() {
+  local dir="${1}" host="${2}" load="${3}"
+  local plugins plugin expected
+  plugins="$(npm_plugins "${dir}" "${host}")"
+  while read -r plugin; do
+    [[ -n "${plugin}" ]] || continue
+    expected="$(npm_expected "${dir}" "${plugin}")"
+    check "${plugin}" "${expected}" \
+      yq -r .version "/node_modules/${plugin}/package.json"
+    check "${plugin} by name" "" "${load}" "${plugin}"
+  done <<< "${plugins}"
+}
+
+# Consumers name a plugin bare, from a directory outside its install. `check`
+# runs this in a subshell, so the cd stays there.
+prettier_loads() {
+  cd /tmp && echo ok | prettier --plugin "${1}" --stdin-filepath x.md
+}
 
 echo "Verifying ci-tools ..."
 check "npm" "${NPM_VERSION}" npm --version
@@ -67,6 +109,7 @@ check "mandoc" "" command -v mandoc
 check "stylelint" "${STYLELINT_VERSION}" stylelint --version
 check "cspell" "${CSPELL_VERSION}" cspell --version
 check "prettier" "${PRETTIER_VERSION}" prettier --version
+check_npm_plugins prettier prettier prettier_loads
 check "validate-action-pins" "${VALIDATE_ACTION_PINS_VERSION}" \
   validate-action-pins --version
 check "bats" "${BATS_VERSION}" bats --version
