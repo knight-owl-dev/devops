@@ -4,7 +4,7 @@
 [![Homebrew](https://img.shields.io/badge/install-homebrew-brightgreen)](https://brew.sh)
 [![Apt](https://img.shields.io/badge/install-apt-blue)](https://apt.knight-owl.dev)
 
-Shared CI/CD infrastructure for Knight Owl repositories.
+Shared CI/CD infrastructure and base images for Knight Owl repositories.
 
 ## Why This Repo Exists
 
@@ -13,6 +13,11 @@ introduce an unnecessary trust surface — each is a dependency maintained by
 someone outside the org that runs in CI with repo-level permissions. This repo
 replaces all of them with org-maintained Docker images. CI jobs run their tools
 inside these images, executing the exact same commands developers run locally.
+
+The same pipeline publishes runtime bases that other repos build from. A
+consumer that pins one by digest gets the same bytes locally, in CI and at
+publish.
+
 See [Supply-Chain Security](docs/supply-chain-security.md) for the full
 rationale and guidelines.
 
