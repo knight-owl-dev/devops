@@ -28,3 +28,10 @@ following tools under their respective licenses.
 ## docs
 
 - [Zensical](https://github.com/zensical/zensical) by Zensical contributors (MIT)
+
+## node-chromium
+
+- [Node.js](https://github.com/nodejs/node) by Node.js contributors (MIT)
+- [Chromium](https://www.chromium.org/) by The Chromium Authors (BSD-3-Clause)
+- [Noto fonts](https://github.com/notofonts) by Google (OFL-1.1)
+- [Open Sans](https://github.com/googlefonts/opensans) by The Open Sans Project Authors (OFL-1.1)

@@ -18,13 +18,14 @@ rationale and guidelines.
 
 ## Images
 
-Each image is purpose-built for a specific CI concern and published to GHCR at
+Each image is purpose-built for one concern and published to GHCR at
 `ghcr.io/knight-owl-dev/<name>`. See each image's README for its tools and usage.
 
 | Image | Purpose | Details |
 | --- | --- | --- |
 | `ci-tools` | Linting, formatting, and testing tools for CI pipelines | [images/ci-tools/README.md](images/ci-tools/README.md) |
 | `docs` | Zensical documentation builds | [images/docs/README.md](images/docs/README.md) |
+| `node-chromium` | Node and Chromium runtime base for browser-driving services | [images/node-chromium/README.md](images/node-chromium/README.md) |
 
 ## Releasing
 
