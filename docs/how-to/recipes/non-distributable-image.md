@@ -166,10 +166,6 @@ make scan IMAGE=docs             # Trivy, policy from trivy.yaml
 # make sync IMAGE=docs           # = resolve + build + verify in one
 ```
 
-> **Gotcha — `make lint-lockfile` is per-image.** It defaults to
-> `IMAGE=ci-tools`, and plain `make lint` only validates `ci-tools`. Always pass
-> `IMAGE=<name>` to validate your new image's lockfile.
->
 > **Note — local multi-arch build.** `make build`/`make scan` build both
 > platforms via Compose and only `--load` into the local image store on Docker
 > Desktop with the containerd image store enabled.
@@ -185,15 +181,11 @@ Add `images/docs/README.md` (tools table + usage; published at
 
 ## 8. Lint everything
 
-Run the full lint suite inside `ci-tools` so the tool versions match CI:
-
 ```bash
-docker run --rm -v "$PWD:/work" -w /work \
-  ghcr.io/knight-owl-dev/ci-tools:latest make lint
+make lint
 ```
 
-This runs `hadolint images/*/Dockerfile` (covers your new Dockerfile),
-`markdownlint '**/*.md'` (your new docs), shellcheck, and shfmt.
+It runs every linter inside `ci-tools`, the toolchain CI uses.
 
 ## 9. Release and publish (auto-discovered)
 
