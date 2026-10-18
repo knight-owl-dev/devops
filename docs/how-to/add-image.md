@@ -241,10 +241,6 @@ Validate that its keys match the Dockerfile's bare `ARG`s:
 make lint-lockfile IMAGE=<name>
 ```
 
-> `make lint-lockfile` (and plain `make lint`) default to `IMAGE=ci-tools`, so
-> pass `IMAGE=<name>` to validate your new image — CI's `make lint` won't catch
-> a drift in it otherwise.
-
 An image whose dependencies are all pinned elsewhere — a base image digest, a
 committed `package-lock.json` — has nothing to put in `versions.lock` and gets an
 empty one. The file still has to exist: `validate-lockfile.sh` and `make build`

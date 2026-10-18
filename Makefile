@@ -36,7 +36,7 @@ tools-image:
 
 .PHONY: sync resolve build verify scan clean set-version get-version release \
 	lint lint-fix lint-lockfile lint-docker lint-sh lint-sh-fmt lint-sh-fmt-fix \
-	lint-actions lint-md lint-md-fix lint-spell lint-man man test-package test-bats \
+	lint-actions lint-md lint-md-fix lint-js lint-js-fix lint-spell lint-man man test-package test-bats \
 	tools-image help
 
 # Resolve latest versions, build, and verify image
@@ -126,7 +126,7 @@ scan: build
 # Run all linters. SKIP='lint-a lint-b' drops targets from the run — bootstraps
 # a linter whose tool is not yet in the published image CI runs inside.
 LINT_TARGETS := lint-lockfile lint-docker lint-sh lint-sh-fmt lint-actions \
-	lint-md lint-spell lint-man
+	lint-md lint-js lint-spell lint-man
 
 # The lint targets invoke their tools bare, so the toolchain comes from
 # wherever make runs, and host tools drift from the image's — shfmt formats
@@ -146,7 +146,7 @@ lint: $(LINT_IMAGE_DEP)
 # Fix all auto-fixable lint issues. Containerized alongside lint: a host
 # shfmt that formats differently would write what the image then rejects.
 lint-fix: $(LINT_IMAGE_DEP)
-	@$(LINT_RUNNER) lint-sh-fmt-fix lint-md-fix
+	@$(LINT_RUNNER) lint-sh-fmt-fix lint-md-fix lint-js-fix
 
 # Validate lockfile keys against Dockerfile ARGs and compose build args.
 # Target-specific empty default, as in test-package: it beats the global
@@ -203,6 +203,14 @@ lint-md:
 # Fix Markdown files
 lint-md-fix:
 	@echo "Fixing Markdown..." && markdownlint-cli2 --fix '**/*.md' && echo "OK"
+
+# Lint and check formatting of JavaScript; biome.json owns the rules and scope.
+lint-js:
+	@echo "Linting JavaScript..." && biome ci && echo "OK"
+
+# Fix JavaScript lint and formatting
+lint-js-fix:
+	@echo "Fixing JavaScript..." && biome check --write && echo "OK"
 
 # Check spelling. --gitignore reuses .gitignore, so ignore paths live in one place.
 lint-spell:
@@ -274,6 +282,8 @@ help:
 	@echo "  make lint-man          Lint man pages"
 	@echo "  make lint-md           Lint Markdown files"
 	@echo "  make lint-md-fix       Fix Markdown files"
+	@echo "  make lint-js           Lint JavaScript"
+	@echo "  make lint-js-fix       Fix JavaScript"
 	@echo "  make lint-spell        Check spelling"
 	@echo "  make lint-sh           Lint shell scripts"
 	@echo "  make lint-sh-fmt       Check shell script formatting"

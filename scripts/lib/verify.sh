@@ -19,27 +19,29 @@ VERIFY_FAILED=0
 #   $@ - Command and arguments to run (e.g. shfmt --version)
 #
 # Side effects:
-#   Sets VERIFY_FAILED=1 if the tool is missing or the version is wrong.
+#   Sets VERIFY_FAILED=1 if the command fails or the version is wrong.
 check() {
   local name="${1}" expected="${2}"
   shift 2
-  if output=$("${@}" 2>&1); then
-    local first_line="${output%%$'\n'*}"
-    if [[ -n "${expected}" ]]; then
-      local match
-      match="$(normalize_version "${expected}")"
-      if [[ "${first_line}" == *"${match}"* ]]; then
-        echo "  OK    ${name}  ${first_line}"
-      else
-        echo "  FAIL  ${name}  expected ${expected}, got ${first_line}"
-        VERIFY_FAILED=1
-      fi
-    else
+  local output status=0
+  output=$("${@}" 2>&1) || status=$?
+  local first_line="${output%%$'\n'*}"
+
+  # A failing command's own first line is the diagnosis; a silent one has none.
+  if ((status != 0)); then
+    echo "  FAIL  ${name}  ${first_line:-failed}"
+    VERIFY_FAILED=1
+  elif [[ -n "${expected}" ]]; then
+    local match
+    match="$(normalize_version "${expected}")"
+    if [[ "${first_line}" == *"${match}"* ]]; then
       echo "  OK    ${name}  ${first_line}"
+    else
+      echo "  FAIL  ${name}  expected ${expected}, got ${first_line}"
+      VERIFY_FAILED=1
     fi
   else
-    echo "  FAIL  ${name}  not found"
-    VERIFY_FAILED=1
+    echo "  OK    ${name}  ${first_line}"
   fi
 }
 

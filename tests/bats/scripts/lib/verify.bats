@@ -50,16 +50,26 @@ setup() {
   assert_output --partial "got v3.12.0"
 }
 
-@test "check prints FAIL when the command exits nonzero (tool missing)" {
+@test "check prints FAIL with the command's first line when it exits nonzero" {
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  local out="${BATS_TEST_TMPDIR}/check.out"
+  check "ghost" "1.0.0" sh -c 'echo "ghost: not installed" >&2; echo more >&2; exit 1' > "${out}"
+  assert_equal "${VERIFY_FAILED}" 1
+  run cat "${out}"
+  assert_output --partial "FAIL"
+  assert_output --partial "ghost: not installed"
+  refute_output --partial "more"
+}
+
+@test "check prints FAIL failed when the command exits nonzero silently" {
   # shellcheck disable=SC1090
   source "${LIB}"
   local out="${BATS_TEST_TMPDIR}/check.out"
   check "ghost" "1.0.0" false > "${out}"
   assert_equal "${VERIFY_FAILED}" 1
   run cat "${out}"
-  assert_output --partial "FAIL"
-  assert_output --partial "ghost"
-  assert_output --partial "not found"
+  assert_output --partial "FAIL  ghost  failed"
 }
 
 @test "check compares only the first line of the command output" {

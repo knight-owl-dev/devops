@@ -68,6 +68,12 @@
       "labels": ["dependencies", "docker"]
     },
 
+    // Both bases move together; images/node-chromium/Dockerfile says why.
+    {
+      "matchFileNames": ["images/node-chromium/Dockerfile"],
+      "groupName": "node-chromium base images"
+    },
+
     // Trivy moves by hand. The scanner version is pinned in three places
     // scripts/lib/validate-trivy-pins.sh holds equal, one of them a Makefile
     // no manager reads — so a PR touching only the two workflows lands a tree
