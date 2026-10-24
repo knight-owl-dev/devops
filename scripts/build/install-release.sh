@@ -11,7 +11,9 @@ set -euo pipefail
 #   install-release.sh <arch> <url-amd64> <sha256-amd64> <url-arm64> <sha256-arm64> <dest> [member]
 
 TMP_DIR=""
-cleanup() { [[ -n "${TMP_DIR}" ]] && rm -rf "${TMP_DIR}"; }
+cleanup() {
+  if [[ -n "${TMP_DIR}" ]]; then rm -rf "${TMP_DIR}"; fi
+}
 trap cleanup EXIT
 
 die() {

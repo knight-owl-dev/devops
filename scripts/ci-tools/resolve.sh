@@ -38,9 +38,17 @@ resolve_shfmt() {
   resolve_gh_release SHFMT mvdan/sh "${1:-}" 'shfmt_{tag}_linux_{arch}' amd64 arm64
 }
 
+# Built from source, so only the tag is recorded — scripts/build/go-install.sh
+# says how its content is verified. A pin is checked here against go-install's
+# full-semver rule and the upstream repo, so a bad one fails at resolve time
+# rather than inside the build.
 resolve_actionlint() {
-  resolve_gh_release ACTIONLINT rhysd/actionlint "${1:-}" \
-    'actionlint_{version}_linux_{arch}.tar.gz' amd64 arm64
+  local tag="${1:-}"
+  [[ -z "${tag}" ]] && tag="$(latest_gh_tag rhysd/actionlint)"
+  local semver='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+incompatible)?$'
+  [[ "${tag}" =~ ${semver} ]] || die "actionlint pin is not a full semver tag: ${tag}"
+  gh_tag_commit rhysd/actionlint "${tag}" > /dev/null
+  ACTIONLINT_VERSION="${tag}"
 }
 
 resolve_hadolint() {
@@ -224,7 +232,7 @@ fi
 
 NPM_VERSION=""
 SHFMT_VERSION="" SHFMT_AMD64_URL="" SHFMT_AMD64_SHA256="" SHFMT_ARM64_URL="" SHFMT_ARM64_SHA256=""
-ACTIONLINT_VERSION="" ACTIONLINT_AMD64_URL="" ACTIONLINT_AMD64_SHA256="" ACTIONLINT_ARM64_URL="" ACTIONLINT_ARM64_SHA256=""
+ACTIONLINT_VERSION=""
 HADOLINT_VERSION="" HADOLINT_AMD64_URL="" HADOLINT_AMD64_SHA256="" HADOLINT_ARM64_URL="" HADOLINT_ARM64_SHA256=""
 YQ_VERSION="" YQ_AMD64_URL="" YQ_AMD64_SHA256="" YQ_ARM64_URL="" YQ_ARM64_SHA256=""
 GH_VERSION="" GH_AMD64_URL="" GH_AMD64_SHA256="" GH_ARM64_URL="" GH_ARM64_SHA256=""
@@ -266,10 +274,6 @@ SHFMT_AMD64_SHA256=${SHFMT_AMD64_SHA256}
 SHFMT_ARM64_URL=${SHFMT_ARM64_URL}
 SHFMT_ARM64_SHA256=${SHFMT_ARM64_SHA256}
 ACTIONLINT_VERSION=${ACTIONLINT_VERSION}
-ACTIONLINT_AMD64_URL=${ACTIONLINT_AMD64_URL}
-ACTIONLINT_AMD64_SHA256=${ACTIONLINT_AMD64_SHA256}
-ACTIONLINT_ARM64_URL=${ACTIONLINT_ARM64_URL}
-ACTIONLINT_ARM64_SHA256=${ACTIONLINT_ARM64_SHA256}
 HADOLINT_VERSION=${HADOLINT_VERSION}
 HADOLINT_AMD64_URL=${HADOLINT_AMD64_URL}
 HADOLINT_AMD64_SHA256=${HADOLINT_AMD64_SHA256}

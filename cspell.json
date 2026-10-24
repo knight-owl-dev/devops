@@ -8,7 +8,8 @@
   ],
   "dictionaries": [
     "bash",
-    "docker"
+    "docker",
+    "golang"
   ],
   "words": [
     "Anson",
@@ -32,6 +33,8 @@
     "freetype",
     "Fulcio",
     "GNUPGHOME",
+    "GOPRIVATE",
+    "GOPROXY",
     "goreleaser",
     "Grushinskiy",
     "gsub",
@@ -64,6 +67,7 @@
     "mikefarah",
     "minimatch",
     "mkdocs",
+    "modcache",
     "mvdan",
     "nfpm",
     "nocurl",
@@ -92,6 +96,7 @@
     "textproto",
     "tonumber",
     "tostring",
+    "trimpath",
     "trivyignores",
     "trixie",
     "undici",

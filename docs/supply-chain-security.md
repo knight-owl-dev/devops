@@ -26,7 +26,7 @@ The `ci-tools` image was the first, replacing these third-party actions:
 | Instead of | We use |
 | --- | --- |
 | `mfinelli/setup-shfmt` | shfmt binary from `mvdan/sh` releases |
-| `raven-actions/actionlint` | actionlint binary from `rhysd/actionlint` releases |
+| `raven-actions/actionlint` | actionlint built from `rhysd/actionlint` source |
 | `hadolint/hadolint-action` | hadolint binary from `hadolint/hadolint` releases |
 | `DavidAnson/markdownlint-cli2-action` | markdownlint-cli2 from npm |
 
@@ -42,6 +42,10 @@ locally.
   npm tools add a committed `package-lock.json` pinning the full tree by
   integrity hash, so the resolved tree is reproducible and moves only through
   a reviewable diff.
+- **Source builds from the Go module proxy** — for a tool whose releases lag
+  Go's security fixes, `scripts/build/go-install.sh` builds a pinned version on a
+  digest-pinned official `golang` image. The checksum database fixes each
+  version's content, so a moved tag cannot change what builds.
 - **GitHub-maintained Actions** — `actions/checkout`, `docker/build-push-action`,
   `docker/login-action`, `docker/setup-buildx-action`, `actions/upload-artifact`,
   `actions/download-artifact`, `actions/setup-go`,

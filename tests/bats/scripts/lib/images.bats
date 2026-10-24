@@ -90,6 +90,60 @@ _commit() {
   assert_failure
 }
 
+@test "changed when scripts/build/ changed and the Dockerfile copies from it" {
+  printf 'FROM scratch\nCOPY --from=shared x /x\n' > "${REPO}/images/ci-tools/Dockerfile"
+  _commit uses-shared
+  git -C "${REPO}" tag -f v1.2.5 > /dev/null
+  mkdir -p "${REPO}/scripts/build"
+  printf 'echo\n' > "${REPO}/scripts/build/x"
+  _commit shared-change
+  cd "${REPO}"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run image_build_context_changed ci-tools v1.2.5
+  assert_success
+}
+
+@test "changed when scripts/build/ changed and a RUN mounts it" {
+  printf 'FROM scratch\nRUN --mount=type=bind,from=shared,target=/s true\n' \
+    > "${REPO}/images/ci-tools/Dockerfile"
+  _commit mounts-shared
+  git -C "${REPO}" tag -f v1.2.5 > /dev/null
+  mkdir -p "${REPO}/scripts/build"
+  printf 'echo\n' > "${REPO}/scripts/build/x"
+  _commit shared-change
+  cd "${REPO}"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run image_build_context_changed ci-tools v1.2.5
+  assert_success
+}
+
+@test "changed when scripts/build/ changed and the context name is quoted" {
+  printf 'FROM scratch\nCOPY --from="shared" x /x\n' > "${REPO}/images/ci-tools/Dockerfile"
+  _commit quoted-shared
+  git -C "${REPO}" tag -f v1.2.5 > /dev/null
+  mkdir -p "${REPO}/scripts/build"
+  printf 'echo\n' > "${REPO}/scripts/build/x"
+  _commit shared-change
+  cd "${REPO}"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run image_build_context_changed ci-tools v1.2.5
+  assert_success
+}
+
+@test "unchanged when scripts/build/ changed but the Dockerfile never copies from it" {
+  mkdir -p "${REPO}/scripts/build"
+  printf 'echo\n' > "${REPO}/scripts/build/x"
+  _commit shared-change
+  cd "${REPO}"
+  # shellcheck disable=SC1090
+  source "${LIB}"
+  run image_build_context_changed ci-tools v1.2.5
+  assert_failure
+}
+
 @test "changed when the since-ref is unknown (new image / first release)" {
   cd "${REPO}"
   # shellcheck disable=SC1090

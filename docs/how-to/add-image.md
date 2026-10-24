@@ -51,7 +51,8 @@ both are auto-discovered:
   context changed; `compute-build-matrix.sh` then has `publish.yml` build and
   push exactly the stamped images. (`compose.yaml`, `version`, and
   `distributable` are excluded from the change check — editing them alone
-  doesn't force a rebuild.)
+  doesn't force a rebuild.) An image that copies from the `shared` build
+  context also counts changes to `scripts/build/`.
 - **`images/<name>/distributable`** (a presence-only marker) is the opt-in for
   *packaging*. It is the single signal behind all three package paths:
   `publish.yml` builds/uploads/dispatches `.deb` + tarball assets,
@@ -123,8 +124,17 @@ mkdir -p images/<name> scripts/<name>
   - Declare `TOOL_AMD64_URL`, `TOOL_AMD64_SHA256`, `TOOL_ARM64_URL`, and
     `TOOL_ARM64_SHA256`. The resolver writes all four, so the Dockerfile holds
     no asset names or arch spellings.
-  - Install in a throwaway stage and copy the binaries into the final image —
-    see the `release-bins` stage in `images/ci-tools/Dockerfile`.
+  - Install in a throwaway stage with the repo-wide
+    `scripts/build/install-release.sh` and copy the binaries into the final
+    image — see the `release-bins` stage in `images/ci-tools/Dockerfile`.
+    Wire the `shared` build context (step 5).
+- For Go tools whose releases lag Go's security fixes:
+  - Declare a `TOOL_VERSION` ARG and build in a `go-builder` stage with the
+    repo-wide `scripts/build/go-install.sh` — see `images/ci-tools/Dockerfile`. A
+    `GO_IMAGE` digest pin in the Dockerfile picks the toolchain, and Renovate
+    moves it like any base image.
+  - Wire the `shared` build context in `compose.yaml` (step 5). `publish.yml`
+    passes it for every image.
 - For tools installed from npm:
   - No ARG. `make resolve` generates `images/<name>/npm/<tool>/`, and the build
     installs from the committed lockfile with `npm ci` — see
@@ -153,6 +163,10 @@ applicable) for each tool, then writes `images/<name>/versions.lock`.
 
 - For GitHub release binaries, call `resolve_gh_release` with an asset name
   template and the upstream's arch spellings.
+- For Go tools built from source, record the tag alone (`latest_gh_tag`) —
+  the module checksum database verifies its content. Reject a pin that isn't
+  a full semver tag or doesn't exist upstream, so it fails at resolve rather
+  than in the build. See `resolve_actionlint`.
 - For package-manager tools, use the appropriate CLI or registry API
   (e.g., `npm view`, `luarocks search`).
 - For tools installed from npm, call `npm_lock` to write `npm/<tool>/` and set
@@ -225,6 +239,13 @@ services:
         TOOL_AMD64_SHA256: ${TOOL_AMD64_SHA256}
         TOOL_ARM64_URL: ${TOOL_ARM64_URL}
         TOOL_ARM64_SHA256: ${TOOL_ARM64_SHA256}
+```
+
+An image that uses `scripts/build/` helpers adds the context under `build:`:
+
+```yaml
+      additional_contexts:
+        shared: ../../scripts/build
 ```
 
 ### 6. Seed the lockfile

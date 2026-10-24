@@ -14,7 +14,7 @@ Read and follow `docs/supply-chain-security.md`. This is non-negotiable. Never i
 
 - **Use existing scripts before doing manual work.** The repo has resolve scripts (`scripts/*/resolve.sh`) that handle version lookups, checksum fetching, and lockfile writing. Use `make resolve` (with `TOOLS=` for pinning) instead of manually fetching versions or checksums.
 - **ShellCheck is strict.** `.shellcheckrc` enables extra optional checks (`check-extra-masked-returns`, `require-variable-braces`, etc.). Piped commands inside `$()` will fail lint — capture intermediate results instead.
-- **Dockerfile ARGs must not have defaults** for versioned tools. The lockfile pipeline supplies all versions externally.
+- **Dockerfile ARGs must not have defaults** for versioned tools. The lockfile pipeline supplies all versions externally. Base images (`BASE_IMAGE`, `GO_IMAGE`) are the exception: digest-pinned defaults that Renovate moves.
 - **compose.yaml uses `image:` not `tags:`** to name the built image, avoiding Docker Compose's `<project>-<service>` double-naming.
 - **Hyphenated tool names** (e.g., `markdownlint-cli2`) map to underscored function names (`resolve_markdownlint_cli2`) via `${tool//-/_}` in the resolver dispatch.
 - **shfmt enforces `2> /dev/null`** (with a space before `>`), not `2>/dev/null`.
