@@ -3,12 +3,12 @@
 # ---------- node ----------
 # Only the node binary leaves this stage. npm, npx, yarn and corepack each
 # carry a vendored dependency tree for every CVE scan to report.
-FROM node:26-alpine3.24@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5 AS node
+FROM node:26-alpine3.24@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797 AS node
 
 # ---------- runtime ----------
 # Coupled to the node stage: its binary links against this Alpine's musl, so
 # both move together.
-FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 
 # Chromium from the distro, which is what gets the security updates.
 #
