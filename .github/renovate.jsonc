@@ -74,6 +74,13 @@
       "groupName": "node-chromium base images"
     },
 
+    // One Go across every image that builds from source (scripts/build/go-install.sh).
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["golang"],
+      "groupName": "Go toolchain"
+    },
+
     // Trivy moves by hand. The scanner version is pinned in three places
     // scripts/lib/validate-trivy-pins.sh holds equal, one of them a Makefile
     // no manager reads — so a PR touching only the two workflows lands a tree

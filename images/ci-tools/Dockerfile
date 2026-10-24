@@ -4,6 +4,10 @@
 # under the final stage's interpreter and need its glibc ABI.
 ARG BASE_IMAGE=node:26-trixie-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec
 
+# Toolchain for the tools built from source. Exempt from the shared base: the
+# binaries are static, so no ABI crosses into the final stage.
+ARG GO_IMAGE=golang:1.27-trixie@sha256:fbb7ae40b62ff8afe31662df570d39b4f5052ac32b90dae8e60d7657a20a74f4
+
 # ---------- lua builder ----------
 # Compiles the Lua 5.4 rocks in a throwaway stage. luarocks, gcc, and the
 # liblua5.4-dev → libc6-dev → linux-libc-dev header chain live only here and are
@@ -65,17 +69,6 @@ RUN install-release "${TARGETARCH}" \
       "${SHFMT_ARM64_URL}" "${SHFMT_ARM64_SHA256}" \
       /out/shfmt
 
-# ---------- actionlint ----------
-ARG ACTIONLINT_AMD64_URL
-ARG ACTIONLINT_AMD64_SHA256
-ARG ACTIONLINT_ARM64_URL
-ARG ACTIONLINT_ARM64_SHA256
-RUN install-release "${TARGETARCH}" \
-      "${ACTIONLINT_AMD64_URL}" "${ACTIONLINT_AMD64_SHA256}" \
-      "${ACTIONLINT_ARM64_URL}" "${ACTIONLINT_ARM64_SHA256}" \
-      /out/actionlint \
-      actionlint
-
 # ---------- hadolint ----------
 ARG HADOLINT_AMD64_URL
 ARG HADOLINT_AMD64_SHA256
@@ -128,6 +121,26 @@ RUN install-release "${TARGETARCH}" \
       "${JQ_ARM64_URL}" "${JQ_ARM64_SHA256}" \
       /out/jq
 
+# ---------- go builder ----------
+# Tools built from source with the repo-wide go-install helper, which the
+# `shared` build context supplies. Runs on the build platform and
+# cross-compiles, sparing the emulated arch.
+FROM --platform=${BUILDPLATFORM} ${GO_IMAGE} AS go-builder
+
+# DL3022: `shared` is a named build context, not a stage
+# hadolint ignore=DL3022
+COPY --from=shared --chmod=755 go-install.sh /usr/local/bin/go-install
+
+ARG TARGETARCH
+
+# ---------- actionlint ----------
+# Upstream is inactive; its last release ships an outdated Go. Why, and when
+# to revisit: https://github.com/knight-owl-dev/devops/issues/96
+ARG ACTIONLINT_VERSION
+RUN go-install "${TARGETARCH}" \
+      "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}" \
+      /out/actionlint
+
 # ---------- final image ----------
 FROM ${BASE_IMAGE}
 
@@ -170,6 +183,7 @@ RUN mkdir -p /root/.parallel && touch /root/.parallel/will-cite
 
 # ---------- release binaries ----------
 COPY --from=release-bins /out/ /usr/local/bin/
+COPY --from=go-builder /out/ /usr/local/bin/
 
 # ---------- npm ----------
 # Upgrade npm beyond the base image version to pick up transitive dependency

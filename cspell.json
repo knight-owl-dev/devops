@@ -8,7 +8,8 @@
   ],
   "dictionaries": [
     "bash",
-    "docker"
+    "docker",
+    "golang"
   ],
   "words": [
     "Anson",
@@ -64,6 +65,7 @@
     "mikefarah",
     "minimatch",
     "mkdocs",
+    "modcache",
     "mvdan",
     "nfpm",
     "nocurl",
@@ -92,6 +94,7 @@
     "textproto",
     "tonumber",
     "tostring",
+    "trimpath",
     "trivyignores",
     "trixie",
     "undici",

@@ -82,6 +82,8 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: images/${{ matrix.image }}/
+          # scripts/build/ helpers; mirrors additional_contexts in compose.yaml.
+          build-contexts: shared=scripts/build
           # Constrains the build to the arch the matrix names. Redundant on a
           # native runner; without it, an arch paired with the wrong runner
           # label builds that runner's platform and the index carries one
@@ -131,6 +133,7 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: images/${{ matrix.image }}/
+          build-contexts: shared=scripts/build
           platforms: linux/${{ matrix.arch }}
           build-args: ${{ steps.args.outputs.build_args }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true

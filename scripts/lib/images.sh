@@ -11,6 +11,8 @@
 # reads it from the default branch, so a suppression edit lands without a
 # release). Excluding by name keeps the default safe: a new, unrecognized file
 # counts as a change.
+# An image whose Dockerfile copies from the `shared` build context also counts
+# the scripts/build/ it maps to.
 # A missing or unknown <since-ref> — e.g. a brand-new image with no prior
 # release tag — is treated as "changed" (first release).
 #
@@ -32,9 +34,14 @@ image_build_context_changed() {
     return 0
   fi
 
+  local shared=()
+  if grep -q -- '--from=shared' "images/${name}/Dockerfile" 2> /dev/null; then
+    shared=(scripts/build/)
+  fi
+
   # `git diff --quiet` exits 0 when there is no diff, 1 when there is.
   if git diff --quiet "${since_ref}...HEAD" -- \
-    "images/${name}/" \
+    "images/${name}/" "${shared[@]}" \
     ":(exclude)images/${name}/version" \
     ":(exclude)images/${name}/distributable" \
     ":(exclude)images/${name}/compose.yaml" \

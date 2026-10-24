@@ -3,6 +3,9 @@ services:
     image: ci-tools:local
     build:
       context: .
+      # scripts/build/: helpers shared across images.
+      additional_contexts:
+        shared: ../../scripts/build
       platforms:
         - linux/amd64
         - linux/arm64
@@ -12,10 +15,7 @@ services:
         SHFMT_AMD64_SHA256: ${SHFMT_AMD64_SHA256}
         SHFMT_ARM64_URL: ${SHFMT_ARM64_URL}
         SHFMT_ARM64_SHA256: ${SHFMT_ARM64_SHA256}
-        ACTIONLINT_AMD64_URL: ${ACTIONLINT_AMD64_URL}
-        ACTIONLINT_AMD64_SHA256: ${ACTIONLINT_AMD64_SHA256}
-        ACTIONLINT_ARM64_URL: ${ACTIONLINT_ARM64_URL}
-        ACTIONLINT_ARM64_SHA256: ${ACTIONLINT_ARM64_SHA256}
+        ACTIONLINT_VERSION: ${ACTIONLINT_VERSION}
         HADOLINT_AMD64_URL: ${HADOLINT_AMD64_URL}
         HADOLINT_AMD64_SHA256: ${HADOLINT_AMD64_SHA256}
         HADOLINT_ARM64_URL: ${HADOLINT_ARM64_URL}
