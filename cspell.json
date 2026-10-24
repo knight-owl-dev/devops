@@ -33,6 +33,8 @@
     "freetype",
     "Fulcio",
     "GNUPGHOME",
+    "GOPRIVATE",
+    "GOPROXY",
     "goreleaser",
     "Grushinskiy",
     "gsub",

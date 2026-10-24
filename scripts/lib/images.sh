@@ -35,7 +35,7 @@ image_build_context_changed() {
   fi
 
   local shared=()
-  if grep -q -- '--from=shared' "images/${name}/Dockerfile" 2> /dev/null; then
+  if grep -Eq 'from=shared([^[:alnum:]_.-]|$)' "images/${name}/Dockerfile" 2> /dev/null; then
     shared=(scripts/build/)
   fi
 

@@ -6,14 +6,17 @@ set -euo pipefail
 # For tools whose releases lag Go's security fixes: built on the image's Go,
 # a toolchain bump clears their stdlib CVEs. The module proxy serves the source
 # and the checksum database fixes each version's content, so a moved tag cannot
-# change what builds. Static and cross-compiled, so callers run it on the build
+# change what builds; both are forced, so no inherited setting can bypass them.
+# Static, stripped and cross-compiled, so callers run it on the build
 # platform and copy the binary into any stage.
 #
 # Usage:
 #   go-install.sh <arch> <package>@<version> <dest>
 
 TMP_DIR=""
-cleanup() { [[ -n "${TMP_DIR}" ]] && rm -rf "${TMP_DIR}"; }
+cleanup() {
+  if [[ -n "${TMP_DIR}" ]]; then rm -rf "${TMP_DIR}"; fi
+}
 trap cleanup EXIT
 
 die() {
@@ -29,8 +32,10 @@ main() {
     amd64 | arm64) ;;
     *) die "unsupported arch: ${arch}" ;;
   esac
-  # A query like @latest resolves at build time, unpinned.
-  [[ "${pkg}" =~ @v[0-9] ]] || die "package needs a pinned version: ${pkg}"
+  # A query (@latest, @v1) resolves at build time, unpinned; only a full
+  # semver, pre-release and pseudo-versions included, names one version.
+  local pinned='@v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.+-]+)?$'
+  [[ "${pkg}" =~ ${pinned} ]] || die "package needs a pinned version: ${pkg}"
 
   # An empty GOPATH collects the one binary wherever go puts it: bin/ when
   # native, bin/linux_<arch>/ when cross-compiling (GOBIN is refused then).
@@ -38,8 +43,10 @@ main() {
   local modcache
   modcache="$(go env GOMODCACHE)"
   CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" GOTOOLCHAIN=local \
+    GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org \
+    GONOPROXY='' GONOSUMDB='' GOPRIVATE='' GOINSECURE='' \
     GOFLAGS=-trimpath GOPATH="${TMP_DIR}" GOMODCACHE="${modcache}" \
-    go install "${pkg}" || die "build failed: ${pkg}"
+    go install -ldflags='-s -w' "${pkg}" || die "build failed: ${pkg}"
 
   local bins
   bins="$(find "${TMP_DIR}/bin" -type f 2> /dev/null)" || bins=""

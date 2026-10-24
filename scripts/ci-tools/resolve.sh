@@ -38,11 +38,13 @@ resolve_shfmt() {
   resolve_gh_release SHFMT mvdan/sh "${1:-}" 'shfmt_{tag}_linux_{arch}' amd64 arm64
 }
 
-# Built from source, so only the tag is recorded — see the Dockerfile for how
-# its content is verified.
+# Built from source, so only the tag is recorded — scripts/build/go-install.sh
+# says how its content is verified. The commit lookup fails a mistyped pin here
+# rather than at build time.
 resolve_actionlint() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag rhysd/actionlint)"
+  gh_tag_commit rhysd/actionlint "${tag}" > /dev/null
   ACTIONLINT_VERSION="${tag}"
 }
 
