@@ -55,7 +55,9 @@ RUN apt-get update \
     curl \
   && rm -rf /var/lib/apt/lists/*
 
-COPY --chmod=755 build/install-release.sh /usr/local/bin/install-release
+# DL3022: `shared` is a named build context, not a stage
+# hadolint ignore=DL3022
+COPY --from=shared --chmod=755 install-release.sh /usr/local/bin/install-release
 
 ARG TARGETARCH
 

@@ -124,8 +124,10 @@ mkdir -p images/<name> scripts/<name>
   - Declare `TOOL_AMD64_URL`, `TOOL_AMD64_SHA256`, `TOOL_ARM64_URL`, and
     `TOOL_ARM64_SHA256`. The resolver writes all four, so the Dockerfile holds
     no asset names or arch spellings.
-  - Install in a throwaway stage and copy the binaries into the final image —
-    see the `release-bins` stage in `images/ci-tools/Dockerfile`.
+  - Install in a throwaway stage with the repo-wide
+    `scripts/build/install-release.sh` and copy the binaries into the final
+    image — see the `release-bins` stage in `images/ci-tools/Dockerfile`.
+    Wire the `shared` build context (step 5).
 - For Go tools whose releases lag Go's security fixes:
   - Declare a `TOOL_VERSION` ARG and build in a `go-builder` stage with the
     repo-wide `scripts/build/go-install.sh` — see `images/ci-tools/Dockerfile`. A

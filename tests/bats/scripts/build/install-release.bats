@@ -1,14 +1,14 @@
 #!/usr/bin/env bats
 # shellcheck shell=bash
 #
-# Tests for images/ci-tools/build/install-release.sh. Assets are built per test
+# Tests for scripts/build/install-release.sh. Assets are built per test
 # and served over file://.
 
-load ../../../helpers/common
+load ../../helpers/common
 
 setup() {
   common_setup
-  SCRIPT="${REPO_ROOT}/images/ci-tools/build/install-release.sh"
+  SCRIPT="${REPO_ROOT}/scripts/build/install-release.sh"
   SRC="${BATS_TEST_TMPDIR}/src"
   DEST="${BATS_TEST_TMPDIR}/out/tool"
   mkdir -p "${SRC}"
