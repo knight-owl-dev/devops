@@ -60,7 +60,8 @@ EOF
 
 @test "forces the proxy and checksum database over inherited settings" {
   GOSUMDB=off GOPROXY=direct GOPRIVATE='*' GONOSUMDB='*' GONOPROXY='*' \
-    GOINSECURE='*' run "${SCRIPT}" arm64 example.com/tool@v1.2.3 "${DEST}"
+    GOINSECURE='*' GOBIN=/elsewhere GOENV=/elsewhere/env \
+    run "${SCRIPT}" arm64 example.com/tool@v1.2.3 "${DEST}"
   assert_success
   assert_file_contains "${STUB_ENV}" '^GOPROXY=https://proxy.golang.org$'
   assert_file_contains "${STUB_ENV}" '^GOSUMDB=sum.golang.org$'
@@ -68,6 +69,8 @@ EOF
   assert_file_contains "${STUB_ENV}" '^GONOSUMDB=$'
   assert_file_contains "${STUB_ENV}" '^GONOPROXY=$'
   assert_file_contains "${STUB_ENV}" '^GOINSECURE=$'
+  assert_file_contains "${STUB_ENV}" '^GOBIN=$'
+  assert_file_contains "${STUB_ENV}" '^GOENV=off$'
 }
 
 @test "strips symbols and installs exactly the named package" {

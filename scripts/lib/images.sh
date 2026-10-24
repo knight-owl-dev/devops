@@ -34,14 +34,16 @@ image_build_context_changed() {
     return 0
   fi
 
-  local shared=()
-  if grep -Eq 'from=shared([^[:alnum:]_.-]|$)' "images/${name}/Dockerfile" 2> /dev/null; then
-    shared=(scripts/build/)
+  # Never empty: bash < 4.4 treats an empty "${a[@]}" as unbound under set -u.
+  local context=("images/${name}/")
+  if grep -Eq "from=[\"']?shared([^[:alnum:]_.-]|\$)" \
+    "images/${name}/Dockerfile" 2> /dev/null; then
+    context+=(scripts/build/)
   fi
 
   # `git diff --quiet` exits 0 when there is no diff, 1 when there is.
   if git diff --quiet "${since_ref}...HEAD" -- \
-    "images/${name}/" "${shared[@]}" \
+    "${context[@]}" \
     ":(exclude)images/${name}/version" \
     ":(exclude)images/${name}/distributable" \
     ":(exclude)images/${name}/compose.yaml" \

@@ -44,7 +44,7 @@ main() {
   modcache="$(go env GOMODCACHE)"
   CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" GOTOOLCHAIN=local \
     GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org \
-    GONOPROXY='' GONOSUMDB='' GOPRIVATE='' GOINSECURE='' \
+    GONOPROXY='' GONOSUMDB='' GOPRIVATE='' GOINSECURE='' GOBIN='' GOENV=off \
     GOFLAGS=-trimpath GOPATH="${TMP_DIR}" GOMODCACHE="${modcache}" \
     go install -ldflags='-s -w' "${pkg}" || die "build failed: ${pkg}"
 

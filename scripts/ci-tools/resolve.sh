@@ -39,11 +39,14 @@ resolve_shfmt() {
 }
 
 # Built from source, so only the tag is recorded — scripts/build/go-install.sh
-# says how its content is verified. The commit lookup fails a mistyped pin here
-# rather than at build time.
+# says how its content is verified. A pin is checked here against go-install's
+# full-semver rule and the upstream repo, so a bad one fails at resolve time
+# rather than inside the build.
 resolve_actionlint() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag rhysd/actionlint)"
+  local semver='^v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.+-]+)?$'
+  [[ "${tag}" =~ ${semver} ]] || die "actionlint pin is not a full semver tag: ${tag}"
   gh_tag_commit rhysd/actionlint "${tag}" > /dev/null
   ACTIONLINT_VERSION="${tag}"
 }
