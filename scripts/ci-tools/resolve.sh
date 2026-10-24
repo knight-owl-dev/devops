@@ -45,7 +45,7 @@ resolve_shfmt() {
 resolve_actionlint() {
   local tag="${1:-}"
   [[ -z "${tag}" ]] && tag="$(latest_gh_tag rhysd/actionlint)"
-  local semver='^v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.+-]+)?$'
+  local semver='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+incompatible)?$'
   [[ "${tag}" =~ ${semver} ]] || die "actionlint pin is not a full semver tag: ${tag}"
   gh_tag_commit rhysd/actionlint "${tag}" > /dev/null
   ACTIONLINT_VERSION="${tag}"

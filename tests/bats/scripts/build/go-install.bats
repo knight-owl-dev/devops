@@ -80,8 +80,10 @@ EOF
   assert_output "$(printf '%s\n' install '-ldflags=-s -w' example.com/tool@v1.2.3)"
 }
 
-@test "accepts pre-release and pseudo-versions" {
+@test "accepts pre-release, pseudo- and +incompatible versions" {
   run "${SCRIPT}" arm64 example.com/tool@v1.2.3-rc.1 "${DEST}"
+  assert_success
+  run "${SCRIPT}" arm64 example.com/tool@v2.0.0+incompatible "${DEST}"
   assert_success
   run "${SCRIPT}" arm64 example.com/tool@v0.0.0-20260419000000-0123456789ab "${DEST}"
   assert_success
@@ -93,6 +95,16 @@ EOF
   assert_output --partial 'needs a pinned version'
 
   run "${SCRIPT}" arm64 example.com/tool "${DEST}"
+  assert_failure
+  assert_output --partial 'needs a pinned version'
+}
+
+@test "rejects build metadata and leading zeros, which go refuses" {
+  run "${SCRIPT}" arm64 example.com/tool@v1.2.3+build5 "${DEST}"
+  assert_failure
+  assert_output --partial 'needs a pinned version'
+
+  run "${SCRIPT}" arm64 example.com/tool@v01.2.3 "${DEST}"
   assert_failure
   assert_output --partial 'needs a pinned version'
 }

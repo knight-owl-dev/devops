@@ -33,8 +33,9 @@ main() {
     *) die "unsupported arch: ${arch}" ;;
   esac
   # A query (@latest, @v1) resolves at build time, unpinned; only a full
-  # semver, pre-release and pseudo-versions included, names one version.
-  local pinned='@v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.+-]+)?$'
+  # semver, pre-release and pseudo-versions included, names one version. Go
+  # allows no build metadata but +incompatible.
+  local pinned='@v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+incompatible)?$'
   [[ "${pkg}" =~ ${pinned} ]] || die "package needs a pinned version: ${pkg}"
 
   # An empty GOPATH collects the one binary wherever go puts it: bin/ when

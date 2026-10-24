@@ -131,8 +131,8 @@ mkdir -p images/<name> scripts/<name>
 - For Go tools whose releases lag Go's security fixes:
   - Declare a `TOOL_VERSION` ARG and build in a `go-builder` stage with the
     repo-wide `scripts/build/go-install.sh` — see `images/ci-tools/Dockerfile`. A
-    `GO_IMAGE` digest pin in the Dockerfile picks the toolchain; Renovate
-    moves every image's pin in one group.
+    `GO_IMAGE` digest pin in the Dockerfile picks the toolchain, and Renovate
+    moves it like any base image.
   - Wire the `shared` build context in `compose.yaml` (step 5). `publish.yml`
     passes it for every image.
 - For tools installed from npm:
@@ -164,7 +164,9 @@ applicable) for each tool, then writes `images/<name>/versions.lock`.
 - For GitHub release binaries, call `resolve_gh_release` with an asset name
   template and the upstream's arch spellings.
 - For Go tools built from source, record the tag alone (`latest_gh_tag`) —
-  the module checksum database verifies its content. See `resolve_actionlint`.
+  the module checksum database verifies its content. Reject a pin that isn't
+  a full semver tag or doesn't exist upstream, so it fails at resolve rather
+  than in the build. See `resolve_actionlint`.
 - For package-manager tools, use the appropriate CLI or registry API
   (e.g., `npm view`, `luarocks search`).
 - For tools installed from npm, call `npm_lock` to write `npm/<tool>/` and set
