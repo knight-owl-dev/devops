@@ -24,42 +24,48 @@ vulnerabilities:
   - id: CVE-2026-78667
     statement: >-
       net/http server DoS via crafted Range headers, fixed in Go 1.26.9 /
-      1.27.2. Affects shfmt v3.14.1 and yq v4.54.1 (both Go 1.27.1) —
-      neither serves HTTP, so practical risk is negligible. Tracking: #299.
-      Remove once both ship builds on Go >= 1.26.9 or 1.27.2.
+      1.27.2. Affects shfmt v3.14.1 (Go 1.27.1), which serves no HTTP, so
+      practical risk is negligible. Tracking: #299. Remove once shfmt ships
+      a build on Go >= 1.26.9 or 1.27.2.
     expired_at: 2026-11-23
 
   - id: CVE-2026-97031
     statement: >-
       crypto/tls server DoS via repeated ECH outer extension references,
-      fixed in Go 1.26.9 / 1.27.2. Affects shfmt v3.14.1 and yq v4.54.1
-      (both Go 1.27.1) — neither accepts TLS connections, so practical risk
-      is negligible. Tracking: #299. Remove once both ship builds on Go >=
-      1.26.9 or 1.27.2.
+      fixed in Go 1.26.9 / 1.27.2. Affects shfmt v3.14.1 (Go 1.27.1), which
+      accepts no TLS connections, so practical risk is negligible. Tracking:
+      #299. Remove once shfmt ships a build on Go >= 1.26.9 or 1.27.2.
     expired_at: 2026-11-23
 
   - id: CVE-2026-78669
     statement: >-
       net/http HTTP/2 DoS via excessive SETTINGS frames, fixed in Go 1.26.9
-      / 1.27.2 and golang.org/x/net 0.60.0. Affects shfmt v3.14.1 and yq
-      v4.54.1 (both Go 1.27.1), plus x/net 0.59.0 in yq — neither speaks
-      HTTP/2, so practical risk is negligible. Tracking: #299. Remove once
-      both ship builds on Go >= 1.26.9 or 1.27.2 and yq on x/net >= 0.60.0.
+      / 1.27.2. Affects shfmt v3.14.1 (Go 1.27.1), which speaks no HTTP/2,
+      so practical risk is negligible. Tracking: #299. Remove once shfmt
+      ships a build on Go >= 1.26.9 or 1.27.2.
     expired_at: 2026-11-23
 
   - id: CVE-2026-111943
     statement: >-
       crypto/x509 certificate verification flaw enabling man-in-the-middle,
-      fixed in Go 1.26.10 / 1.27.3. Affects shfmt v3.14.1 and yq v4.54.1
-      (both Go 1.27.1) — neither opens TLS connections, so practical risk
-      is negligible. Tracking: #299. Remove once both ship builds on Go >=
-      1.26.10 or 1.27.3.
+      fixed in Go 1.26.10 / 1.27.3. Affects shfmt v3.14.1 (Go 1.27.1), which
+      opens no TLS connections, so practical risk is negligible. Tracking:
+      #299. Remove once shfmt ships a build on Go >= 1.26.10 or 1.27.3.
     expired_at: 2026-11-23
 
-  - id: CVE-2026-109869
+  - id: CVE-2026-78661
     statement: >-
-      undici DoS via unhandled stream error, fixed in 6.29.1. Affects npm
-      12.2.1's vendored undici 6.29.0 — npm only talks to the registry at
-      build time, so practical risk is negligible. Tracking: #299. Remove
-      once npm ships a bundle on undici >= 6.29.1.
-    expired_at: 2026-11-23
+      golang.org/x/net/html: quadratic-time DoS on crafted HTML, fixed in
+      0.62.0. Affects gh v2.103.3 (x/net 0.60.0) — worst case is a slow gh
+      call in an ephemeral CI job, so practical risk is negligible.
+      Tracking: #299. Remove once gh ships a build on x/net >= 0.62.0.
+    expired_at: 2026-12-23
+
+  - id: CVE-2026-116795
+    statement: >-
+      re2js: quadratic-time DoS on repeated lookbehind matching, fixed in
+      2.8.7. Affects markdownlint-cli2 0.24.0, which pins markdownlint
+      0.42.0 and thus re2js 2.8.6 — it only lints the repo's own Markdown,
+      so practical risk is negligible. Tracking: #299. Remove once
+      markdownlint-cli2 ships on markdownlint >= 0.42.1.
+    expired_at: 2026-12-23
