@@ -3,12 +3,12 @@
 # ---------- node ----------
 # Only the node binary leaves this stage. npm, npx, yarn and corepack each
 # carry a vendored dependency tree for every CVE scan to report.
-FROM node:26-alpine3.24@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94 AS node
+FROM node:26-alpine3.24@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS node
 
 # ---------- runtime ----------
 # Coupled to the node stage: its binary links against this Alpine's musl, so
 # both move together.
-FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 
 # Chromium from the distro, which is what gets the security updates.
 #
@@ -19,24 +19,17 @@ FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c03
 # libatomic. Each is named so the image keeps it whatever chromium depends on.
 # A node bump that links a new library adds it here.
 #
-# The floored packages are chromium's dependencies, named only to raise them:
-# without a floor, `apk add` leaves an installed package at whatever the cached
-# layer resolved. A registry cache serves this layer until the command string
-# changes, so the floor is both the fix and the cache bust. Drop each once the
-# base ships it, or, for one the base lacks, once a base bump has rebuilt this
-# layer.
-#   libcrypto3, libssl3            CVE-2026-14456
-#   libblkid, libmount, libuuid    CVE-2026-53612 and 20 more in util-linux
-#   libexpat                       CVE-2026-93990
+# A registry cache serves this layer until the command string or base digest
+# changes, so a fix Alpine ships between base bumps never lands on its own. To
+# pull one in, add a floor ("pkg>=fixed") with its CVE: it is both the fix and
+# the cache bust. Drop it once the base ships it, or, for a package the base
+# lacks, once a base bump has rebuilt this layer.
 #
 # DL3018: Alpine keeps only the current build of a package, so an exact version
 # breaks the next build. The published digest is the pin.
 # hadolint ignore=DL3018
 RUN apk add --no-cache chromium \
-    libstdc++ libgcc libatomic font-noto font-opensans \
-    "libcrypto3>=3.5.8-r0" "libssl3>=3.5.8-r0" \
-    "libblkid>=2.42.3-r1" "libmount>=2.42.3-r1" "libuuid>=2.42.3-r1" \
-    "libexpat>=2.8.5-r0"
+    libstdc++ libgcc libatomic font-noto font-opensans
 
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 

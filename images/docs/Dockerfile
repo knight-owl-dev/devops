@@ -1,5 +1,5 @@
 # docs — Zensical documentation build image for Knight Owl
-FROM python:3.15-slim-trixie@sha256:533b0b2f9b5d46fd097091cf826f27902f1d6c3bca714b6dc74551356aa97a51
+FROM python:3.15-slim-trixie@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -8,11 +8,16 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # build through the Makefile (`make docs-build`), the same way they drive
 # lint/test in ci-tools, so the build command lives in one place.
 #
+# zlib1g ships in the base; naming it upgrades it from trixie-security
+# (CVE-2026-76844, CVE-2026-85091) and busts the layer cache. Drop it once the
+# base ships 1:1.3.dfsg+really1.3.1-1+deb13u1.
+#
 # DL3008: apt packages are intentionally unpinned
 # hadolint ignore=DL3008
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     make \
+    zlib1g \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 

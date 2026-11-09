@@ -2,11 +2,11 @@
 
 # Every stage shares one base: the native .so modules built in lua-builder load
 # under the final stage's interpreter and need its glibc ABI.
-ARG BASE_IMAGE=node:26-trixie-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39
+ARG BASE_IMAGE=node:26-trixie-slim@sha256:5adad64f9a1fca2d51972caa65983634c8a774eb300d72b20f7f2a0f60368072
 
 # Toolchain for the tools built from source. Exempt from the shared base: the
 # binaries are static, so no ABI crosses into the final stage.
-ARG GO_IMAGE=golang:1.27-trixie@sha256:c65ecfe613b539ac74c62a4c3b2c27e8f8a6076384c8f27e8a3c0f3be17cc385
+ARG GO_IMAGE=golang:1.27-trixie@sha256:af1bfc2614ebb1dbd31af514b78740fd678850e76498762b425ecee4c5c6ea80
 
 # ---------- lua builder ----------
 # Compiles the Lua 5.4 rocks in a throwaway stage. luarocks, gcc, and the
@@ -149,6 +149,10 @@ FROM ${BASE_IMAGE}
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # ---------- apt ----------
+# zlib1g ships in the base; naming it upgrades it from trixie-security
+# (CVE-2026-76844, CVE-2026-85091) and busts the layer cache. Drop it once the
+# base ships 1:1.3.dfsg+really1.3.1-1+deb13u1.
+#
 # DL3008: apt packages are intentionally unpinned
 # hadolint ignore=DL3008
 RUN apt-get update \
@@ -167,6 +171,7 @@ RUN apt-get update \
     xmlstarlet \
     zip \
     unzip \
+    zlib1g \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
