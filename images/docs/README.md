@@ -40,9 +40,10 @@ jobs:
       - run: make docs-build
 ```
 
-Or build a site locally against the published image:
+Or build a site locally against the published image, passing `--init` since
+the image sets no init:
 
 ```bash
-docker run --rm -v "$PWD:/docs" -w /docs \
+docker run --rm --init -v "$PWD:/docs" -w /docs \
   ghcr.io/knight-owl-dev/docs:latest zensical build
 ```

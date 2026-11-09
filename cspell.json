@@ -89,6 +89,7 @@
     "subshell",
     "Tange",
     "textproto",
+    "tini",
     "tonumber",
     "tostring",
     "trimpath",

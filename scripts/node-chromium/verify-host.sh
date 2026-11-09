@@ -20,7 +20,7 @@ source "${REPO_ROOT}/scripts/lib/verify.sh"
 : "${IMAGE_TAG:?IMAGE_TAG is required}"
 
 in_image() {
-  docker run --rm -v "${REPO_ROOT}/scripts/node-chromium:/verify:ro" \
+  docker run --rm --init -v "${REPO_ROOT}/scripts/node-chromium:/verify:ro" \
     --entrypoint "${1}" "${IMAGE_TAG}" "${@:2}"
 }
 
@@ -32,6 +32,7 @@ echo "Verifying node-chromium ..."
 check "node" "" in_image /usr/local/bin/node --version
 check "chromium" "" in_image /usr/bin/chromium-browser --version
 check "chromium paints" "" in_image node /verify/probe.mjs paint
+check "tini" "" in_image /sbin/tini --version
 for family in "Noto Sans" "Open Sans"; do
   check "font ${family}" "" in_image node /verify/probe.mjs font "${family}"
 done

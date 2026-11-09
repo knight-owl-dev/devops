@@ -58,7 +58,7 @@ DEB_FILENAME="$(basename "${DEB_FILE}")"
 echo "Testing .deb package: ${DEB_FILE}"
 echo "Test container: ${TEST_IMAGE}"
 
-docker run --rm \
+docker run --rm --init \
   -v "${DEB_DIR}:/deb:ro" \
   -v "${REPO_ROOT}/scripts/${IMAGE}:/scripts:ro" \
   "${TEST_IMAGE}" \

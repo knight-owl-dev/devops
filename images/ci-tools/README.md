@@ -63,6 +63,13 @@ jobs:
       - run: make lint
 ```
 
+Or run a tool locally, passing `--init` since the image sets no init:
+
+```bash
+docker run --rm --init -v "$PWD:/work" -w /work \
+  ghcr.io/knight-owl-dev/ci-tools:latest make lint
+```
+
 > **Caveat:** Pass `.github/workflows/*.yml` explicitly to actionlint instead
 > of relying on auto-discovery. Auto-discovery breaks inside CI containers
 > where the workspace path doesn't match what actionlint expects.
