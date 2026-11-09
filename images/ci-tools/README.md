@@ -63,10 +63,11 @@ jobs:
       - run: make lint
 ```
 
-Or run a tool locally, passing `--init` since the image sets no init:
+Or run a tool locally. The image sets no init, so pass `--init`, and
+`TINI_KILL_PROCESS_GROUP=1` so Ctrl-C reaches the tool's children too:
 
 ```bash
-docker run --rm --init -v "$PWD:/work" -w /work \
+docker run --rm --init -e TINI_KILL_PROCESS_GROUP=1 -v "$PWD:/work" -w /work \
   ghcr.io/knight-owl-dev/ci-tools:latest make lint
 ```
 

@@ -217,7 +217,8 @@ An image that cannot verify itself from inside — no shell, an `ENTRYPOINT` tha
 owns argv, or a service that answers a protocol rather than `--version` — ships
 `scripts/<name>/verify-host.sh` instead. `make verify` runs it on the host with
 `IMAGE` and `IMAGE_TAG` in the environment, and that script owns the container
-lifecycle. Presence of the file is the only signal.
+lifecycle, so its `docker run` passes the Makefile's `--init` flags. Presence
+of the file is the only signal.
 
 ### 5. Create the compose file (local builds only)
 

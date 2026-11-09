@@ -58,7 +58,7 @@ DEB_FILENAME="$(basename "${DEB_FILE}")"
 echo "Testing .deb package: ${DEB_FILE}"
 echo "Test container: ${TEST_IMAGE}"
 
-docker run --rm --init \
+docker run --rm --init -e TINI_KILL_PROCESS_GROUP=1 \
   -v "${DEB_DIR}:/deb:ro" \
   -v "${REPO_ROOT}/scripts/${IMAGE}:/scripts:ro" \
   "${TEST_IMAGE}" \

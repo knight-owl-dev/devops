@@ -43,9 +43,9 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 ENTRYPOINT ["/sbin/tini", "-s", "-g", "--", "node", "/app/src/server.js"]
 ```
 
-tini as PID 1 forwards signals, so `docker stop` and Ctrl-C end the server at
-once: `-g` signals the whole process group, and `-s` keeps tini quiet under a
-caller's `--init`.
+tini as PID 1 forwards signals to the server and reaps Chromium's orphaned
+helpers: `-g` signals the whole process group, and `-s` keeps tini reaping
+when a caller's `--init` makes it something other than PID 1.
 
 Build the `deps` stage on this image's Node line, so native modules match its
 Node ABI and musl.

@@ -40,10 +40,11 @@ jobs:
       - run: make docs-build
 ```
 
-Or build a site locally against the published image, passing `--init` since
-the image sets no init:
+Or build a site locally against the published image. The image sets no init,
+so pass `--init`, and `TINI_KILL_PROCESS_GROUP=1` so Ctrl-C reaches the
+command's children too:
 
 ```bash
-docker run --rm --init -v "$PWD:/docs" -w /docs \
+docker run --rm --init -e TINI_KILL_PROCESS_GROUP=1 -v "$PWD:/docs" -w /docs \
   ghcr.io/knight-owl-dev/docs:latest zensical build
 ```
