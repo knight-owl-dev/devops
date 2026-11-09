@@ -10,7 +10,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 #
 # zlib1g ships in the base; naming it upgrades it from trixie-security
 # (CVE-2026-76844, CVE-2026-85091) and busts the layer cache. Drop it once the
-# base ships 1:1.3.dfsg+really1.3.1-1+deb13u1.
+# base ships deb13u1.
 #
 # DL3008: apt packages are intentionally unpinned
 # hadolint ignore=DL3008
