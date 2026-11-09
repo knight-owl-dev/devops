@@ -16,6 +16,10 @@ IS_TTY := $(shell test -t 0 && echo 1)
 # Override with `DOCKER_TTY=` (empty) or `DOCKER_TTY=-t` (force) as needed.
 DOCKER_TTY ?= $(if $(IS_TTY),-t)
 
+# Every container runs under Docker's init, signalling its process group; why
+# is at docker_run() in scripts/lib/docker.sh, the scripts' copy of these flags.
+DOCKER_RUN ?= docker run --rm --init -e TINI_KILL_PROCESS_GROUP=1 $(DOCKER_TTY)
+
 # ci-tools carries the lint and test toolchain, so recipes re-enter it
 # regardless of IMAGE — IMAGE selects what a target acts on, never where it
 # runs. Deliberately not $(IMAGE_TAG): `IMAGE=docs` would look for these
@@ -92,7 +96,7 @@ verify:
 ifneq ($(HOST_VERIFY),)
 	@IMAGE="$(IMAGE)" IMAGE_TAG="$(IMAGE_TAG)" $(HOST_VERIFY)
 else
-	@docker run --rm $(DOCKER_TTY) \
+	@$(DOCKER_RUN) \
 		-v "$(CURDIR)/scripts:/scripts" \
 		-v "$(CURDIR)/images/$(IMAGE)/versions.lock:/versions.lock:ro" \
 		$(NPM_MOUNT) \
@@ -114,7 +118,7 @@ TRIVY_IMAGE := aquasec/trivy:0.76.1
 
 scan: build
 	@echo "Scanning $(IMAGE_TAG) for vulnerabilities$(if $(NO_IGNORE), (suppressions disabled),)..."
-	@docker run --rm $(DOCKER_TTY) \
+	@$(DOCKER_RUN) \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v "$(CURDIR):/repo:ro" \
 		-w /repo \
@@ -132,7 +136,7 @@ LINT_TARGETS := lint-lockfile lint-docker lint-sh lint-sh-fmt lint-actions \
 # wherever make runs, and host tools drift from the image's — shfmt formats
 # differently across minor versions. The aggregate targets therefore re-enter
 # the image. CI, already inside it, overrides with `LINT_RUNNER=make`.
-LINT_RUNNER ?= docker run --rm $(DOCKER_TTY) \
+LINT_RUNNER ?= $(DOCKER_RUN) \
 	-v "$(CURDIR):/work" -w /work $(TOOLS_IMAGE) make
 LINT_IMAGE_DEP := $(call image_dep,$(LINT_RUNNER))
 
@@ -237,7 +241,7 @@ test-package:
 # macOS host without needing bats installed. CI (already inside the
 # container) overrides with `BATS_RUNNER=bats` to avoid
 # docker-in-docker.
-BATS_RUNNER ?= docker run --rm $(DOCKER_TTY) \
+BATS_RUNNER ?= $(DOCKER_RUN) \
 	-v "$(CURDIR):/work" -w /work $(TOOLS_IMAGE) bats
 BATS_IMAGE_DEP := $(call image_dep,$(BATS_RUNNER))
 

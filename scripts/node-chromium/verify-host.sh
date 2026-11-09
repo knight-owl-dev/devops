@@ -16,11 +16,13 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${0}")/../.." && pwd)"
 # shellcheck source=scripts/lib/verify.sh
 source "${REPO_ROOT}/scripts/lib/verify.sh"
+# shellcheck source=scripts/lib/docker.sh
+source "${REPO_ROOT}/scripts/lib/docker.sh"
 
 : "${IMAGE_TAG:?IMAGE_TAG is required}"
 
 in_image() {
-  docker run --rm -v "${REPO_ROOT}/scripts/node-chromium:/verify:ro" \
+  docker_run -v "${REPO_ROOT}/scripts/node-chromium:/verify:ro" \
     --entrypoint "${1}" "${IMAGE_TAG}" "${@:2}"
 }
 
@@ -32,6 +34,7 @@ echo "Verifying node-chromium ..."
 check "node" "" in_image /usr/local/bin/node --version
 check "chromium" "" in_image /usr/bin/chromium-browser --version
 check "chromium paints" "" in_image node /verify/probe.mjs paint
+check "tini" "" in_image /sbin/tini -s -g -- /sbin/tini --version
 for family in "Noto Sans" "Open Sans"; do
   check "font ${family}" "" in_image node /verify/probe.mjs font "${family}"
 done
