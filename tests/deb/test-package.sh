@@ -33,6 +33,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+# shellcheck source=scripts/lib/docker.sh
+source "${REPO_ROOT}/scripts/lib/docker.sh"
 
 if [[ $# -lt 2 ]]; then
   echo "Usage: $0 <image> <path-to-deb> [test-container]"
@@ -58,7 +60,7 @@ DEB_FILENAME="$(basename "${DEB_FILE}")"
 echo "Testing .deb package: ${DEB_FILE}"
 echo "Test container: ${TEST_IMAGE}"
 
-docker run --rm --init -e TINI_KILL_PROCESS_GROUP=1 \
+docker_run \
   -v "${DEB_DIR}:/deb:ro" \
   -v "${REPO_ROOT}/scripts/${IMAGE}:/scripts:ro" \
   "${TEST_IMAGE}" \

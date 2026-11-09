@@ -16,11 +16,9 @@ IS_TTY := $(shell test -t 0 && echo 1)
 # Override with `DOCKER_TTY=` (empty) or `DOCKER_TTY=-t` (force) as needed.
 DOCKER_TTY ?= $(if $(IS_TTY),-t)
 
-# The images set no init, and a PID 1 command ignores every signal it has no
-# handler for. Docker's init is tini without -g, so the variable makes it
-# signal the whole process group: otherwise Ctrl-C stops at make or bats and
-# never reaches the recipe they wait on.
-DOCKER_RUN = docker run --rm --init -e TINI_KILL_PROCESS_GROUP=1 $(DOCKER_TTY)
+# Every container runs under Docker's init, signalling its process group; why
+# is at docker_run() in scripts/lib/docker.sh, the scripts' copy of these flags.
+DOCKER_RUN ?= docker run --rm --init -e TINI_KILL_PROCESS_GROUP=1 $(DOCKER_TTY)
 
 # ci-tools carries the lint and test toolchain, so recipes re-enter it
 # regardless of IMAGE — IMAGE selects what a target acts on, never where it

@@ -13,7 +13,7 @@ FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5
 # Chromium from the distro, which is what gets the security updates.
 #
 # The fonts are contract (see README.md), so each is named even where chromium
-# already pulls it in. So is tini, for the consumer's ENTRYPOINT.
+# already pulls it in. tini is contract too, for the consumer's ENTRYPOINT.
 #
 # The copied node binary links against libstdc++, libgcc and, on amd64,
 # libatomic. Each is named so the image keeps it whatever chromium depends on.

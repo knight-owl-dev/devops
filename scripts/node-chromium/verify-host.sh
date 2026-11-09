@@ -16,12 +16,13 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${0}")/../.." && pwd)"
 # shellcheck source=scripts/lib/verify.sh
 source "${REPO_ROOT}/scripts/lib/verify.sh"
+# shellcheck source=scripts/lib/docker.sh
+source "${REPO_ROOT}/scripts/lib/docker.sh"
 
 : "${IMAGE_TAG:?IMAGE_TAG is required}"
 
 in_image() {
-  docker run --rm --init -e TINI_KILL_PROCESS_GROUP=1 \
-    -v "${REPO_ROOT}/scripts/node-chromium:/verify:ro" \
+  docker_run -v "${REPO_ROOT}/scripts/node-chromium:/verify:ro" \
     --entrypoint "${1}" "${IMAGE_TAG}" "${@:2}"
 }
 
