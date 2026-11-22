@@ -6,7 +6,7 @@ ARG BASE_IMAGE=node:26-trixie-slim@sha256:5adad64f9a1fca2d51972caa65983634c8a774
 
 # Toolchain for the tools built from source. Exempt from the shared base: the
 # binaries are static, so no ABI crosses into the final stage.
-ARG GO_IMAGE=golang:1.27-trixie@sha256:af1bfc2614ebb1dbd31af514b78740fd678850e76498762b425ecee4c5c6ea80
+ARG GO_IMAGE=golang:1.27-trixie@sha256:f18c3d73a184fb0582828510722e723b63a93f7188d11dd223d9be6f6880e65d
 
 # ---------- lua builder ----------
 # Compiles the Lua 5.4 rocks in a throwaway stage. luarocks, gcc, and the
