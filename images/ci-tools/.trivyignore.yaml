@@ -27,7 +27,7 @@ vulnerabilities:
       1.27.2. Affects shfmt v3.14.1 (Go 1.27.1), which serves no HTTP, so
       practical risk is negligible. Tracking: #299. Remove once shfmt ships
       a build on Go >= 1.26.9 or 1.27.2.
-    expired_at: 2026-11-23
+    expired_at: 2027-01-06
 
   - id: CVE-2026-97031
     statement: >-
@@ -35,7 +35,7 @@ vulnerabilities:
       fixed in Go 1.26.9 / 1.27.2. Affects shfmt v3.14.1 (Go 1.27.1), which
       accepts no TLS connections, so practical risk is negligible. Tracking:
       #299. Remove once shfmt ships a build on Go >= 1.26.9 or 1.27.2.
-    expired_at: 2026-11-23
+    expired_at: 2027-01-06
 
   - id: CVE-2026-78669
     statement: >-
@@ -43,7 +43,7 @@ vulnerabilities:
       / 1.27.2. Affects shfmt v3.14.1 (Go 1.27.1), which speaks no HTTP/2,
       so practical risk is negligible. Tracking: #299. Remove once shfmt
       ships a build on Go >= 1.26.9 or 1.27.2.
-    expired_at: 2026-11-23
+    expired_at: 2027-01-06
 
   - id: CVE-2026-111943
     statement: >-
@@ -51,21 +51,4 @@ vulnerabilities:
       fixed in Go 1.26.10 / 1.27.3. Affects shfmt v3.14.1 (Go 1.27.1), which
       opens no TLS connections, so practical risk is negligible. Tracking:
       #299. Remove once shfmt ships a build on Go >= 1.26.10 or 1.27.3.
-    expired_at: 2026-11-23
-
-  - id: CVE-2026-78661
-    statement: >-
-      golang.org/x/net/html: quadratic-time DoS on crafted HTML, fixed in
-      0.62.0. Affects gh v2.103.3 (x/net 0.60.0) — worst case is a slow gh
-      call in an ephemeral CI job, so practical risk is negligible.
-      Tracking: #299. Remove once gh ships a build on x/net >= 0.62.0.
-    expired_at: 2026-12-23
-
-  - id: CVE-2026-116795
-    statement: >-
-      re2js: quadratic-time DoS on repeated lookbehind matching, fixed in
-      2.8.7. Affects markdownlint-cli2 0.24.0, which pins markdownlint
-      0.42.0 and thus re2js 2.8.6 — it only lints the repo's own Markdown,
-      so practical risk is negligible. Tracking: #299. Remove once
-      markdownlint-cli2 ships on markdownlint >= 0.42.1.
-    expired_at: 2026-12-23
+    expired_at: 2027-01-06
