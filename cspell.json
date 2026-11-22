@@ -48,6 +48,7 @@
     "koalaman",
     "libatomic",
     "libc",
+    "libfontenc",
     "libgcc",
     "libgnutls",
     "liblua",

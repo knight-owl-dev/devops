@@ -24,12 +24,16 @@ FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5
 # pull one in, add a floor ("pkg>=fixed") with its CVE: it is both the fix and
 # the cache bust. Drop it once the base ships it, or, for a package the base
 # lacks, once a base bump has rebuilt this layer.
+#   libfontenc   CVE-2026-109908
+#   libxml2      CVE-2026-86144
+#   libxslt      CVE-2026-125350, CVE-2026-87636, CVE-2026-9947
 #
 # DL3018: Alpine keeps only the current build of a package, so an exact version
 # breaks the next build. The published digest is the pin.
 # hadolint ignore=DL3018
 RUN apk add --no-cache chromium \
-    libstdc++ libgcc libatomic font-noto font-opensans tini
+    libstdc++ libgcc libatomic font-noto font-opensans tini \
+    "libfontenc>=1.1.10-r0" "libxml2>=2.13.9-r3" "libxslt>=1.1.43-r4"
 
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 
