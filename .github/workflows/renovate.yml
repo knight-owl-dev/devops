@@ -43,7 +43,7 @@ jobs:
 
       - name: Run Renovate
         # The image itself: docs/supply-chain-security.md rules out wrapper actions.
-        uses: docker://ghcr.io/renovatebot/renovate:44.246.2@sha256:18a3700d2d1535d56375cde676d59d5fb0826aae22c5b9def2d8eae7b2086ca6
+        uses: docker://ghcr.io/renovatebot/renovate:44.257.9@sha256:d6b65ff3562dd499240b23d34ef806ec7e5fd2675e4236a027dfb36774f2aa75
         env:
           RENOVATE_TOKEN: ${{ steps.app-token.outputs.token }}
           RENOVATE_REPOSITORIES: ${{ github.repository }}
