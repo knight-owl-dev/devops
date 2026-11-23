@@ -91,6 +91,7 @@
     "Tange",
     "textproto",
     "tini",
+    "tmpfs",
     "tonumber",
     "tostring",
     "trimpath",

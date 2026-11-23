@@ -210,6 +210,9 @@ make resolve TOOLS="my-script:2.0.0"   # bump version
 `scripts/<name>/verify.sh` runs inside the built container and checks that
 every expected tool is present.
 
+`make verify` mounts `scripts/` read-only. To verify under a consumer's
+container flags, set `VERIFY_FLAGS_<name>` in the `Makefile`.
+
 > If a tool's `--version` reports a *different* package than the one you pin,
 > read the pinned version from its package metadata instead so the assertion
 > matches. `check()` compares the command's first output line against the
