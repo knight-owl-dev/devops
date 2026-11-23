@@ -154,6 +154,9 @@ check "bats-file" "" ls /usr/lib/bats/bats-file/load.bash
 check "rsync" "" rsync --version
 check "git" "" git --version
 check "gpg" "" gpg --version
+# A keyring operation needs a homedir gpg can create, which --version never
+# touches.
+check "gpg keyring" "" gpg --batch --list-keys
 check "make" "" make --version
 check "parallel" "" parallel --version
 check "xmlstarlet" "" xmlstarlet --version
