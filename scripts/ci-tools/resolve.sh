@@ -73,6 +73,18 @@ resolve_jq() {
   resolve_gh_release JQ jqlang/jq "${1:-}" 'jq-linux-{arch}' amd64 arm64
 }
 
+# The static musl build, free of glibc coupling.
+resolve_stylua() {
+  resolve_gh_release STYLUA JohnnyMorganz/StyLua "${1:-}" \
+    'stylua-linux-{arch}-musl.zip' x86_64 aarch64
+}
+
+# Tags carry no v prefix.
+resolve_lua_language_server() {
+  resolve_gh_release LUA_LANGUAGE_SERVER LuaLS/lua-language-server "${1:-}" \
+    'lua-language-server-{tag}-linux-{arch}.tar.gz' x64 arm64
+}
+
 resolve_npm() {
   local version="${1:-}"
   [[ -z "${version}" ]] && version="$(latest_npm_version npm)"
@@ -205,7 +217,7 @@ resolve_validate_action_pins() {
 # Determine which tools to resolve and whether a version is pinned.
 ALL_TOOLS=(
   npm
-  shfmt actionlint hadolint yq gh shellcheck jq
+  shfmt actionlint hadolint yq gh shellcheck jq stylua lua-language-server
   markdownlint-cli2 biome stylelint cspell prettier
   luacheck busted
   bats bats-support bats-assert bats-file
@@ -238,6 +250,9 @@ YQ_VERSION="" YQ_AMD64_URL="" YQ_AMD64_SHA256="" YQ_ARM64_URL="" YQ_ARM64_SHA256
 GH_VERSION="" GH_AMD64_URL="" GH_AMD64_SHA256="" GH_ARM64_URL="" GH_ARM64_SHA256=""
 SHELLCHECK_VERSION="" SHELLCHECK_AMD64_URL="" SHELLCHECK_AMD64_SHA256="" SHELLCHECK_ARM64_URL="" SHELLCHECK_ARM64_SHA256=""
 JQ_VERSION="" JQ_AMD64_URL="" JQ_AMD64_SHA256="" JQ_ARM64_URL="" JQ_ARM64_SHA256=""
+STYLUA_VERSION="" STYLUA_AMD64_URL="" STYLUA_AMD64_SHA256="" STYLUA_ARM64_URL="" STYLUA_ARM64_SHA256=""
+LUA_LANGUAGE_SERVER_VERSION="" LUA_LANGUAGE_SERVER_AMD64_URL="" LUA_LANGUAGE_SERVER_AMD64_SHA256=""
+LUA_LANGUAGE_SERVER_ARM64_URL="" LUA_LANGUAGE_SERVER_ARM64_SHA256=""
 LUACHECK_VERSION=""
 BUSTED_VERSION=""
 BATS_VERSION="" BATS_COMMIT=""
@@ -299,6 +314,16 @@ JQ_AMD64_URL=${JQ_AMD64_URL}
 JQ_AMD64_SHA256=${JQ_AMD64_SHA256}
 JQ_ARM64_URL=${JQ_ARM64_URL}
 JQ_ARM64_SHA256=${JQ_ARM64_SHA256}
+STYLUA_VERSION=${STYLUA_VERSION}
+STYLUA_AMD64_URL=${STYLUA_AMD64_URL}
+STYLUA_AMD64_SHA256=${STYLUA_AMD64_SHA256}
+STYLUA_ARM64_URL=${STYLUA_ARM64_URL}
+STYLUA_ARM64_SHA256=${STYLUA_ARM64_SHA256}
+LUA_LANGUAGE_SERVER_VERSION=${LUA_LANGUAGE_SERVER_VERSION}
+LUA_LANGUAGE_SERVER_AMD64_URL=${LUA_LANGUAGE_SERVER_AMD64_URL}
+LUA_LANGUAGE_SERVER_AMD64_SHA256=${LUA_LANGUAGE_SERVER_AMD64_SHA256}
+LUA_LANGUAGE_SERVER_ARM64_URL=${LUA_LANGUAGE_SERVER_ARM64_URL}
+LUA_LANGUAGE_SERVER_ARM64_SHA256=${LUA_LANGUAGE_SERVER_ARM64_SHA256}
 LUACHECK_VERSION=${LUACHECK_VERSION}
 BUSTED_VERSION=${BUSTED_VERSION}
 BATS_VERSION=${BATS_VERSION}
