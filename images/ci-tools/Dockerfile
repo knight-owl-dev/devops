@@ -181,10 +181,6 @@ RUN apt-get update \
 RUN sed -i 's/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen \
   && locale-gen
 
-# ---------- gpg ----------
-ENV GNUPGHOME=/tmp/gnupg
-RUN mkdir -m 700 "${GNUPGHOME}"
-
 # Silence GNU parallel's citation notice in CI logs
 RUN mkdir -p /root/.parallel && touch /root/.parallel/will-cite
 

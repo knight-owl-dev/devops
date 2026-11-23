@@ -32,7 +32,6 @@
     "fontconfig",
     "freetype",
     "Fulcio",
-    "GNUPGHOME",
     "GOPRIVATE",
     "GOPROXY",
     "goreleaser",
