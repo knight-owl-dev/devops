@@ -4,7 +4,8 @@ set -euo pipefail
 # verify.sh — Verify that all expected ci-tools are installed and functional
 #
 # Checks each tool by running its version command, and asserts the reported
-# version matches the lockfile when /versions.lock is mounted.
+# version matches the lockfile when /versions.lock is mounted. The Lua linters
+# also run on scripts/ci-tools/fixtures/lua and must return each verdict.
 # Intended to run inside the built ci-tools container via `make verify`.
 #
 # Exit codes:
@@ -18,7 +19,7 @@ source "${REPO_ROOT}/scripts/lib/verify.sh"
 # Load expected versions from the lockfile if mounted.
 NPM_VERSION=""
 SHFMT_VERSION="" ACTIONLINT_VERSION="" HADOLINT_VERSION="" YQ_VERSION="" GH_VERSION=""
-SHELLCHECK_VERSION="" JQ_VERSION=""
+SHELLCHECK_VERSION="" JQ_VERSION="" STYLUA_VERSION="" LUA_LANGUAGE_SERVER_VERSION=""
 LUACHECK_VERSION="" BUSTED_VERSION=""
 BATS_VERSION=""
 VALIDATE_ACTION_PINS_VERSION=""
@@ -84,6 +85,31 @@ prettier_loads() {
   cd /tmp && echo ok | prettier --plugin "${1}" --stdin-filepath x.md
 }
 
+# Run a linter from a fixture workspace's root and require its verdict. A
+# version check never touches the paths a lint run writes, so only a real run
+# proves the tool under verify's read-only, arbitrary-UID container.
+#
+# Arguments:
+#   $1 - Workspace under fixtures/lua
+#   $2 - Expected exit code
+#   $3 - Text the output must hold (empty for any)
+#   $@ - Linter command
+lints() {
+  local dir="${1}" want="${2}" text="${3}"
+  shift 3
+  local output status=0
+  output="$(cd "${REPO_ROOT}/scripts/ci-tools/fixtures/lua/${dir}" && "${@}" 2>&1)" || status=$?
+  if ((status != want)); then
+    echo "exit ${status}, expected ${want}: ${output}"
+    return 1
+  fi
+  if [[ -n "${text}" && "${output}" != *"${text}"* ]]; then
+    echo "no ${text} in: ${output}"
+    return 1
+  fi
+  echo "exit ${status}"
+}
+
 echo "Verifying ci-tools ..."
 check "npm" "${NPM_VERSION}" npm --version
 # check reads only the first line, and shellcheck's --version opens with a banner.
@@ -101,6 +127,13 @@ check "biome" "${BIOME_VERSION}" biome --version
 check "lua" "5.4" lua5.4 -v
 check "luacheck" "${LUACHECK_VERSION}" luacheck --version
 check "busted" "${BUSTED_VERSION}" busted --version
+check "stylua" "${STYLUA_VERSION}" stylua --version
+check "stylua clean" "" lints clean 0 "" stylua --check .
+check "stylua findings" "" lints findings 1 "Diff in" stylua --check .
+check "lua-language-server" "${LUA_LANGUAGE_SERVER_VERSION}" lua-language-server --version
+check "lua-language-server clean" "" lints clean 0 "" lua-language-server --check=.
+check "lua-language-server findings" "" lints findings 1 "param-type-mismatch" \
+  lua-language-server --check=.
 # luassert ships as a busted dependency (no CLI); confirm the 5.4 interpreter
 # can load it — this also exercises the copied rock tree.
 check "luassert" "" lua5.4 -e "require('luassert')"

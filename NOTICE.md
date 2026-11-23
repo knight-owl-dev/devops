@@ -24,6 +24,8 @@ following tools under their respective licenses.
 - [XMLStarlet](https://xmlstar.sourceforge.net) by Mikhail Grushinskiy (MIT)
 - [yq](https://github.com/mikefarah/yq) by Mike Farah (MIT)
 - [GitHub CLI](https://github.com/cli/cli) by GitHub (MIT)
+- [StyLua](https://github.com/JohnnyMorganz/StyLua) by JohnnyMorganz (MPL-2.0)
+- [lua-language-server](https://github.com/LuaLS/lua-language-server) by LuaLS contributors (MIT)
 
 ## docs
 

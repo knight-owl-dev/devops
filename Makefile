@@ -92,12 +92,18 @@ NPM_MOUNT := $(if $(wildcard $(NPM_DIR)),-v "$(NPM_DIR):/npm:ro",)
 # NPM_MOUNT above.
 HOST_VERIFY := $(wildcard scripts/$(IMAGE)/verify-host.sh)
 
+# An image's verify runs under its strictest consumer's container flags.
+# ci-tools: Keystone's lint service (knight-owl-dev/keystone
+# scripts/lint/docker-compose.yaml).
+VERIFY_FLAGS_ci-tools := --user 12345:12345 --read-only --tmpfs /tmp \
+	--cap-drop ALL --security-opt no-new-privileges:true -e HOME=/tmp
+
 verify:
 ifneq ($(HOST_VERIFY),)
 	@IMAGE="$(IMAGE)" IMAGE_TAG="$(IMAGE_TAG)" $(HOST_VERIFY)
 else
-	@$(DOCKER_RUN) \
-		-v "$(CURDIR)/scripts:/scripts" \
+	@$(DOCKER_RUN) $(VERIFY_FLAGS_$(IMAGE)) \
+		-v "$(CURDIR)/scripts:/scripts:ro" \
 		-v "$(CURDIR)/images/$(IMAGE)/versions.lock:/versions.lock:ro" \
 		$(NPM_MOUNT) \
 		$(IMAGE_TAG) /scripts/$(IMAGE)/verify.sh

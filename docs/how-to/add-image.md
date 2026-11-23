@@ -126,7 +126,9 @@ mkdir -p images/<name> scripts/<name>
     no asset names or arch spellings.
   - Install in a throwaway stage with the repo-wide
     `scripts/build/install-release.sh` and copy the binaries into the final
-    image — see the `release-bins` stage in `images/ci-tools/Dockerfile`.
+    image — see the `release-bins` stage in `images/ci-tools/Dockerfile`. The
+    helper's header lists the asset types it takes, including `--tree` for a
+    tool that runs from its own directory.
     Wire the `shared` build context (step 5).
 - For Go tools whose releases lag Go's security fixes:
   - Declare a `TOOL_VERSION` ARG and build in a `go-builder` stage with the
@@ -207,6 +209,9 @@ make resolve TOOLS="my-script:2.0.0"   # bump version
 
 `scripts/<name>/verify.sh` runs inside the built container and checks that
 every expected tool is present.
+
+`make verify` mounts `scripts/` read-only. To verify under a consumer's
+container flags, set `VERIFY_FLAGS_<name>` in the `Makefile`.
 
 > If a tool's `--version` reports a *different* package than the one you pin,
 > read the pinned version from its package metadata instead so the assertion
