@@ -41,8 +41,9 @@ RUN luarocks --lua-version=5.4 install busted "${BUSTED_VERSION}" \
   && rm -rf /root/.cache/luarocks
 
 # ---------- release binaries ----------
-# Downloads and verifies each release binary into /out. The final stage copies
-# /out alone, so the helper and the downloaded archives never ship.
+# Downloads and verifies each release binary into /out, and each tool that runs
+# from its own tree into /opt. The final stage copies those alone, so the helper
+# and the downloaded archives never ship.
 FROM ${BASE_IMAGE} AS release-bins
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -53,6 +54,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    unzip \
   && rm -rf /var/lib/apt/lists/*
 
 # DL3022: `shared` is a named build context, not a stage
@@ -123,6 +125,28 @@ RUN install-release "${TARGETARCH}" \
       "${JQ_ARM64_URL}" "${JQ_ARM64_SHA256}" \
       /out/jq
 
+# ---------- stylua ----------
+ARG STYLUA_AMD64_URL
+ARG STYLUA_AMD64_SHA256
+ARG STYLUA_ARM64_URL
+ARG STYLUA_ARM64_SHA256
+RUN install-release "${TARGETARCH}" \
+      "${STYLUA_AMD64_URL}" "${STYLUA_AMD64_SHA256}" \
+      "${STYLUA_ARM64_URL}" "${STYLUA_ARM64_SHA256}" \
+      /out/stylua \
+      stylua
+
+# ---------- lua-language-server ----------
+# Its binary loads main.lua and script/ from the tree around it.
+ARG LUA_LANGUAGE_SERVER_AMD64_URL
+ARG LUA_LANGUAGE_SERVER_AMD64_SHA256
+ARG LUA_LANGUAGE_SERVER_ARM64_URL
+ARG LUA_LANGUAGE_SERVER_ARM64_SHA256
+RUN install-release --tree "${TARGETARCH}" \
+      "${LUA_LANGUAGE_SERVER_AMD64_URL}" "${LUA_LANGUAGE_SERVER_AMD64_SHA256}" \
+      "${LUA_LANGUAGE_SERVER_ARM64_URL}" "${LUA_LANGUAGE_SERVER_ARM64_SHA256}" \
+      /opt/lua-language-server
+
 # ---------- go builder ----------
 # Tools built from source with the repo-wide go-install helper, which the
 # `shared` build context supplies. Runs on the build platform and
@@ -191,6 +215,16 @@ RUN mkdir -p /root/.parallel && touch /root/.parallel/will-cite
 # ---------- release binaries ----------
 COPY --from=release-bins /out/ /usr/local/bin/
 COPY --from=go-builder /out/ /usr/local/bin/
+
+# ---------- lua-language-server ----------
+# It writes its log and generated builtin-library meta under its install tree by
+# default. On a read-only root that fails on stderr alone: the check runs
+# without the builtin library and reports false findings. It expands the ~
+# itself, at run time. Flags (--logpath, --metapath) still override.
+COPY --from=release-bins /opt/lua-language-server /opt/lua-language-server
+RUN ln -s /opt/lua-language-server/bin/lua-language-server /usr/local/bin/lua-language-server
+ENV LLS_LOG_PATH="~/.cache/lua-language-server/log" \
+    LLS_META_PATH="~/.cache/lua-language-server/meta"
 
 # ---------- npm ----------
 # Upgrade npm beyond the base image version to pick up transitive dependency

@@ -19,6 +19,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting |
 | [jq](https://github.com/jqlang/jq) | JSON processing |
 | [lua](https://www.lua.org) | Lua 5.4 interpreter (runtime for busted; matches Pandoc's HsLua) |
+| [lua-language-server](https://github.com/LuaLS/lua-language-server) | Lua type checking (`--check`) |
 | [luacheck](https://github.com/lunarmodules/luacheck) | Lua script linting |
 | [luassert](https://github.com/lunarmodules/luassert) | Lua assertion library (busted dependency) |
 | [make](https://www.gnu.org/software/make/) | Build automation |
@@ -31,6 +32,7 @@ CI pipelines. Published to GHCR at `ghcr.io/knight-owl-dev/ci-tools`.
 | [shellcheck](https://github.com/koalaman/shellcheck) | Shell script linting |
 | [shfmt](https://github.com/mvdan/sh) | Shell script formatting |
 | [stylelint](https://github.com/stylelint/stylelint) | CSS linting |
+| [StyLua](https://github.com/JohnnyMorganz/StyLua) | Lua formatting |
 | [unzip](https://infozip.sourceforge.net) | Archive extraction for archive-format test fixtures (ODT/DOCX/EPUB) |
 | validate-action-pins | GitHub Actions SHA pin verification |
 | [xmlstarlet](https://xmlstar.sourceforge.net) | XML querying and editing |
@@ -48,6 +50,13 @@ The image defaults to `LC_ALL=C` for deterministic sorting and output. The
 `en_US.UTF-8` locale is installed so tests can `export LC_ALL=en_US.UTF-8` to
 verify locale-independent behavior without the setting silently falling back
 to C.
+
+## lua-language-server
+
+Its log and generated builtin-library meta go under
+`~/.cache/lua-language-server` (`LLS_LOG_PATH`, `LLS_META_PATH`), so `--check`
+runs on a read-only root given a writable `HOME`. `--check_format=json` writes
+results to `~/.cache/lua-language-server/log/check.json`.
 
 ## Usage
 
