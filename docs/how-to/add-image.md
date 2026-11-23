@@ -126,7 +126,9 @@ mkdir -p images/<name> scripts/<name>
     no asset names or arch spellings.
   - Install in a throwaway stage with the repo-wide
     `scripts/build/install-release.sh` and copy the binaries into the final
-    image — see the `release-bins` stage in `images/ci-tools/Dockerfile`.
+    image — see the `release-bins` stage in `images/ci-tools/Dockerfile`. The
+    helper's header lists the asset types it takes, including `--tree` for a
+    tool that runs from its own directory.
     Wire the `shared` build context (step 5).
 - For Go tools whose releases lag Go's security fixes:
   - Declare a `TOOL_VERSION` ARG and build in a `go-builder` stage with the
